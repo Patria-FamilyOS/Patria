@@ -99,3 +99,22 @@ Slice 1 is English only. Keep all user facing text in one place so translation c
 ## D13. Admin roles merged in permissions (October 2026)
 
 Family admin and Co admin now have identical permissions (see D7 and D8). This replaces the earlier version where Co admins could not change roles, remove admins, delete the space or manage successors.
+
+## D14. Slice 1 database shape (October 2026)
+
+Approved schema for CIR05 / CIR01 / CIR02 (no UI, no cryptography).
+
+* **profiles** are 1:1 with Supabase Auth users (`id` = `auth.users.id`). Display name is stored here because the create-family mockup collects "Your name" separately from role.
+* **space_members** is many-to-many (D5). Role is per space. `relationship_label` (Mum, Dad, Grandparent, Guardian) is display-only and never used in RLS.
+* **Children under 13** live in **child_profiles**, not `space_members` and not Auth (D6). They can be members of circles (so an extended relative only sees a child if they share a circle).
+* **Default circles** Household, Extended Family and Close Friends are created with the family space and cannot be deleted. **Only Me** is one circle **per member per space** (not one shared family circle), because one person can belong to many spaces (D5) and Only Me must not leak across spaces. Only Me is not teen private space (D9).
+* **circle_item_type_defaults** exists so D8 "change default circles per item type" can be enforced and tested before photos and tasks exist. New spaces default every item type to Household.
+* **Invites** are email + shareable token, 14-day expiry, revocable, accepted once (D12). Phone/SMS is a TODO column for CIR03. Creating a membership always goes through `create_family_space` (founder) or `accept_invite` (everyone else), not a direct insert into `space_members`.
+* **Caregiver** rows must have `caregiver_access_ends_at` (default 24 hours, hard maximum 30 days). After that time they are treated as inactive for space access.
+* **Successors** may have a membership row so they can be named, but RLS gives them no family data. They may leave (delete their own membership).
+* **Last admin** means the last Family admin or Co admin (D7). A trigger blocks remove, leave, and self-demotion that would leave zero admins. Deleting the whole family space is allowed for an admin and cascades.
+* Family encryption keys and recovery contacts are **not** stored. `family_spaces` has a TODO comment for key metadata later. The server must never receive an unencrypted family key.
+
+## D15. How we record build choices (October 2026)
+
+Append a dated entry to `docs/BUILD_LOG.md` whenever we implement a slice or make a technical choice, with what we did and why. `DECISIONS.md` stays the short, numbered source of truth. `BUILD_LOG.md` is the narrative.
