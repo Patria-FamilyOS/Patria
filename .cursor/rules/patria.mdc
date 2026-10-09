@@ -10,6 +10,7 @@ alwaysApply: true
 Patria is a private family app: it runs a family's day to day and keeps its memories, voices and decisions for the next generation.
 * Product context: `docs/PRD.md`
 * Feature specs with flows, rules and acceptance criteria: `docs/FEATURES.md`
+* Build decisions that clarify or override the PRD and features: `docs/DECISIONS.md` (this file wins where it is more specific)
 * Screen designs: `docs/design/` (match these screens; ask if a screen is missing)
 * Read the relevant feature in `docs/FEATURES.md` before writing code for it. Its acceptance criteria are the definition of done.
 
