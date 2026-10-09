@@ -96,7 +96,7 @@ flowchart TB
 
 **How it works**
 
-1. Parent downloads Patria, signs up with email or Apple or Google sign in, and names the family space (for example "The Walker Family").
+1. Parent downloads Patria, signs up with email or Apple or Google sign in, and names the family space (for example "The Rivera Family").
 2. Patria creates the family encryption keys on the device and asks for two recovery contacts (a spouse, a sibling or a trusted friend).
 3. Parent is invited to connect their photo library. Analysis starts on the device in the background.
 4. Within minutes the home view shows a first Story and a "one year ago" memory.
@@ -153,7 +153,7 @@ flowchart TD
 
 **Priority:** P0 | **Phase:** Phase 1 | **Users:** All members | **Depends on:** CIR05
 
-**What it is.** Circles are the audiences inside a family space. Every item in Patria (photo, story, note, task, document) belongs to one circle, which decides who can see it. Default circles are Household, Extended Family and Close Friends, plus Only Me. Families can create custom circles such as "Mum’s side" or "Care team for Dad".
+**What it is.** Circles are the audiences inside a family space. Every item in Patria (photo, story, note, task, document) belongs to one circle, which decides who can see it. Default circles are Household, Extended Family and Close Friends, plus Only Me. Families can create custom circles such as "Mom’s side" or "Care team for Dad".
 
 **Why it matters.** Families share differently with different people. Without circles, people either overshare or stop sharing.
 
@@ -266,7 +266,7 @@ flowchart LR
 
 **User stories**
 
-* As Grandma Helen, I want to leave a voice message about the old family house, so that my grandchildren can hear it in my voice.
+* As Grandma Rosa, I want to leave a voice message about the old family house, so that my grandchildren can hear it in my voice.
 * As a parent, I want Grandma to receive photos of the kids by SMS, so that she feels close without learning an app.
 
 **How it works**
@@ -471,14 +471,14 @@ flowchart TD
 
 **User stories**
 
-* As a grandparent, I want to open "Emma’s first day of school" as one story with a short video, so that I can feel I was there.
+* As a grandparent, I want to open "Lily’s first day of school" as one story with a short video, so that I can feel I was there.
 * As a parent, I want to rename a story and add a note, so that it is told in our words.
 
 **How it works**
 
 1. Items are clustered by time, place and people into events.
 2. Events with 10 or more good items become a Story; smaller ones join the Moments timeline.
-3. The AI suggests a title and one line caption using calendar events and known places ("Boston Christmas 2026").
+3. The AI suggests a title and one line caption using calendar events and known places ("San Antonio Christmas 2026").
 4. A highlight reel of 30 to 60 seconds is generated with licensed music.
 5. Members can edit the title, caption, cover and items, and add voice notes.
 
@@ -509,7 +509,7 @@ flowchart TD
 
 **Priority:** P0 | **Phase:** Phase 1 | **Users:** All members | **Depends on:** MEM03
 
-**What it is.** Patria brings memories back at meaningful moments: "One year ago today", "Five summers at the lake", "Emma growing up". Memories appear on the home view, the kitchen display and, for elders, by SMS.
+**What it is.** Patria brings memories back at meaningful moments: "One year ago today", "Five summers at the lake", "Lily growing up". Memories appear on the home view, the kitchen display and, for elders, by SMS.
 
 **Why it matters.** Resurfacing is the emotional hook that brings the family back each week without nagging.
 
@@ -611,7 +611,7 @@ flowchart TD
 **User stories**
 
 * As a parent, I want to scan my 7 year old’s drawings each month, so that we keep them without storing boxes of paper.
-* As an adult child, I want to scan Mum’s handwritten recipes, so that they are kept in her handwriting forever.
+* As an adult child, I want to scan Mom’s handwritten recipes, so that they are kept in her handwriting forever.
 
 **How it works**
 
@@ -645,7 +645,7 @@ flowchart TD
 
 **Priority:** P1 | **Phase:** Phase 2 | **Users:** All members | **Depends on:** MEM01, MEM05, AI01
 
-**What it is.** Natural language search across photos, stories, scans, voice notes and notes: "Every birthday Dad celebrated with us", "Photos of Grandpa’s farm", "Emma’s drawings from 2026".
+**What it is.** Natural language search across photos, stories, scans, voice notes and notes: "Every birthday Dad celebrated with us", "Photos of Grandpa’s farm", "Lily’s drawings from 2026".
 
 **Why it matters.** An archive is only valuable if you can find things in it.
 
@@ -733,7 +733,7 @@ flowchart TD
 
 **User stories**
 
-* As a father, I want to record why we moved from Boston to Chicago, so that my children understand the sacrifice when they face their own big moves.
+* As a father, I want to record why we moved from Chicago to Houston, so that my children understand the sacrifice when they face their own big moves.
 * As a mother, I want the app to help structure my rambling voice note, so that it reads clearly in 20 years.
 
 **How it works**
@@ -789,7 +789,7 @@ flowchart TD
 
 **Priority:** P0 | **Phase:** Phase 1 | **Users:** Parents, grandparents, any adult | **Depends on:** LEG01, GROW04 for long term release
 
-**What it is.** Messages written or recorded now and released later to named recipients: on a date ("10 years from today"), at an age ("Emma at 18"), or on a life event ("Tyler’s wedding day", "first child"). Sealed content cannot be read by anyone, including Patria, before release.
+**What it is.** Messages written or recorded now and released later to named recipients: on a date ("10 years from today"), at an age ("Lily at 18"), or on a life event ("Sofia’s wedding day", "first child"). Sealed content cannot be read by anyone, including Patria, before release.
 
 **Why it matters.** A letter from a parent on a wedding day, or a grandparent’s voice at a graduation, is priceless. Patria makes it reliable across decades.
 
@@ -822,7 +822,7 @@ stateDiagram-v2
 
 **Business rules**
 
-* Life event triggers need a confirmer (for example, a parent confirms "Tyler got married").
+* Life event triggers need a confirmer (for example, a parent confirms "Sofia got married").
 * A recipient who is a minor at release gets the letter through their guardian unless the author chose otherwise.
 * Authors can see the list of their sealed letters and edit or withdraw while in control.
 * Letters survive company failure through the continuity escrow described in the PRD.
@@ -1305,12 +1305,12 @@ flowchart LR
 
 **User stories**
 
-* As a dad, I want to ask "What size shoe is Emma now?" and get the answer, so that I can buy shoes without texting my wife.
+* As a dad, I want to ask "What size shoe is Lily now?" and get the answer, so that I can buy shoes without texting my wife.
 * As a parent, I want the babysitter to see only the WiFi password and emergency contacts, so that private facts stay private.
 
 **How it works**
 
-1. Facts are added by typing, voice ("Emma’s shoe size is now 13") or captured automatically from receipts and emails with approval.
+1. Facts are added by typing, voice ("Lily’s shoe size is now 13") or captured automatically from receipts and emails with approval.
 2. Each fact has an owner, a circle and a "last confirmed" date.
 3. Members ask in plain language; the AI answers with the source fact.
 4. Patria notices likely changes (a new school, a new doctor) and asks before updating.
@@ -1329,7 +1329,7 @@ flowchart LR
 
 **Acceptance criteria (definition of done)**
 
-* [ ] Answers "What size shoe is Emma now?" correctly from stored facts with the source shown.
+* [ ] Answers "What size shoe is Lily now?" correctly from stored facts with the source shown.
 * [ ] Sensitive facts require a tap and device authentication to reveal.
 
 **Data captured:** Fact, category, person, value, owner, circle, last confirmed.
@@ -1477,7 +1477,7 @@ flowchart TD
 
 **Priority:** P1 | **Phase:** Phase 2 | **Users:** All members | **Depends on:** GOV02
 
-**What it is.** Household tasks with an owner, frequency, backup and standard. Example: Trash; owner Tyler; Tuesday and Friday; backup Dad; done before 7pm. If the owner misses it, the backup is notified.
+**What it is.** Household tasks with an owner, frequency, backup and standard. Example: Trash; owner Sofia; Tuesday and Friday; backup Dad; done before 7pm. If the owner misses it, the backup is notified.
 
 **Why it matters.** Ownership teaches children that everyone contributes, and backups stop tasks falling through the cracks.
 
@@ -1661,7 +1661,7 @@ stateDiagram-v2
 
 **User stories**
 
-* As a grandparent babysitting, I want Emma’s allergy and doctor details instantly, so that I can act fast if something happens.
+* As a grandparent babysitting, I want Lily’s allergy and doctor details instantly, so that I can act fast if something happens.
 
 **How it works**
 
@@ -1739,7 +1739,7 @@ stateDiagram-v2
 
 **User stories**
 
-* As a son in another city, I want to know if Mum missed her morning tablet, so that I can call her.
+* As a son in another city, I want to know if Mom missed her morning tablet, so that I can call her.
 
 **How it works**
 
@@ -1791,7 +1791,7 @@ flowchart TD
 
 **User stories**
 
-* As David, I want my sister and I to see the same updates after Mum’s appointments, so that we stay on the same page.
+* As David, I want my sister and I to see the same updates after Mom’s appointments, so that we stay on the same page.
 
 **How it works**
 
@@ -2069,7 +2069,7 @@ flowchart LR
 **User stories**
 
 * As a teen, I want my journal fully private, so that I can be honest with myself.
-* As a parent, I want an agreed rule that location sharing turns on when Tyler is out after 10pm, so that I worry less.
+* As a parent, I want an agreed rule that location sharing turns on when Sofia is out after 10pm, so that I worry less.
 
 **How it works**
 
@@ -2251,7 +2251,7 @@ sequenceDiagram
 
 **Priority:** P0 | **Phase:** Phase 1 | **Users:** All members | **Depends on:** MEM01, CIR01
 
-**What it is.** Ask questions about the family’s life in plain language: "When did we last visit Boston?", "What did Mum cook at Christmas 2019?", "Show me Grandpa’s farm". Every answer cites the photos, events or notes it came from.
+**What it is.** Ask questions about the family’s life in plain language: "When did we last visit San Antonio?", "What did Mom cook at Christmas 2019?", "Show me Grandpa’s farm". Every answer cites the photos, events or notes it came from.
 
 **Why it matters.** It turns years of scattered context into instant answers and is the first taste of the Family AI.
 
@@ -2269,7 +2269,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-  A[Member asks: When did we last visit Boston?] --> B[Identify asker role and circles]
+  A[Member asks: When did we last visit San Antonio?] --> B[Identify asker role and circles]
   B --> C[Retrieve only items this person may see]
   C --> D[Compose answer with model<br/>isolated to this family]
   D --> E[Attach source cards: photos, events, notes]

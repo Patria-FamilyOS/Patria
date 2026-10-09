@@ -99,11 +99,11 @@ Patria is the family’s shared memory, shared brain and shared heart. It gather
 
 ### 3.4 How it looks in daily life
 
-Sunday evening, the kitchen display shows the week: soccer Wednesday, a school project due Thursday, a dentist visit that clashes with practice (with two suggested fixes), and a reminder that the water heater needs servicing. The family spends 20 minutes on the Family Sync: what went well, who needs help, and one priority for the week. Tyler, who is 15, accepts ownership of Tuesday dinner.
+Sunday evening, the kitchen display shows the week: soccer Wednesday, a school project due Thursday, a dentist visit that clashes with practice (with two suggested fixes), and a reminder that the water heater needs servicing. The family spends 20 minutes on the Family Sync: what went well, who needs help, and one priority for the week. Sofia, who is 15, accepts ownership of Tuesday dinner.
 
 On Wednesday, a push notification shows a photo from five summers ago at the lake. Grandma, who never installed the app, answers this week’s oral history question ("What was your first job?") by leaving a voicemail, and it lands in the family archive with her voice intact.
 
-After a big career decision, James records a two minute voice note in the Decision Ledger explaining the reasoning, set to unlock for each child at 25. Twenty years later, a grandchild facing a similar crossroads opens Patria and hears exactly how their grandparent thought it through.
+After a big career decision, Marco records a two minute voice note in the Decision Ledger explaining the reasoning, set to unlock for each child at 25. Twenty years later, a grandchild facing a similar crossroads opens Patria and hears exactly how their grandparent thought it through.
 
 ## 4. Target Markets
 
@@ -123,12 +123,12 @@ After a big career decision, James records a two minute voice note in the Decisi
 
 | **Persona**                          | **Snapshot**                                                                                          | **Needs from Patria**                                                                                                   |
 |--------------------------------------|-------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------|
-| **Sarah, the default parent** (38)   | Works full time, two kids, holds every detail in her head. Tried Cozi and gave up keeping it current. | Zero upkeep capture from email; a shared brain so others can answer their own questions; Fair Share so the load is visible |
+| **Elena, the default parent** (38)   | Works full time, two kids, holds every detail in her head. Tried Cozi and gave up keeping it current. | Zero upkeep capture from email; a shared brain so others can answer their own questions; Fair Share so the load is visible |
 | **David, the sandwich sibling** (47) | Coordinates his mother’s care with a sister in another city while raising teens.                      | Elder care hub; medication reminders with sibling nudges; shared documents; early signals                                  |
-| **Grandma Helen** (74)               | Lives abroad, uses WhatsApp and voice calls, will not install new apps.                               | SMS and voicemail participation; oral history prompts; seeing grandchildren grow; scam protection                          |
-| **Tyler, the teen** (15)             | Wants privacy and independence, dislikes being tracked.                                               | Private space with agreed boundaries; real ownership of tasks and money; opt in location only                              |
-| **Emma, the child** (7)              | Loves pictures and routines.                                                                          | Visual schedule and chores; simple feelings check in; her drawings saved forever                                           |
-| **Mr. Walker, the patriarch** (62)   | Built a family business and wants his reasoning and values to outlast him.                            | Decision Ledger; Letters to the Future; Family Constitution; Generational Custody Handover                                 |
+| **Grandma Rosa** (74)                | Lives abroad, uses WhatsApp and voice calls, will not install new apps.                               | SMS and voicemail participation; oral history prompts; seeing grandchildren grow; scam protection                          |
+| **Sofia, the teen** (15)              | Wants privacy and independence, dislikes being tracked.                                               | Private space with agreed boundaries; real ownership of tasks and money; opt in location only                              |
+| **Lily, the child** (7)               | Loves pictures and routines.                                                                          | Visual schedule and chores; simple feelings check in; her drawings saved forever                                           |
+| **Mr. Rivera, the patriarch** (62)   | Built a family business and wants his reasoning and values to outlast him.                            | Decision Ledger; Letters to the Future; Family Constitution; Generational Custody Handover                                 |
 
 ### 4.3 Beachhead
 
@@ -246,7 +246,7 @@ P0 means required for the MVP launch, P1 means required for the phase listed, an
 
 | **ID** | **Requirement**                                                                                                                   | **Priority** | **Acceptance criteria**                                                  |
 |--------|-----------------------------------------------------------------------------------------------------------------------------------|--------------|--------------------------------------------------------------------------|
-| BRN01  | Knowledge base for household facts, people facts, contacts and how things work.                                                   | P1           | Answers "What size shoe is Emma now?" correctly from stored facts         |
+| BRN01  | Knowledge base for household facts, people facts, contacts and how things work.                                                   | P1           | Answers "What size shoe is Lily now?" correctly from stored facts         |
 | BRN02  | Auto intake: read school emails, schedules, appointment texts and bills (with explicit consent) and propose events and reminders. | P1           | Proposals require approval; 85% extraction accuracy on test set          |
 | BRN03  | Unified weekly view on phone, TV and kitchen display.                                                                             | P1           | Loads in under 2 seconds; readable from 2 meters                         |
 | BRN04  | Conflict spotting with suggested fixes days ahead.                                                                                | P1           | Overlaps flagged at least 48 hours before                                |
@@ -282,7 +282,7 @@ P0 means required for the MVP launch, P1 means required for the phase listed, an
 
 | **ID** | **Requirement**                                                                   | **Priority** | **Acceptance criteria**                                                     |
 |--------|-----------------------------------------------------------------------------------|--------------|-----------------------------------------------------------------------------|
-| AI01   | Answer questions from the family’s own records ("When did we last visit Boston?"). | P0           | Every answer cites its source item                                          |
+| AI01   | Answer questions from the family’s own records ("When did we last visit San Antonio?"). | P0           | Every answer cites its source item                                          |
 | AI02   | Plan outings that fit schedules, energy and budget.                               | P1           | Plans respect calendar conflicts                                            |
 | AI03   | Draft toasts, thank you notes and letters from family stories.                    | P1           | Draft is editable and never sent automatically                              |
 | AI04   | Offer gentle observations and nudges ("You have not called Dad in two weeks").    | P1           | User controls nudge types and frequency; quiet by default                   |
@@ -301,7 +301,7 @@ P0 means required for the MVP launch, P1 means required for the phase listed, an
 
 Journey 1: First ten minutes (activation)
 
-1.  Sarah downloads Patria and names the family space.
+1.  Elena downloads Patria and names the family space.
 
 2.  She connects her photo library; within minutes the app shows a first story and a "one year ago" memory.
 
