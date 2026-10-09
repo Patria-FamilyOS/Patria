@@ -1,0 +1,54 @@
+---
+description: Core rules for building the Patria family app. Always apply.
+globs:
+alwaysApply: true
+---
+
+# Patria project rules
+
+## What we are building
+Patria is a private family app: it runs a family's day to day and keeps its memories, voices and decisions for the next generation.
+* Product context: `docs/PRD.md`
+* Feature specs with flows, rules and acceptance criteria: `docs/FEATURES.md`
+* Screen designs: `docs/design/` (match these screens; ask if a screen is missing)
+* Read the relevant feature in `docs/FEATURES.md` before writing code for it. Its acceptance criteria are the definition of done.
+
+## Repository layout
+* The mobile app lives in `patria-app/`. Run all npm and expo commands from inside `patria-app/`.
+* Database migrations, policies and edge functions live in `patria-app/supabase/`.
+* Docs live in `docs/` at the repository root. Never put secrets in docs.
+
+## Tech stack (do not change without asking)
+* React Native with Expo (managed workflow) and TypeScript in strict mode.
+* Navigation: Expo Router (file based routes in `patria-app/app/`).
+* Backend: Supabase (Auth, Postgres, Storage, Edge Functions).
+* Server state: TanStack Query. Local UI state: React state or Zustand.
+* Forms and validation: react-hook-form with zod. Validate all input at the edges.
+* Tests: Jest with React Native Testing Library for app code; SQL tests for database policies.
+* Linting and formatting: ESLint and Prettier. Code must pass `npx tsc --noEmit` and `npx eslint .` with no errors.
+* Install Expo packages with `npx expo install <package>` so versions match the Expo SDK.
+* Ask before adding any new dependency. Prefer well maintained, widely used libraries.
+
+## Non negotiables: privacy and security
+* Family data is private by default. No ads, no analytics or tracking SDKs, no selling or sharing of data.
+* Every table has Row Level Security enabled. A user can only read or write rows for family spaces they belong to, limited by their role and circle. Write a test for every policy.
+* Vault tier data (Legacy Vault, sealed letters, documents, health records, teen private space, codes and passwords) is encrypted on the device before upload. The server must never receive plaintext vault content or unencrypted family keys.
+* Use established, audited cryptography libraries only. Never write custom cryptographic algorithms. Mark every crypto related file with a `// SECURITY REVIEW REQUIRED` comment at the top.
+* Never log personal data, tokens, keys or message content. Never commit secrets. Secrets go in `.env` files that are gitignored; only values prefixed `EXPO_PUBLIC_` may reach the app, and those must be safe to expose.
+* Children under 13 cannot create their own accounts; only a Family admin can add them.
+* The app suggests and never acts on the family's behalf without explicit confirmation.
+
+## Code standards
+* Small, focused components and functions. One feature per folder under `patria-app/src/features/<feature>/`.
+* Shared UI components in `patria-app/src/components/`; design tokens (colors, spacing, type) in `patria-app/src/theme/`.
+* No `any` types. Handle loading, empty and error states on every screen.
+* Accessibility: every touchable has an accessibility label; support large text.
+* Plain, warm language in the UI. Patria is quiet by default: no streaks, no guilt messages, no pushy notifications.
+
+## How to work
+1. For any feature, first propose a short plan: files to create or change, database changes, and tests. Wait for approval before writing code.
+2. Build in small steps. After each step, run the type check, linter and tests, and fix failures before moving on.
+3. Write tests that map to the feature's acceptance criteria in `docs/FEATURES.md`.
+4. When finished, list which acceptance criteria are met, which are not yet, and anything that needs a human security review.
+5. Suggest a short commit message describing the change.
+6. If a requirement is unclear or conflicts with these rules, stop and ask instead of guessing.
