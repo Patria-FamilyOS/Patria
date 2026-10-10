@@ -6,6 +6,38 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-09 — Slice 1 screens: auth, family, invites
+
+### What we built
+
+Email sign up / sign in / verify, create family space, placeholder family home with members, invite by **link and email**, accept/decline, add child profile, admin change role and remove.
+
+Database (function + enum only): `declined` invite status, `decline_invite()`, `get_invite_preview` now includes `inviter_display_name`. No table changes.
+
+### Options we chose, and why
+
+**1. Invite is both a link and an email (D16)**
+
+The invite row still stores email so `accept_invite` can match the signed-in account. After create, the admin can **Share invite link** (`patria://invite/{token}`) and/or **Send by email** (opens the phone mail app with that same link). We did not add a server mailer in this slice.
+
+**2. Decline invalidates the token**
+
+`decline_invite` sets status `declined`. Preview and accept then fail. Pending invites also expire after 14 days (`expires_at`), so a forgotten invite dies even if nobody taps Decline.
+
+**3. Family home is a placeholder, not HOME-01**
+
+HOME-01 includes Sync, memories and tasks, which are out of D1. Home shows family name, members, roles, admin actions, and a switcher only when the user is in more than one space (D5).
+
+**4. Mail composer instead of Supabase Auth invite**
+
+Supabase `inviteUserByEmail` needs the service role key, which must not live in the app. The mail app on the phone is the safe way to send the link in slice 1.
+
+### Deferred
+
+Keys, photo library, SMS, merge spaces, custom circle editor, vault, push notifications. Database tests were not run here because Docker was not running.
+
+---
+
 ## 2026-10-09 — App foundation (Expo Router, no feature screens)
 
 ### What we built

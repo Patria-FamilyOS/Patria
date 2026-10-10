@@ -4,24 +4,24 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { copy } from '../lib/copy';
 import { PlaceholderScreen } from './PlaceholderScreen';
 
-const safeAreaMetrics = {
+const metrics = {
   frame: { x: 0, y: 0, width: 390, height: 844 },
   insets: { top: 0, left: 0, right: 0, bottom: 0 },
 };
 
 describe('PlaceholderScreen', () => {
-  it('renders copy for the signed-out placeholder', () => {
+  it('renders title and body copy', () => {
     const { getByText } = render(
-      <SafeAreaProvider initialMetrics={safeAreaMetrics}>
+      <SafeAreaProvider initialMetrics={metrics}>
         <PlaceholderScreen
-          title={copy.signedOut.title}
-          body={copy.signedOut.body}
-          accessibilityLabel={copy.signedOut.title}
+          title={copy.welcome.title}
+          body={copy.welcome.body}
+          accessibilityLabel={copy.welcome.title}
         />
       </SafeAreaProvider>,
     );
 
-    expect(getByText(copy.signedOut.title)).toBeTruthy();
-    expect(getByText(copy.signedOut.body)).toBeTruthy();
+    expect(getByText(copy.welcome.title)).toBeTruthy();
+    expect(getByText(copy.welcome.body)).toBeTruthy();
   });
 });

@@ -6,6 +6,9 @@ export const colors = {
   text: '#1F2A24',
   textMuted: '#5C6B64',
   onThisDay: '#F3DDD0',
+  danger: '#9B3A2F',
+  chip: '#E7E1D6',
+  onPrimary: '#F7F1E8',
 } as const;
 
 export const spacing = {

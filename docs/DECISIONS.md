@@ -118,3 +118,9 @@ Approved schema for CIR05 / CIR01 / CIR02 (no UI, no cryptography).
 ## D15. How we record build choices (October 2026)
 
 Append a dated entry to `docs/BUILD_LOG.md` whenever we implement a slice or make a technical choice, with what we did and why. `DECISIONS.md` stays the short, numbered source of truth. `BUILD_LOG.md` is the narrative.
+
+## D16. Invite delivery and decline (October 2026)
+
+* An invite always stores an email (so accept can match the signed-in account) **and** a shareable `patria://invite/{token}` link. The inviting person can send the link with the phone share sheet **or** open an email draft to that address. Same token either way.
+* **Decline** invalidates the token on the server (`declined` status). Accept and preview then fail.
+* Pending invites still expire after 14 days even if nobody declines (`expires_at`).

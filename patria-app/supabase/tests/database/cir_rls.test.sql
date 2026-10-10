@@ -763,5 +763,49 @@ DELETE FROM public.space_members WHERE user_id = '99999999-9999-9999-9999-999999
 RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.space_members WHERE user_id = '99999999-9999-9999-9999-999999999999'), 0, 'successor can leave the family space');
 
+INSERT INTO public.invites (family_space_id, invited_by, email, role, default_circle_id)
+SELECT fx.rivera, '11111111-1111-1111-1111-111111111111', 'decline@example.com', 'elder', c.id
+FROM fx
+JOIN public.circles AS c ON c.family_space_id = fx.rivera AND c.kind = 'household';
+
+SELECT is(
+  (SELECT inviter_display_name FROM public.get_invite_preview(
+    (SELECT token FROM public.invites WHERE email = 'decline@example.com' AND status = 'pending' LIMIT 1)
+  )),
+  'Elena Rivera',
+  'invite preview includes who invited'
+);
+
+SELECT public.decline_invite(
+  (SELECT token FROM public.invites WHERE email = 'decline@example.com' ORDER BY created_at DESC LIMIT 1)
+);
+
+SELECT is(
+  (SELECT status::text FROM public.invites WHERE email = 'decline@example.com' ORDER BY created_at DESC LIMIT 1),
+  'declined',
+  'decline invalidates a pending invite'
+);
+
+SELECT is_empty(
+  format(
+    $sql$SELECT * FROM public.get_invite_preview(%L)$sql$,
+    (SELECT token FROM public.invites WHERE email = 'decline@example.com' ORDER BY created_at DESC LIMIT 1)
+  ),
+  'declined invite has no preview'
+);
+
+SELECT tests_jwt('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+SET LOCAL ROLE authenticated;
+SELECT throws_ok(
+  format(
+    $sql$SELECT public.accept_invite(%L)$sql$,
+    (SELECT token FROM public.invites WHERE email = 'decline@example.com' ORDER BY created_at DESC LIMIT 1)
+  ),
+  '23514',
+  NULL,
+  'declined invite cannot be accepted'
+);
+RESET ROLE;
+
 SELECT * FROM finish();
 ROLLBACK;

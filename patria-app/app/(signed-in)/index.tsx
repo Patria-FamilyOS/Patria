@@ -1,12 +1,3 @@
-import { PlaceholderScreen } from '../../src/components/PlaceholderScreen';
-import { copy } from '../../src/lib/copy';
+import { HomeScreen } from '../../src/features/family/HomeScreen';
 
-export default function SignedInHome() {
-  return (
-    <PlaceholderScreen
-      title={copy.signedIn.title}
-      body={copy.signedIn.body}
-      accessibilityLabel={copy.signedIn.title}
-    />
-  );
-}
+export default HomeScreen;

@@ -1,12 +1,5 @@
-import { PlaceholderScreen } from '../../src/components/PlaceholderScreen';
-import { copy } from '../../src/lib/copy';
+import { WelcomeScreen } from '../../src/features/auth/WelcomeScreen';
 
-export default function SignedOutHome() {
-  return (
-    <PlaceholderScreen
-      title={copy.signedOut.title}
-      body={copy.signedOut.body}
-      accessibilityLabel={copy.signedOut.title}
-    />
-  );
+export default function SignedOutIndex() {
+  return <WelcomeScreen />;
 }
