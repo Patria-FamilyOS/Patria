@@ -46,8 +46,8 @@ export function InvitePreviewScreen({ token }: InvitePreviewScreenProps) {
     const { data, error } = await supabase.rpc('accept_invite', { p_token: token });
     setBusy(false);
     if (error) {
-      const mismatch = error.message.toLowerCase().includes('email');
-      setActionError(mismatch ? copy.invitePreview.emailMismatch : copy.common.error);
+      const code = 'code' in error ? String(error.code) : '';
+      setActionError(code === '42501' ? copy.invitePreview.emailMismatch : copy.common.error);
       return;
     }
     await clearPendingInviteToken();

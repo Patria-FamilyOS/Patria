@@ -95,7 +95,7 @@ SELECT tests_create_auth_user('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'invitee@e
 
 SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
 SET LOCAL ROLE authenticated;
-SELECT public.create_family_space('The Rivera Family', 'Mum');
+SELECT public.create_family_space('The Rivera Family', 'Mom');
 RESET ROLE;
 
 SELECT tests_jwt('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
@@ -806,6 +806,17 @@ SELECT throws_ok(
   'declined invite cannot be accepted'
 );
 RESET ROLE;
+
+SELECT tests_create_auth_user(
+  'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+  'autoprofile@example.com',
+  'Auto Profile'
+);
+SELECT is(
+  (SELECT display_name FROM public.profiles WHERE id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'),
+  'Auto Profile',
+  'new auth user gets a profile automatically'
+);
 
 SELECT * FROM finish();
 ROLLBACK;

@@ -35,7 +35,7 @@ export function CreateFamilyScreen() {
       p_relationship_label: copy.relationships[values.relationship],
     });
     if (error || !data) {
-      setFormError(error?.message ?? copy.common.error);
+      setFormError(copy.createFamily.failed);
       return;
     }
     await writeCurrentFamilyId(String(data));

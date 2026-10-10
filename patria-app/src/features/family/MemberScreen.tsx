@@ -63,7 +63,7 @@ export function MemberScreen({ userId }: MemberScreenProps) {
       .eq('family_space_id', spaceId)
       .eq('user_id', userId);
     if (updateError) {
-      setError(updateError.message);
+      setError(copy.member.saveFailed);
       return;
     }
     router.replace('/(signed-in)');
@@ -86,7 +86,7 @@ export function MemberScreen({ userId }: MemberScreenProps) {
             .eq('user_id', userId)
             .then(({ error: deleteError }) => {
               if (deleteError) {
-                setError(deleteError.message);
+                setError(copy.member.removeFailed);
                 return;
               }
               router.replace('/(signed-in)');

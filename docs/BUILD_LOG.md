@@ -6,6 +6,24 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-10 — Profiles on Auth insert, friendly errors, Mom
+
+### What we built
+
+A new migration recreates `handle_new_user` so every `auth.users` row gets a `public.profiles` row (including people added in the Supabase dashboard). Existing Auth users without a profile are backfilled. Sign-up no longer writes the profile from the app. Family create and other screens show copy-file messages instead of database errors. The create-family chip reads **Mom**.
+
+### Options we chose, and why
+
+Dashboard-created test users never hit sign-up, so they had no profile and `create_family_space` failed on `family_spaces_created_by_fkey`. The trigger is the single writer at account creation. Display name comes from `raw_user_meta_data.display_name`, or empty if that key is missing. We did not edit already-applied migrations.
+
+UI never shows Postgres or Auth error text (it can include emails and constraint names). We do not log those errors either.
+
+### Deferred
+
+`db push` and `supabase test db` still need Docker / the remote project from a human.
+
+---
+
 ## 2026-10-09 — Slice 1 screens: auth, family, invites
 
 ### What we built
@@ -126,7 +144,7 @@ D8 includes “change default circles per item type.” Without a table, we coul
 
 **8. `relationship_label` is not a role**
 
-The create-family mockup uses Mum / Dad / Grandparent / Guardian. Those are how someone describes themselves in the family, not what they can do. Permissions stay on `space_role`. Mixing them would make “Mum” an admin by accident.
+The create-family mockup uses Mom / Dad / Grandparent / Guardian. Those are how someone describes themselves in the family, not what they can do. Permissions stay on `space_role`. Mixing them would make “Mom” an admin by accident.
 
 **9. Extended relatives see the member list only through shared circles**
 

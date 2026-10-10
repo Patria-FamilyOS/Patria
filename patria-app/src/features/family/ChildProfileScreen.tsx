@@ -65,7 +65,7 @@ export function ChildProfileScreen({ childId }: ChildProfileScreenProps) {
             .eq('id', childId)
             .then(({ error: deleteError }) => {
               if (deleteError) {
-                setError(deleteError.message);
+                setError(copy.member.removeFailed);
                 return;
               }
               router.replace('/(signed-in)');

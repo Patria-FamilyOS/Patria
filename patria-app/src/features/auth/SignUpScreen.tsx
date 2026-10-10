@@ -32,14 +32,10 @@ export function SignUpScreen() {
       options: { data: { display_name: values.name } },
     });
     if (error) {
-      setFormError(error.message);
+      setFormError(copy.auth.signUpFailed);
       return;
     }
     if (data.session) {
-      await supabase
-        .from('profiles')
-        .update({ display_name: values.name })
-        .eq('id', data.session.user.id);
       router.replace('/');
       return;
     }

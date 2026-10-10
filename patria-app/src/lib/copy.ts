@@ -34,6 +34,8 @@ export const copy = {
     verifyBody: 'We sent a note to confirm your address. Open it, then come back here to sign in.',
     verifyDone: 'I have confirmed my email',
     signOut: 'Sign out',
+    signUpFailed: 'We couldn’t create your account. Please try again.',
+    signInFailed: 'We couldn’t sign you in. Check your email and password, then try again.',
   },
   createFamily: {
     title: 'Every family has a story. Start yours.',
@@ -42,11 +44,12 @@ export const copy = {
     spaceNamePlaceholder: 'The Rivera Family',
     relationshipLabel: 'In this family I am',
     submit: 'Create our family',
+    failed: 'We couldn’t create your family. Please try again.',
     privacy: 'Your family holds the keys. No ads, ever.',
     privacyLink: 'Read our Privacy Statement',
   },
   relationships: {
-    mum: 'Mum',
+    mum: 'Mom',
     dad: 'Dad',
     grandparent: 'Grandparent',
     guardian: 'Guardian',
@@ -93,6 +96,7 @@ export const copy = {
     create: 'Create invite',
     shareLink: 'Share invite link',
     sendEmail: 'Send by email',
+    createFailed: 'We couldn’t create that invite. Please try again.',
     created: 'Invite is ready. Share the link, send it by email, or both.',
     pendingTitle: 'Waiting to join',
     expires: 'Expires {date}',
@@ -126,6 +130,7 @@ export const copy = {
     namePlaceholder: 'Sofia',
     birthLabel: 'Date of birth (optional)',
     submit: 'Add child',
+    failed: 'We couldn’t add this child. Please try again.',
     noEmail: 'No email needed',
   },
   member: {
@@ -135,6 +140,8 @@ export const copy = {
     remove: 'Remove from this family',
     removeConfirm: 'Remove this person from the family space?',
     lastAdmin: 'A family space must keep at least one admin. Add another admin before you leave or change this role.',
+    saveFailed: 'We couldn’t save that change. Please try again.',
+    removeFailed: 'We couldn’t remove this person. Please try again.',
     childRemove: 'Remove this child profile',
   },
   circles: {

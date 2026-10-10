@@ -93,7 +93,7 @@ export function InviteScreen() {
       .select('token')
       .single();
     if (error || !data) {
-      setFormError(error?.message ?? copy.common.error);
+      setFormError(copy.invite.createFailed);
       return;
     }
     setCreatedToken(data.token as string);

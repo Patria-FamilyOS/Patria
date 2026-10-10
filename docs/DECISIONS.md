@@ -105,7 +105,7 @@ Family admin and Co admin now have identical permissions (see D7 and D8). This r
 Approved schema for CIR05 / CIR01 / CIR02 (no UI, no cryptography).
 
 * **profiles** are 1:1 with Supabase Auth users (`id` = `auth.users.id`). Display name is stored here because the create-family mockup collects "Your name" separately from role.
-* **space_members** is many-to-many (D5). Role is per space. `relationship_label` (Mum, Dad, Grandparent, Guardian) is display-only and never used in RLS.
+* **space_members** is many-to-many (D5). Role is per space. `relationship_label` (Mom, Dad, Grandparent, Guardian) is display-only and never used in RLS.
 * **Children under 13** live in **child_profiles**, not `space_members` and not Auth (D6). They can be members of circles (so an extended relative only sees a child if they share a circle).
 * **Default circles** Household, Extended Family and Close Friends are created with the family space and cannot be deleted. **Only Me** is one circle **per member per space** (not one shared family circle), because one person can belong to many spaces (D5) and Only Me must not leak across spaces. Only Me is not teen private space (D9).
 * **circle_item_type_defaults** exists so D8 "change default circles per item type" can be enforced and tested before photos and tasks exist. New spaces default every item type to Household.

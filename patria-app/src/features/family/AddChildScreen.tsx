@@ -48,7 +48,7 @@ export function AddChildScreen() {
       .select('id')
       .single();
     if (error || !data) {
-      setFormError(error?.message ?? copy.common.error);
+      setFormError(copy.child.failed);
       return;
     }
     const household = await householdCircleId(spaceId);

@@ -30,7 +30,7 @@ export function SignInScreen() {
       password: values.password,
     });
     if (error) {
-      setFormError(error.message);
+      setFormError(copy.auth.signInFailed);
       return;
     }
     router.replace('/');
