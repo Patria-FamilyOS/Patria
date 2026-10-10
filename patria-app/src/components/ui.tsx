@@ -16,11 +16,16 @@ import { colors, spacing, type } from '../theme';
 type ScreenProps = {
   children: ReactNode;
   accessibilityLabel?: string;
+  withHeader?: boolean;
 };
 
-export function Screen({ children, accessibilityLabel }: ScreenProps) {
+export function Screen({ children, accessibilityLabel, withHeader = false }: ScreenProps) {
   return (
-    <SafeAreaView style={styles.safe} accessibilityLabel={accessibilityLabel}>
+    <SafeAreaView
+      style={styles.safe}
+      edges={withHeader ? ['bottom', 'left', 'right'] : ['top', 'bottom', 'left', 'right']}
+      accessibilityLabel={accessibilityLabel}
+    >
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"

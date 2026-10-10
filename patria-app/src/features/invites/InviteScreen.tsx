@@ -132,14 +132,14 @@ export function InviteScreen() {
 
   if (!spaceId || circlesQuery.isLoading) {
     return (
-      <Screen>
+      <Screen withHeader>
         <LoadingState message={copy.common.loading} />
       </Screen>
     );
   }
 
   return (
-    <Screen accessibilityLabel={copy.invite.title}>
+    <Screen accessibilityLabel={copy.invite.title} withHeader>
       <Title>{copy.invite.title}</Title>
       <Controller
         control={control}

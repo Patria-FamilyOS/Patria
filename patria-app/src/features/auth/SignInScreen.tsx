@@ -37,7 +37,7 @@ export function SignInScreen() {
   });
 
   return (
-    <Screen accessibilityLabel={copy.auth.signInTitle}>
+    <Screen accessibilityLabel={copy.auth.signInTitle} withHeader>
       <Title>{copy.auth.signInTitle}</Title>
       <Controller
         control={control}

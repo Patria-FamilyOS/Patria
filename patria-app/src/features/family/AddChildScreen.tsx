@@ -58,11 +58,11 @@ export function AddChildScreen() {
         child_profile_id: data.id,
       });
     }
-    router.replace('/(signed-in)');
+    router.replace('/(signed-in)/home');
   });
 
   return (
-    <Screen accessibilityLabel={copy.child.title}>
+    <Screen accessibilityLabel={copy.child.title} withHeader>
       <Title>{copy.child.title}</Title>
       <Body>{copy.child.body}</Body>
       <Muted>{copy.child.noEmail}</Muted>

@@ -7,7 +7,7 @@ export function VerifyScreen() {
   const router = useRouter();
 
   return (
-    <Screen accessibilityLabel={copy.auth.verifyTitle}>
+    <Screen accessibilityLabel={copy.auth.verifyTitle} withHeader>
       <Title>{copy.auth.verifyTitle}</Title>
       <Body>{copy.auth.verifyBody}</Body>
       <Button

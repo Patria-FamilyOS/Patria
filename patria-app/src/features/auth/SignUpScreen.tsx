@@ -43,7 +43,7 @@ export function SignUpScreen() {
   });
 
   return (
-    <Screen accessibilityLabel={copy.auth.signUpTitle}>
+    <Screen accessibilityLabel={copy.auth.signUpTitle} withHeader>
       <Title>{copy.auth.signUpTitle}</Title>
       <Controller
         control={control}

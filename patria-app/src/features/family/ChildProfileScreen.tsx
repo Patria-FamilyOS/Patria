@@ -42,7 +42,7 @@ export function ChildProfileScreen({ childId }: ChildProfileScreenProps) {
 
   if (childrenQuery.isLoading || !child) {
     return (
-      <Screen>
+      <Screen withHeader>
         {childrenQuery.isLoading ? (
           <LoadingState message={copy.common.loading} />
         ) : (
@@ -68,7 +68,7 @@ export function ChildProfileScreen({ childId }: ChildProfileScreenProps) {
                 setError(copy.member.removeFailed);
                 return;
               }
-              router.replace('/(signed-in)');
+              router.replace('/(signed-in)/home');
             });
         },
       },
@@ -76,7 +76,7 @@ export function ChildProfileScreen({ childId }: ChildProfileScreenProps) {
   };
 
   return (
-    <Screen accessibilityLabel={child.displayName}>
+    <Screen accessibilityLabel={child.displayName} withHeader>
       <Title>{child.displayName}</Title>
       <Body>{copy.roles.child}</Body>
       <Muted>{copy.child.noEmail}</Muted>

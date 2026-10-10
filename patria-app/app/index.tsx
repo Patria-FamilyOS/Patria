@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { Redirect } from 'expo-router';
 
-import { LoadingState, Screen } from '../src/components/ui';
+import { ErrorState, LoadingState, Screen } from '../src/components/ui';
 import { useAuth } from '../src/lib/auth-context';
 import { copy } from '../src/lib/copy';
 import { fetchMemberships } from '../src/lib/family';
 import { readPendingInviteToken } from '../src/lib/pendingInvite';
+import { resolveEntryHref } from '../src/lib/sessionGate';
 
 export default function Index() {
   const { session, loading } = useAuth();
@@ -31,10 +32,18 @@ export default function Index() {
   }
 
   if (!session) {
-    return <Redirect href="/(signed-out)" />;
+    return (
+      <Redirect
+        href={resolveEntryHref({
+          hasSession: false,
+          membershipCount: 0,
+          pendingInviteToken: null,
+        })}
+      />
+    );
   }
 
-  if (pendingQuery.isLoading || membershipsQuery.isLoading) {
+  if (pendingQuery.isLoading) {
     return (
       <Screen>
         <LoadingState message={copy.common.loading} />
@@ -43,12 +52,40 @@ export default function Index() {
   }
 
   if (pendingQuery.data) {
-    return <Redirect href={`/invite/${pendingQuery.data}`} />;
+    return (
+      <Redirect
+        href={resolveEntryHref({
+          hasSession: true,
+          membershipCount: 0,
+          pendingInviteToken: pendingQuery.data,
+        })}
+      />
+    );
   }
 
-  if ((membershipsQuery.data?.length ?? 0) === 0) {
-    return <Redirect href="/(signed-in)/create" />;
+  if (membershipsQuery.isLoading) {
+    return (
+      <Screen>
+        <LoadingState message={copy.common.loading} />
+      </Screen>
+    );
   }
 
-  return <Redirect href="/(signed-in)" />;
+  if (membershipsQuery.isError) {
+    return (
+      <Screen>
+        <ErrorState message={copy.common.error} />
+      </Screen>
+    );
+  }
+
+  return (
+    <Redirect
+      href={resolveEntryHref({
+        hasSession: true,
+        membershipCount: membershipsQuery.data?.length ?? 0,
+        pendingInviteToken: null,
+      })}
+    />
+  );
 }

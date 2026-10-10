@@ -6,6 +6,18 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-10 — Auth gate routes (no shared `/`)
+
+### What we built
+
+`/` is only the session gate. Welcome lives at `/(signed-out)/welcome` and home at `/(signed-in)/home`. Signed-out and signed-in layouts wait for the session, then bounce the wrong group back to `/`. Create family stays under signed-in, so it needs a session. After sign-in, a saved invite token still sends the person to `/invite/{token}`.
+
+### Why
+
+Route groups hid the path, so welcome, home, and the gate all claimed `/`. Sign-in looked successful in Supabase but the app stayed on auth screens.
+
+---
+
 ## 2026-10-10 — Profiles on Auth insert, friendly errors, Mom
 
 ### What we built

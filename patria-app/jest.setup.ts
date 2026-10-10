@@ -11,6 +11,10 @@ jest.mock('expo-secure-store', () => ({
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+  useNavigation: () => ({
+    canGoBack: () => false,
+    addListener: () => () => undefined,
+  }),
   useLocalSearchParams: () => ({}),
   Redirect: () => null,
   Stack: () => null,

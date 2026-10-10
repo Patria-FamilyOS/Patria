@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useNavigation, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 
 import { Body, Button, ErrorState, LoadingState, Screen } from '../../components/ui';
 import { useAuth } from '../../lib/auth-context';
@@ -8,6 +8,7 @@ import { copy } from '../../lib/copy';
 import { writeCurrentFamilyId } from '../../lib/currentFamily';
 import type { InvitePreview } from '../../lib/family';
 import { clearPendingInviteToken, savePendingInviteToken } from '../../lib/pendingInvite';
+import { shouldInterceptInviteBack } from '../../lib/navigation';
 import { supabase } from '../../lib/supabase';
 import { InvitePreviewView } from './InvitePreviewView';
 
@@ -17,9 +18,21 @@ type InvitePreviewScreenProps = {
 
 export function InvitePreviewScreen({ token }: InvitePreviewScreenProps) {
   const router = useRouter();
+  const navigation = useNavigation();
   const { session } = useAuth();
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (event) => {
+      if (!shouldInterceptInviteBack(event.data.action.type)) {
+        return;
+      }
+      event.preventDefault();
+      router.replace('/');
+    });
+    return unsubscribe;
+  }, [navigation, router]);
 
   const previewQuery = useQuery({
     queryKey: ['invite-preview', token],
@@ -54,7 +67,7 @@ export function InvitePreviewScreen({ token }: InvitePreviewScreenProps) {
     if (data) {
       await writeCurrentFamilyId(String(data));
     }
-    router.replace('/(signed-in)');
+    router.replace('/(signed-in)/home');
   };
 
   const onDecline = async () => {
@@ -72,7 +85,7 @@ export function InvitePreviewScreen({ token }: InvitePreviewScreenProps) {
 
   if (previewQuery.isLoading) {
     return (
-      <Screen>
+      <Screen withHeader>
         <LoadingState message={copy.common.loading} />
       </Screen>
     );
@@ -80,7 +93,7 @@ export function InvitePreviewScreen({ token }: InvitePreviewScreenProps) {
 
   if (previewQuery.error) {
     return (
-      <Screen>
+      <Screen withHeader>
         <ErrorState message={copy.common.error} />
       </Screen>
     );
@@ -88,7 +101,7 @@ export function InvitePreviewScreen({ token }: InvitePreviewScreenProps) {
 
   if (!previewQuery.data) {
     return (
-      <Screen accessibilityLabel={copy.invitePreview.invalid}>
+      <Screen accessibilityLabel={copy.invitePreview.invalid} withHeader>
         <Body>{copy.invitePreview.invalid}</Body>
         <Button label={copy.common.continue} onPress={() => router.replace('/')} />
       </Screen>
@@ -96,7 +109,7 @@ export function InvitePreviewScreen({ token }: InvitePreviewScreenProps) {
   }
 
   return (
-    <Screen accessibilityLabel={copy.invitePreview.title}>
+    <Screen accessibilityLabel={copy.invitePreview.title} withHeader>
       <InvitePreviewView
         preview={previewQuery.data}
         signedIn={Boolean(session)}

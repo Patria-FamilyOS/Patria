@@ -42,7 +42,7 @@ export function MemberScreen({ userId }: MemberScreenProps) {
 
   if (membersQuery.isLoading || !member) {
     return (
-      <Screen>
+      <Screen withHeader>
         {membersQuery.isLoading ? (
           <LoadingState message={copy.common.loading} />
         ) : (
@@ -66,7 +66,7 @@ export function MemberScreen({ userId }: MemberScreenProps) {
       setError(copy.member.saveFailed);
       return;
     }
-    router.replace('/(signed-in)');
+    router.replace('/(signed-in)/home');
   };
 
   const remove = () => {
@@ -89,7 +89,7 @@ export function MemberScreen({ userId }: MemberScreenProps) {
                 setError(copy.member.removeFailed);
                 return;
               }
-              router.replace('/(signed-in)');
+              router.replace('/(signed-in)/home');
             });
         },
       },
@@ -97,7 +97,7 @@ export function MemberScreen({ userId }: MemberScreenProps) {
   };
 
   return (
-    <Screen accessibilityLabel={member.displayName}>
+    <Screen accessibilityLabel={member.displayName} withHeader>
       <Title>{member.displayName}</Title>
       <Body>{copy.roles[member.role]}</Body>
       {admin ? (

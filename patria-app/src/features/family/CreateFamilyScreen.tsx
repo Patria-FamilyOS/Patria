@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useRouter } from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -22,6 +22,8 @@ type FormValues = z.infer<typeof schema>;
 
 export function CreateFamilyScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
+  const withHeader = navigation.canGoBack();
   const [formError, setFormError] = useState<string | null>(null);
   const { control, handleSubmit, formState } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -43,7 +45,7 @@ export function CreateFamilyScreen() {
   });
 
   return (
-    <Screen accessibilityLabel={copy.createFamily.title}>
+    <Screen accessibilityLabel={copy.createFamily.title} withHeader={withHeader}>
       <Title>{copy.createFamily.title}</Title>
       <Body>{copy.createFamily.subtitle}</Body>
       <Controller
