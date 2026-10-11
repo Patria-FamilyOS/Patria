@@ -6,6 +6,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-10 — D8 pgTAP coverage and CI
+
+Added pgTAP for revoked invites, last-admin self-demote, and the remaining D8 cells. GitHub Actions runs app Jest and a fresh local Supabase `test db` with no hosted project.
+
+---
+
 ## 2026-10-10 — Lock helpers, invite tokens, admin-only emails
 
 SECURITY DEFINER access helpers now always use the signed-in user as the viewer. Trigger functions set `search_path`. Only Me circles require a matching membership. Profile emails are not selectable on the table; admins read them through a dedicated function. Invite lists no longer load share tokens until Share is tapped. Local API no longer exposes the GraphQL schema.

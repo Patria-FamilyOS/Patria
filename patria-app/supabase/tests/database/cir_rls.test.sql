@@ -476,6 +476,31 @@ UPDATE public.invites SET status = 'revoked' WHERE email = 'invitee@example.com'
 RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.invites WHERE email = 'invitee@example.com' AND status = 'pending'), 1, 'teen cannot revoke an invite');
 
+-- D8 Revoke a pending invite: No
+SELECT tests_jwt('44444444-4444-4444-4444-444444444444');
+SET LOCAL ROLE authenticated;
+UPDATE public.invites SET status = 'revoked' WHERE email = 'invitee@example.com' AND status = 'pending';
+RESET ROLE;
+SELECT is((SELECT count(*)::int FROM public.invites WHERE email = 'invitee@example.com' AND status = 'pending'), 1, 'elder cannot revoke an invite');
+
+SELECT tests_jwt('55555555-5555-5555-5555-555555555555');
+SET LOCAL ROLE authenticated;
+UPDATE public.invites SET status = 'revoked' WHERE email = 'invitee@example.com' AND status = 'pending';
+RESET ROLE;
+SELECT is((SELECT count(*)::int FROM public.invites WHERE email = 'invitee@example.com' AND status = 'pending'), 1, 'extended relative cannot revoke an invite');
+
+SELECT tests_jwt('77777777-7777-7777-7777-777777777777');
+SET LOCAL ROLE authenticated;
+UPDATE public.invites SET status = 'revoked' WHERE email = 'invitee@example.com' AND status = 'pending';
+RESET ROLE;
+SELECT is((SELECT count(*)::int FROM public.invites WHERE email = 'invitee@example.com' AND status = 'pending'), 1, 'caregiver cannot revoke an invite');
+
+SELECT tests_jwt('99999999-9999-9999-9999-999999999999');
+SET LOCAL ROLE authenticated;
+UPDATE public.invites SET status = 'revoked' WHERE email = 'invitee@example.com' AND status = 'pending';
+RESET ROLE;
+SELECT is((SELECT count(*)::int FROM public.invites WHERE email = 'invitee@example.com' AND status = 'pending'), 1, 'successor cannot revoke an invite');
+
 -- Child profiles
 SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
 SET LOCAL ROLE authenticated;
@@ -577,7 +602,7 @@ UPDATE public.space_members SET role = 'teen' WHERE user_id = '99999999-9999-999
 RESET ROLE;
 SELECT is((SELECT role::text FROM public.space_members WHERE user_id = '99999999-9999-9999-9999-999999999999'), 'successor', 'successor cannot change roles');
 
--- Remove / leave
+-- D8 Remove a member: Yes (family admin) / Leave
 SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
 SET LOCAL ROLE authenticated;
 DELETE FROM public.space_members WHERE user_id = '66666666-6666-6666-6666-666666666666';
@@ -589,6 +614,31 @@ SET LOCAL ROLE authenticated;
 DELETE FROM public.space_members WHERE user_id = '44444444-4444-4444-4444-444444444444';
 RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.space_members WHERE user_id = '44444444-4444-4444-4444-444444444444'), 1, 'teen cannot remove a member');
+
+-- D8 Remove a member: No
+SELECT tests_jwt('44444444-4444-4444-4444-444444444444');
+SET LOCAL ROLE authenticated;
+DELETE FROM public.space_members WHERE user_id = '33333333-3333-3333-3333-333333333333';
+RESET ROLE;
+SELECT is((SELECT count(*)::int FROM public.space_members WHERE user_id = '33333333-3333-3333-3333-333333333333'), 1, 'elder cannot remove a member');
+
+SELECT tests_jwt('55555555-5555-5555-5555-555555555555');
+SET LOCAL ROLE authenticated;
+DELETE FROM public.space_members WHERE user_id = '33333333-3333-3333-3333-333333333333';
+RESET ROLE;
+SELECT is((SELECT count(*)::int FROM public.space_members WHERE user_id = '33333333-3333-3333-3333-333333333333'), 1, 'extended relative cannot remove a member');
+
+SELECT tests_jwt('77777777-7777-7777-7777-777777777777');
+SET LOCAL ROLE authenticated;
+DELETE FROM public.space_members WHERE user_id = '33333333-3333-3333-3333-333333333333';
+RESET ROLE;
+SELECT is((SELECT count(*)::int FROM public.space_members WHERE user_id = '33333333-3333-3333-3333-333333333333'), 1, 'caregiver cannot remove a member');
+
+SELECT tests_jwt('99999999-9999-9999-9999-999999999999');
+SET LOCAL ROLE authenticated;
+DELETE FROM public.space_members WHERE user_id = '33333333-3333-3333-3333-333333333333';
+RESET ROLE;
+SELECT is((SELECT count(*)::int FROM public.space_members WHERE user_id = '33333333-3333-3333-3333-333333333333'), 1, 'successor cannot remove a member');
 
 SELECT tests_jwt('33333333-3333-3333-3333-333333333333');
 SET LOCAL ROLE authenticated;
@@ -615,8 +665,59 @@ SELECT throws_ok(
 );
 RESET ROLE;
 
+-- D7 last remaining Family admin or Co admin cannot self-demote until another admin exists
+SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
+SELECT throws_ok(
+  $sql$UPDATE public.space_members SET role = 'teen' WHERE user_id = '11111111-1111-1111-1111-111111111111'$sql$,
+  '23514',
+  NULL,
+  'last admin cannot change their own role'
+);
+RESET ROLE;
+
 INSERT INTO public.space_members (family_space_id, user_id, role, relationship_label)
 SELECT rivera, '22222222-2222-2222-2222-222222222222', 'co_admin', 'Dad' FROM fx;
+
+SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
+UPDATE public.space_members SET role = 'teen' WHERE user_id = '11111111-1111-1111-1111-111111111111';
+SELECT is((SELECT role::text FROM public.space_members WHERE user_id = '11111111-1111-1111-1111-111111111111'), 'teen', 'admin can change their own role when another admin remains');
+RESET ROLE;
+UPDATE public.space_members SET role = 'family_admin' WHERE user_id = '11111111-1111-1111-1111-111111111111';
+
+-- D8 Leave the family space: Yes
+SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
+DELETE FROM public.space_members WHERE user_id = '11111111-1111-1111-1111-111111111111';
+RESET ROLE;
+SELECT is((SELECT count(*)::int FROM public.space_members WHERE user_id = '11111111-1111-1111-1111-111111111111'), 0, 'family admin can leave when another admin remains');
+INSERT INTO public.space_members (family_space_id, user_id, role)
+SELECT rivera, '11111111-1111-1111-1111-111111111111', 'family_admin' FROM fx;
+
+SELECT tests_jwt('44444444-4444-4444-4444-444444444444');
+SET LOCAL ROLE authenticated;
+DELETE FROM public.space_members WHERE user_id = '44444444-4444-4444-4444-444444444444';
+RESET ROLE;
+SELECT is((SELECT count(*)::int FROM public.space_members WHERE user_id = '44444444-4444-4444-4444-444444444444'), 0, 'elder can leave the family space');
+INSERT INTO public.space_members (family_space_id, user_id, role)
+SELECT rivera, '44444444-4444-4444-4444-444444444444', 'elder' FROM fx;
+
+SELECT tests_jwt('55555555-5555-5555-5555-555555555555');
+SET LOCAL ROLE authenticated;
+DELETE FROM public.space_members WHERE user_id = '55555555-5555-5555-5555-555555555555';
+RESET ROLE;
+SELECT is((SELECT count(*)::int FROM public.space_members WHERE user_id = '55555555-5555-5555-5555-555555555555'), 0, 'extended relative can leave the family space');
+INSERT INTO public.space_members (family_space_id, user_id, role)
+SELECT rivera, '55555555-5555-5555-5555-555555555555', 'extended_relative' FROM fx;
+
+SELECT tests_jwt('77777777-7777-7777-7777-777777777777');
+SET LOCAL ROLE authenticated;
+DELETE FROM public.space_members WHERE user_id = '77777777-7777-7777-7777-777777777777';
+RESET ROLE;
+SELECT is((SELECT count(*)::int FROM public.space_members WHERE user_id = '77777777-7777-7777-7777-777777777777'), 0, 'caregiver can leave the family space');
+INSERT INTO public.space_members (family_space_id, user_id, role)
+SELECT rivera, '77777777-7777-7777-7777-777777777777', 'caregiver' FROM fx;
 
 -- Custom circles
 SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
@@ -731,6 +832,61 @@ SELECT is(
   'caregiver cannot change default circles'
 );
 
+-- D8 Change default circles per item type: No
+SELECT tests_jwt('44444444-4444-4444-4444-444444444444');
+SET LOCAL ROLE authenticated;
+UPDATE public.circle_item_type_defaults
+SET circle_id = (SELECT c.id FROM public.circles c JOIN fx ON c.family_space_id = fx.rivera WHERE c.kind = 'household')
+WHERE family_space_id = (SELECT rivera FROM fx) AND item_type = 'photo';
+RESET ROLE;
+SELECT is(
+  (
+    SELECT c.kind::text
+    FROM public.circle_item_type_defaults d
+    JOIN public.circles c ON c.id = d.circle_id
+    JOIN fx ON d.family_space_id = fx.rivera
+    WHERE d.item_type = 'photo'
+  ),
+  'extended_family',
+  'elder cannot change default circles'
+);
+
+SELECT tests_jwt('55555555-5555-5555-5555-555555555555');
+SET LOCAL ROLE authenticated;
+UPDATE public.circle_item_type_defaults
+SET circle_id = (SELECT c.id FROM public.circles c JOIN fx ON c.family_space_id = fx.rivera WHERE c.kind = 'household')
+WHERE family_space_id = (SELECT rivera FROM fx) AND item_type = 'photo';
+RESET ROLE;
+SELECT is(
+  (
+    SELECT c.kind::text
+    FROM public.circle_item_type_defaults d
+    JOIN public.circles c ON c.id = d.circle_id
+    JOIN fx ON d.family_space_id = fx.rivera
+    WHERE d.item_type = 'photo'
+  ),
+  'extended_family',
+  'extended relative cannot change default circles'
+);
+
+SELECT tests_jwt('99999999-9999-9999-9999-999999999999');
+SET LOCAL ROLE authenticated;
+UPDATE public.circle_item_type_defaults
+SET circle_id = (SELECT c.id FROM public.circles c JOIN fx ON c.family_space_id = fx.rivera WHERE c.kind = 'household')
+WHERE family_space_id = (SELECT rivera FROM fx) AND item_type = 'photo';
+RESET ROLE;
+SELECT is(
+  (
+    SELECT c.kind::text
+    FROM public.circle_item_type_defaults d
+    JOIN public.circles c ON c.id = d.circle_id
+    JOIN fx ON d.family_space_id = fx.rivera
+    WHERE d.item_type = 'photo'
+  ),
+  'extended_family',
+  'successor cannot change default circles'
+);
+
 SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
 SET LOCAL ROLE authenticated;
 UPDATE public.space_members SET role = 'successor' WHERE user_id = '44444444-4444-4444-4444-444444444444';
@@ -743,6 +899,31 @@ SET LOCAL ROLE authenticated;
 UPDATE public.space_members SET role = 'successor' WHERE user_id = '44444444-4444-4444-4444-444444444444';
 RESET ROLE;
 SELECT is((SELECT role::text FROM public.space_members WHERE user_id = '44444444-4444-4444-4444-444444444444'), 'elder', 'teen cannot name successors');
+
+-- D8 Name successors: No
+SELECT tests_jwt('44444444-4444-4444-4444-444444444444');
+SET LOCAL ROLE authenticated;
+UPDATE public.space_members SET role = 'successor' WHERE user_id = '55555555-5555-5555-5555-555555555555';
+RESET ROLE;
+SELECT is((SELECT role::text FROM public.space_members WHERE user_id = '55555555-5555-5555-5555-555555555555'), 'extended_relative', 'elder cannot name successors');
+
+SELECT tests_jwt('55555555-5555-5555-5555-555555555555');
+SET LOCAL ROLE authenticated;
+UPDATE public.space_members SET role = 'successor' WHERE user_id = '44444444-4444-4444-4444-444444444444';
+RESET ROLE;
+SELECT is((SELECT role::text FROM public.space_members WHERE user_id = '44444444-4444-4444-4444-444444444444'), 'elder', 'extended relative cannot name successors');
+
+SELECT tests_jwt('77777777-7777-7777-7777-777777777777');
+SET LOCAL ROLE authenticated;
+UPDATE public.space_members SET role = 'successor' WHERE user_id = '44444444-4444-4444-4444-444444444444';
+RESET ROLE;
+SELECT is((SELECT role::text FROM public.space_members WHERE user_id = '44444444-4444-4444-4444-444444444444'), 'elder', 'caregiver cannot name successors');
+
+SELECT tests_jwt('99999999-9999-9999-9999-999999999999');
+SET LOCAL ROLE authenticated;
+UPDATE public.space_members SET role = 'successor' WHERE user_id = '44444444-4444-4444-4444-444444444444';
+RESET ROLE;
+SELECT is((SELECT role::text FROM public.space_members WHERE user_id = '44444444-4444-4444-4444-444444444444'), 'elder', 'successor cannot name successors');
 
 -- Delete space
 SELECT tests_jwt('33333333-3333-3333-3333-333333333333');
@@ -781,6 +962,20 @@ DELETE FROM public.family_spaces WHERE id = (SELECT other FROM fx);
 RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.family_spaces WHERE id = (SELECT other FROM fx)), 0, 'admin can delete their family space');
 
+-- D8 Delete the family space: Yes (co admin)
+SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
+SELECT public.create_family_space('Disposable Co Admin Space', NULL);
+RESET ROLE;
+INSERT INTO public.space_members (family_space_id, user_id, role)
+SELECT id, '22222222-2222-2222-2222-222222222222', 'co_admin'
+FROM public.family_spaces WHERE name = 'Disposable Co Admin Space';
+SELECT tests_jwt('22222222-2222-2222-2222-222222222222');
+SET LOCAL ROLE authenticated;
+DELETE FROM public.family_spaces WHERE name = 'Disposable Co Admin Space';
+RESET ROLE;
+SELECT is((SELECT count(*)::int FROM public.family_spaces WHERE name = 'Disposable Co Admin Space'), 0, 'co admin can delete the family space');
+
 -- Accept once
 SELECT tests_jwt('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
 SET LOCAL ROLE authenticated;
@@ -806,6 +1001,32 @@ SELECT throws_ok(
   '23514',
   NULL,
   'expired invite cannot be accepted'
+);
+RESET ROLE;
+
+-- D12 revoked (never accepted) invite cannot be accepted
+INSERT INTO public.invites (family_space_id, invited_by, email, role, default_circle_id)
+SELECT fx.rivera, '11111111-1111-1111-1111-111111111111', 'invitee@example.com', 'teen', c.id
+FROM fx
+JOIN public.circles AS c ON c.family_space_id = fx.rivera AND c.kind = 'household';
+UPDATE public.invites
+SET status = 'revoked'
+WHERE id = (
+  SELECT id FROM public.invites
+  WHERE email = 'invitee@example.com' AND status = 'pending'
+  ORDER BY created_at DESC
+  LIMIT 1
+);
+SELECT tests_jwt('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+SET LOCAL ROLE authenticated;
+SELECT throws_ok(
+  format(
+    $sql$SELECT public.accept_invite(%L)$sql$,
+    (SELECT token FROM public.invites WHERE email = 'invitee@example.com' AND status = 'revoked' ORDER BY created_at DESC LIMIT 1)
+  ),
+  '23514',
+  NULL,
+  'revoked invite cannot be accepted'
 );
 RESET ROLE;
 

@@ -10,3 +10,14 @@
 Project rules for Cursor live in `.cursor/rules/patria.mdc` at the repository root.
 
 When a decision changes (stack, scope, a feature rule), update these files first, then ask Cursor to follow the updated version. They are the single source of truth for the app.
+
+## Running tests
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push and pull request. The **app** job typechecks, lints and runs Jest in `patria-app/`. The **database** job starts a local Supabase stack, applies migrations from scratch, and runs pgTAP. It does not use the hosted project.
+
+Locally, from `patria-app/`:
+
+* App: `npm test`
+* Database: Docker must be running, then `npx supabase start` and `npx supabase test db`
+
+Docker is only required for database tests.
