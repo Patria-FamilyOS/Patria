@@ -12,7 +12,6 @@ export type MemberRow = {
   role: SpaceRole;
   relationshipLabel: string | null;
   displayName: string;
-  email: string | null;
 };
 
 export type ChildRow = {
@@ -25,7 +24,6 @@ export type PendingInvite = {
   id: string;
   email: string;
   role: SpaceRole;
-  token: string;
   expiresAt: string;
 };
 
@@ -69,7 +67,7 @@ export async function fetchMemberships(
 export async function fetchMembers(spaceId: string): Promise<MemberRow[]> {
   const { data, error } = await supabase
     .from('space_members')
-    .select('id, user_id, role, relationship_label, profiles ( display_name, email )')
+    .select('id, user_id, role, relationship_label, profiles ( display_name )')
     .eq('family_space_id', spaceId);
 
   if (error) {
@@ -78,8 +76,8 @@ export async function fetchMembers(spaceId: string): Promise<MemberRow[]> {
 
   return (data ?? []).map((row) => {
     const profile = row.profiles as
-      | { display_name: string; email: string | null }
-      | { display_name: string; email: string | null }[]
+      | { display_name: string }
+      | { display_name: string }[]
       | null;
     const one = Array.isArray(profile) ? profile[0] : profile;
     return {
@@ -88,9 +86,22 @@ export async function fetchMembers(spaceId: string): Promise<MemberRow[]> {
       role: row.role as SpaceRole,
       relationshipLabel: row.relationship_label as string | null,
       displayName: one?.display_name ?? '',
-      email: one?.email ?? null,
     };
   });
+}
+
+export async function fetchAdminMemberEmail(
+  spaceId: string,
+  userId: string,
+): Promise<string | null> {
+  const { data, error } = await supabase.rpc('admin_member_email', {
+    p_space_id: spaceId,
+    p_user_id: userId,
+  });
+  if (error) {
+    return null;
+  }
+  return typeof data === 'string' && data.length > 0 ? data : null;
 }
 
 export async function fetchChildren(spaceId: string): Promise<ChildRow[]> {
@@ -113,7 +124,7 @@ export async function fetchChildren(spaceId: string): Promise<ChildRow[]> {
 export async function fetchPendingInvites(spaceId: string): Promise<PendingInvite[]> {
   const { data, error } = await supabase
     .from('invites')
-    .select('id, email, role, token, expires_at, status')
+    .select('id, email, role, expires_at, status')
     .eq('family_space_id', spaceId)
     .eq('status', 'pending')
     .gt('expires_at', new Date().toISOString());
@@ -126,9 +137,21 @@ export async function fetchPendingInvites(spaceId: string): Promise<PendingInvit
     id: row.id as string,
     email: row.email as string,
     role: row.role as SpaceRole,
-    token: row.token as string,
     expiresAt: row.expires_at as string,
   }));
+}
+
+export async function fetchInviteShareToken(inviteId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('invites')
+    .select('token')
+    .eq('id', inviteId)
+    .maybeSingle();
+  if (error || !data) {
+    return null;
+  }
+  const token = data.token;
+  return typeof token === 'string' && token.length > 0 ? token : null;
 }
 
 export async function fetchInviteCircles(spaceId: string): Promise<CircleOption[]> {

@@ -124,3 +124,7 @@ Append a dated entry to `docs/BUILD_LOG.md` whenever we implement a slice or mak
 * An invite always stores an email (so accept can match the signed-in account) **and** a shareable `patria://invite/{token}` link. The inviting person can send the link with the phone share sheet **or** open an email draft to that address. Same token either way.
 * **Decline** invalidates the token on the server (`declined` status). Accept and preview then fail.
 * Pending invites still expire after 14 days even if nobody declines (`expires_at`).
+
+## D17. Member email visibility (October 2026)
+
+Member email addresses are visible only to Family admins and Co admins. Other members see names and roles.

@@ -19,7 +19,7 @@ import {
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
-import { fetchInviteCircles, fetchPendingInvites } from '../../lib/family';
+import { fetchInviteCircles, fetchInviteShareToken, fetchPendingInvites } from '../../lib/family';
 import { inviteUrlFromToken } from '../../lib/inviteUrl';
 import { INVITE_ROLES, type SpaceRole } from '../../lib/roles';
 import { supabase } from '../../lib/supabase';
@@ -37,7 +37,7 @@ export function InviteScreen() {
   const { session } = useAuth();
   const [spaceId, setSpaceId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [createdToken, setCreatedToken] = useState<string | null>(null);
+  const [createdInviteId, setCreatedInviteId] = useState<string | null>(null);
   const [createdEmail, setCreatedEmail] = useState<string>('');
 
   useEffect(() => {
@@ -90,30 +90,41 @@ export function InviteScreen() {
         role: values.role,
         default_circle_id: circleId,
       })
-      .select('token')
+      .select('id')
       .single();
     if (error || !data) {
       setFormError(copy.invite.createFailed);
       return;
     }
-    setCreatedToken(data.token as string);
+    setCreatedInviteId(data.id as string);
     setCreatedEmail(values.email);
     reset({ email: '', role: 'teen', circleId: householdId });
     void pendingQuery.refetch();
   });
 
+  const loadShareToken = async (): Promise<string | null> => {
+    if (!createdInviteId) {
+      return null;
+    }
+    return fetchInviteShareToken(createdInviteId);
+  };
+
   const share = async () => {
-    if (!createdToken) {
+    const token = await loadShareToken();
+    if (!token) {
+      setFormError(copy.common.error);
       return;
     }
-    await Share.share({ message: inviteUrlFromToken(createdToken) });
+    await Share.share({ message: inviteUrlFromToken(token) });
   };
 
   const sendEmail = async () => {
-    if (!createdToken) {
+    const token = await loadShareToken();
+    if (!token) {
+      setFormError(copy.common.error);
       return;
     }
-    const link = inviteUrlFromToken(createdToken);
+    const link = inviteUrlFromToken(token);
     const name = session?.user.user_metadata?.display_name ?? copy.appName;
     const subject = copy.invite.emailSubject.replace('{family}', copy.appName);
     const body = copy.invite.emailBody
@@ -209,7 +220,7 @@ export function InviteScreen() {
         onPress={onCreate}
         disabled={formState.isSubmitting}
       />
-      {createdToken ? (
+      {createdInviteId ? (
         <>
           <Body>{copy.invite.created}</Body>
           <Button label={copy.invite.shareLink} onPress={() => void share()} />

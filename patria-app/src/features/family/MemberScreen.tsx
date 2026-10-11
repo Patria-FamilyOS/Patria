@@ -7,7 +7,7 @@ import { Body, Button, ErrorState, LoadingState, Muted, Screen, Title } from '..
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
-import { fetchMembers } from '../../lib/family';
+import { fetchAdminMemberEmail, fetchMembers } from '../../lib/family';
 import { countAdmins, INVITE_ROLES, isSpaceAdmin, type SpaceRole } from '../../lib/roles';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing, type } from '../../theme';
@@ -31,6 +31,13 @@ export function MemberScreen({ userId }: MemberScreenProps) {
     queryKey: ['members', spaceId],
     enabled: Boolean(spaceId),
     queryFn: () => fetchMembers(spaceId as string),
+  });
+  const emailQuery = useQuery({
+    queryKey: ['member-email', spaceId, userId],
+    enabled: Boolean(spaceId) && isSpaceAdmin(
+      membersQuery.data?.find((row) => row.userId === session?.user.id)?.role,
+    ),
+    queryFn: () => fetchAdminMemberEmail(spaceId as string, userId),
   });
 
   const member = membersQuery.data?.find((row) => row.userId === userId);
@@ -100,6 +107,7 @@ export function MemberScreen({ userId }: MemberScreenProps) {
     <Screen accessibilityLabel={member.displayName} withHeader>
       <Title>{member.displayName}</Title>
       <Body>{copy.roles[member.role]}</Body>
+      {emailQuery.data ? <Muted>{emailQuery.data}</Muted> : null}
       {admin ? (
         <>
           <Muted>{copy.member.roleLabel}</Muted>

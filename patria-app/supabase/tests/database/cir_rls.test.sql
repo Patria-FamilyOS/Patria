@@ -126,18 +126,22 @@ UPDATE public.space_members
 SET caregiver_access_ends_at = now() - interval '1 hour'
 WHERE user_id = '88888888-8888-8888-8888-888888888888';
 
-SELECT public.ensure_only_me_circle(rivera, u)
-FROM fx,
-LATERAL (VALUES
-  ('22222222-2222-2222-2222-222222222222'::uuid),
-  ('33333333-3333-3333-3333-333333333333'::uuid),
-  ('44444444-4444-4444-4444-444444444444'::uuid),
-  ('55555555-5555-5555-5555-555555555555'::uuid),
-  ('66666666-6666-6666-6666-666666666666'::uuid),
-  ('77777777-7777-7777-7777-777777777777'::uuid),
-  ('88888888-8888-8888-8888-888888888888'::uuid),
-  ('99999999-9999-9999-9999-999999999999'::uuid)
-) AS x(u);
+SELECT tests_jwt('22222222-2222-2222-2222-222222222222');
+SELECT public.ensure_only_me_circle((SELECT rivera FROM fx), '22222222-2222-2222-2222-222222222222');
+SELECT tests_jwt('33333333-3333-3333-3333-333333333333');
+SELECT public.ensure_only_me_circle((SELECT rivera FROM fx), '33333333-3333-3333-3333-333333333333');
+SELECT tests_jwt('44444444-4444-4444-4444-444444444444');
+SELECT public.ensure_only_me_circle((SELECT rivera FROM fx), '44444444-4444-4444-4444-444444444444');
+SELECT tests_jwt('55555555-5555-5555-5555-555555555555');
+SELECT public.ensure_only_me_circle((SELECT rivera FROM fx), '55555555-5555-5555-5555-555555555555');
+SELECT tests_jwt('66666666-6666-6666-6666-666666666666');
+SELECT public.ensure_only_me_circle((SELECT rivera FROM fx), '66666666-6666-6666-6666-666666666666');
+SELECT tests_jwt('77777777-7777-7777-7777-777777777777');
+SELECT public.ensure_only_me_circle((SELECT rivera FROM fx), '77777777-7777-7777-7777-777777777777');
+SELECT tests_jwt('88888888-8888-8888-8888-888888888888');
+SELECT public.ensure_only_me_circle((SELECT rivera FROM fx), '88888888-8888-8888-8888-888888888888');
+SELECT tests_jwt('99999999-9999-9999-9999-999999999999');
+SELECT public.ensure_only_me_circle((SELECT rivera FROM fx), '99999999-9999-9999-9999-999999999999');
 
 INSERT INTO public.child_profiles (id, family_space_id, display_name, date_of_birth, created_by)
 SELECT 'cccccccc-cccc-cccc-cccc-cccccccccccc', rivera, 'Lily', (CURRENT_DATE - 2555), '11111111-1111-1111-1111-111111111111'
@@ -207,6 +211,63 @@ RESET ROLE;
 SELECT tests_jwt('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
 SET LOCAL ROLE authenticated;
 SELECT is((SELECT count(*)::int FROM public.family_spaces WHERE id = (SELECT rivera FROM fx)), 0, 'other admin cannot see Rivera space');
+RESET ROLE;
+
+SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
+SELECT is(
+  public.space_role((SELECT other FROM fx), 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+  NULL,
+  'cannot learn another family role through space_role'
+);
+SELECT is(
+  public.is_space_admin((SELECT other FROM fx), 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+  false,
+  'cannot probe another family through is_space_admin'
+);
+SELECT is(
+  public.can_view_member(
+    (SELECT other FROM fx),
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+  ),
+  false,
+  'cannot learn another family membership through can_view_member'
+);
+SELECT is(
+  public.space_role((SELECT rivera FROM fx), '22222222-2222-2222-2222-222222222222')::text,
+  'family_admin',
+  'space_role ignores a supplied user id and returns the caller'
+);
+SELECT throws_ok(
+  $sql$SELECT public.ensure_only_me_circle((SELECT other FROM fx), 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')$sql$,
+  '42501',
+  NULL,
+  'cannot create Only Me in another family'
+);
+SELECT throws_ok(
+  $sql$SELECT email FROM public.profiles WHERE id = '22222222-2222-2222-2222-222222222222'$sql$,
+  '42501',
+  NULL,
+  'column privileges block selecting profile emails'
+);
+RESET ROLE;
+
+SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
+SELECT is(
+  public.admin_member_email((SELECT rivera FROM fx), '22222222-2222-2222-2222-222222222222'),
+  (SELECT email FROM public.profiles WHERE id = '22222222-2222-2222-2222-222222222222'),
+  'admin can read a member email through the admin rpc'
+);
+
+SELECT tests_jwt('33333333-3333-3333-3333-333333333333');
+SET LOCAL ROLE authenticated;
+SELECT throws_ok(
+  $sql$SELECT public.admin_member_email((SELECT rivera FROM fx), '11111111-1111-1111-1111-111111111111')$sql$,
+  '42501',
+  NULL,
+  'teen cannot read member emails through the admin rpc'
+);
 RESET ROLE;
 
 -- View space name
