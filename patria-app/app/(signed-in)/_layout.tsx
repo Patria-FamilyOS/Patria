@@ -35,7 +35,7 @@ export default function SignedInLayout() {
         name="ready"
         options={({ navigation }) => headerWhenPushed(navigation.canGoBack())}
       />
-      <Stack.Screen name="invite" options={pushedScreenHeader} />
+      <Stack.Screen name="invite-someone" options={pushedScreenHeader} />
       <Stack.Screen name="add-child" options={pushedScreenHeader} />
       <Stack.Screen name="member/[userId]" options={pushedScreenHeader} />
       <Stack.Screen name="child/[childId]" options={pushedScreenHeader} />

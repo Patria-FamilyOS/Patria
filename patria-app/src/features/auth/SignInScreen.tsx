@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 import { Button, ErrorState, Field, Screen, Title } from '../../components/ui';
 import { copy } from '../../lib/copy';
+import { routes } from '../../lib/navigation';
 import { supabase } from '../../lib/supabase';
 
 const schema = z.object({
@@ -33,7 +34,7 @@ export function SignInScreen() {
       setFormError(copy.auth.signInFailed);
       return;
     }
-    router.replace('/');
+    router.replace(routes.gate);
   });
 
   return (

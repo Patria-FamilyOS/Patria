@@ -22,6 +22,7 @@ import {
   fetchMemberships,
   fetchPendingInvites,
 } from '../../lib/family';
+import { routes } from '../../lib/navigation';
 import { countAdmins, isSpaceAdmin } from '../../lib/roles';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing, type } from '../../theme';
@@ -162,7 +163,7 @@ export function HomeScreen() {
           accessibilityRole="button"
           accessibilityLabel={`${row.displayName}, ${copy.roles[row.role]}`}
           disabled={!admin}
-          onPress={() => router.push(`/(signed-in)/member/${row.userId}`)}
+          onPress={() => router.push(routes.member(row.userId))}
           style={styles.row}
         >
           <Text style={styles.rowTitle}>
@@ -193,11 +194,11 @@ export function HomeScreen() {
 
       {admin ? (
         <>
-          <Button label={copy.home.invite} onPress={() => router.push('/(signed-in)/invite')} />
+          <Button label={copy.home.invite} onPress={() => router.push(routes.inviteSomeone)} />
           <Button
             label={copy.home.addChild}
             variant="secondary"
-            onPress={() => router.push('/(signed-in)/add-child')}
+            onPress={() => router.push(routes.addChild)}
           />
           <Muted>
             {copy.home.pendingInvites}: {invitesQuery.data?.length ?? 0}

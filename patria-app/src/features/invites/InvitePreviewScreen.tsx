@@ -8,7 +8,7 @@ import { copy } from '../../lib/copy';
 import { writeCurrentFamilyId } from '../../lib/currentFamily';
 import type { InvitePreview } from '../../lib/family';
 import { clearPendingInviteToken, savePendingInviteToken } from '../../lib/pendingInvite';
-import { shouldInterceptInviteBack } from '../../lib/navigation';
+import { inviteAcceptBackHref, shouldInterceptInviteBack } from '../../lib/navigation';
 import { supabase } from '../../lib/supabase';
 import { InvitePreviewView } from './InvitePreviewView';
 
@@ -29,7 +29,7 @@ export function InvitePreviewScreen({ token }: InvitePreviewScreenProps) {
         return;
       }
       event.preventDefault();
-      router.replace('/');
+      router.replace(inviteAcceptBackHref());
     });
     return unsubscribe;
   }, [navigation, router]);
@@ -52,7 +52,7 @@ export function InvitePreviewScreen({ token }: InvitePreviewScreenProps) {
 
   const goAuth = async (path: '/(signed-out)/sign-in' | '/(signed-out)/sign-up') => {
     await savePendingInviteToken(token);
-    router.push(path);
+    router.replace(path);
   };
 
   const onAccept = async () => {
@@ -105,7 +105,7 @@ export function InvitePreviewScreen({ token }: InvitePreviewScreenProps) {
     return (
       <Screen accessibilityLabel={copy.invitePreview.invalid} withHeader>
         <Body>{copy.invitePreview.invalid}</Body>
-        <Button label={copy.common.continue} onPress={() => router.replace('/')} />
+        <Button label={copy.common.continue} onPress={() => router.replace(inviteAcceptBackHref())} />
       </Screen>
     );
   }
