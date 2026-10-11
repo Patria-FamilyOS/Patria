@@ -107,7 +107,13 @@ RESET ROLE;
 CREATE TEMP TABLE fx AS
 SELECT
   (SELECT id FROM public.family_spaces WHERE name = 'The Rivera Family') AS rivera,
-  (SELECT id FROM public.family_spaces WHERE name = 'The Other Family') AS other;
+  (SELECT id FROM public.family_spaces WHERE name = 'The Other Family') AS other,
+  (
+    SELECT c.id
+    FROM public.circles AS c
+    JOIN public.family_spaces AS s ON s.id = c.family_space_id
+    WHERE s.name = 'The Rivera Family' AND c.kind = 'household'
+  ) AS household;
 GRANT SELECT ON TABLE fx TO authenticated, anon;
 
 INSERT INTO public.space_members (family_space_id, user_id, role, relationship_label)
@@ -185,14 +191,14 @@ VALUES
   ('dddddddd-dddd-dddd-dddd-dddddddddddd', '11111111-1111-1111-1111-111111111111'),
   ('dddddddd-dddd-dddd-dddd-dddddddddddd', '66666666-6666-6666-6666-666666666666');
 
-SELECT has_table('public', 'profiles');
-SELECT has_table('public', 'family_spaces');
-SELECT has_table('public', 'space_members');
-SELECT has_table('public', 'child_profiles');
-SELECT has_table('public', 'circles');
-SELECT has_table('public', 'circle_members');
-SELECT has_table('public', 'circle_item_type_defaults');
-SELECT has_table('public', 'invites');
+SELECT has_table('public'::name, 'profiles'::name);
+SELECT has_table('public'::name, 'family_spaces'::name);
+SELECT has_table('public'::name, 'space_members'::name);
+SELECT has_table('public'::name, 'child_profiles'::name);
+SELECT has_table('public'::name, 'circles'::name);
+SELECT has_table('public'::name, 'circle_members'::name);
+SELECT has_table('public'::name, 'circle_item_type_defaults'::name);
+SELECT has_table('public'::name, 'invites'::name);
 
 SELECT ok((SELECT relrowsecurity FROM pg_class WHERE oid = 'public.profiles'::regclass), 'RLS on profiles');
 SELECT ok((SELECT relrowsecurity FROM pg_class WHERE oid = 'public.family_spaces'::regclass), 'RLS on family_spaces');
@@ -452,9 +458,12 @@ RESET ROLE;
 SELECT tests_jwt('99999999-9999-9999-9999-999999999999');
 SET LOCAL ROLE authenticated;
 SELECT throws_ok(
-  $sql$INSERT INTO public.invites (family_space_id, invited_by, email, role, default_circle_id)
-       SELECT rivera, '99999999-9999-9999-9999-999999999999', 'succ-invite@example.com', 'teen', c.id
-       FROM fx JOIN public.circles c ON c.family_space_id = fx.rivera AND c.kind = 'household'$sql$,
+  format(
+    $sql$INSERT INTO public.invites (family_space_id, invited_by, email, role, default_circle_id)
+         VALUES (%L, '99999999-9999-9999-9999-999999999999', 'succ-invite@example.com', 'teen', %L)$sql$,
+    (SELECT rivera FROM fx),
+    (SELECT household FROM fx)
+  ),
   '42501',
   NULL,
   'successor cannot invite'
@@ -979,12 +988,25 @@ RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.family_spaces WHERE name = 'Disposable Co Admin Space'), 0, 'co admin can delete the family space');
 
 -- Accept once
+RESET ROLE;
+CREATE TEMP TABLE invite_tok (
+  kind text PRIMARY KEY,
+  token text NOT NULL
+);
+INSERT INTO invite_tok (kind, token)
+SELECT 'pending', token
+FROM public.invites
+WHERE email = 'invitee@example.com' AND status = 'pending'
+ORDER BY created_at DESC
+LIMIT 1;
+GRANT SELECT ON TABLE invite_tok TO authenticated, anon;
+
 SELECT tests_jwt('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
 SET LOCAL ROLE authenticated;
-SELECT public.accept_invite((SELECT token FROM public.invites WHERE email = 'invitee@example.com' AND status = 'pending' LIMIT 1));
+SELECT public.accept_invite((SELECT token FROM invite_tok WHERE kind = 'pending'));
 SELECT is((SELECT count(*)::int FROM public.space_members WHERE user_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'), 1, 'matching email can accept a pending invite once');
 SELECT throws_ok(
-  format($sql$SELECT public.accept_invite(%L)$sql$, (SELECT token FROM public.invites WHERE email = 'invitee@example.com' ORDER BY created_at DESC LIMIT 1)),
+  format($sql$SELECT public.accept_invite(%L)$sql$, (SELECT token FROM invite_tok WHERE kind = 'pending')),
   '23505',
   NULL,
   'invite cannot be accepted a second time'
@@ -992,14 +1014,19 @@ SELECT throws_ok(
 RESET ROLE;
 
 INSERT INTO public.invites (family_space_id, invited_by, email, role, default_circle_id, expires_at)
-SELECT fx.rivera, '11111111-1111-1111-1111-111111111111', 'invitee@example.com', 'teen', c.id, now() - interval '1 day'
-FROM fx
-JOIN public.circles AS c ON c.family_space_id = fx.rivera AND c.kind = 'household';
+SELECT fx.rivera, '11111111-1111-1111-1111-111111111111', 'invitee@example.com', 'teen', fx.household, now() - interval '1 day'
+FROM fx;
+INSERT INTO invite_tok (kind, token)
+SELECT 'expired', token
+FROM public.invites
+WHERE email = 'invitee@example.com' AND expires_at < now()
+ORDER BY created_at DESC
+LIMIT 1;
 
 SELECT tests_jwt('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
 SET LOCAL ROLE authenticated;
 SELECT throws_ok(
-  format($sql$SELECT public.accept_invite(%L)$sql$, (SELECT token FROM public.invites WHERE expires_at < now() AND email = 'invitee@example.com' LIMIT 1)),
+  format($sql$SELECT public.accept_invite(%L)$sql$, (SELECT token FROM invite_tok WHERE kind = 'expired')),
   '23514',
   NULL,
   'expired invite cannot be accepted'
@@ -1008,9 +1035,8 @@ RESET ROLE;
 
 -- D12 revoked (never accepted) invite cannot be accepted
 INSERT INTO public.invites (family_space_id, invited_by, email, role, default_circle_id)
-SELECT fx.rivera, '11111111-1111-1111-1111-111111111111', 'invitee@example.com', 'teen', c.id
-FROM fx
-JOIN public.circles AS c ON c.family_space_id = fx.rivera AND c.kind = 'household';
+SELECT fx.rivera, '11111111-1111-1111-1111-111111111111', 'invitee@example.com', 'teen', fx.household
+FROM fx;
 UPDATE public.invites
 SET status = 'revoked'
 WHERE id = (
@@ -1019,12 +1045,18 @@ WHERE id = (
   ORDER BY created_at DESC
   LIMIT 1
 );
+INSERT INTO invite_tok (kind, token)
+SELECT 'revoked', token
+FROM public.invites
+WHERE email = 'invitee@example.com' AND status = 'revoked'
+ORDER BY created_at DESC
+LIMIT 1;
 SELECT tests_jwt('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
 SET LOCAL ROLE authenticated;
 SELECT throws_ok(
   format(
     $sql$SELECT public.accept_invite(%L)$sql$,
-    (SELECT token FROM public.invites WHERE email = 'invitee@example.com' AND status = 'revoked' ORDER BY created_at DESC LIMIT 1)
+    (SELECT token FROM invite_tok WHERE kind = 'revoked')
   ),
   '23514',
   NULL,
@@ -1048,20 +1080,25 @@ RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.space_members WHERE user_id = '99999999-9999-9999-9999-999999999999'), 0, 'successor can leave the family space');
 
 INSERT INTO public.invites (family_space_id, invited_by, email, role, default_circle_id)
-SELECT fx.rivera, '11111111-1111-1111-1111-111111111111', 'decline@example.com', 'elder', c.id
-FROM fx
-JOIN public.circles AS c ON c.family_space_id = fx.rivera AND c.kind = 'household';
+SELECT fx.rivera, '11111111-1111-1111-1111-111111111111', 'decline@example.com', 'elder', fx.household
+FROM fx;
+INSERT INTO invite_tok (kind, token)
+SELECT 'declined', token
+FROM public.invites
+WHERE email = 'decline@example.com' AND status = 'pending'
+ORDER BY created_at DESC
+LIMIT 1;
 
 SELECT is(
   (SELECT inviter_display_name FROM public.get_invite_preview(
-    (SELECT token FROM public.invites WHERE email = 'decline@example.com' AND status = 'pending' LIMIT 1)
+    (SELECT token FROM invite_tok WHERE kind = 'declined')
   )),
   'Elena Rivera',
   'invite preview includes who invited'
 );
 
 SELECT public.decline_invite(
-  (SELECT token FROM public.invites WHERE email = 'decline@example.com' ORDER BY created_at DESC LIMIT 1)
+  (SELECT token FROM invite_tok WHERE kind = 'declined')
 );
 
 SELECT is(
@@ -1073,7 +1110,7 @@ SELECT is(
 SELECT is_empty(
   format(
     $sql$SELECT * FROM public.get_invite_preview(%L)$sql$,
-    (SELECT token FROM public.invites WHERE email = 'decline@example.com' ORDER BY created_at DESC LIMIT 1)
+    (SELECT token FROM invite_tok WHERE kind = 'declined')
   ),
   'declined invite has no preview'
 );
@@ -1083,7 +1120,7 @@ SET LOCAL ROLE authenticated;
 SELECT throws_ok(
   format(
     $sql$SELECT public.accept_invite(%L)$sql$,
-    (SELECT token FROM public.invites WHERE email = 'decline@example.com' ORDER BY created_at DESC LIMIT 1)
+    (SELECT token FROM invite_tok WHERE kind = 'declined')
   ),
   '23514',
   NULL,

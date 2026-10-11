@@ -6,6 +6,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-10 — Local CI database tests pass
+
+New migration keeps profile emails unreadable while restoring `REFERENCES` on `profiles.id` so admins can insert invites. Invite email matching uses a definer helper. pgTAP now names schemas for `has_table`, grants fixture reads, and looks up invite tokens before switching to `authenticated`.
+
+---
+
 ## 2026-10-10 — pgTAP fixture role and plan
 
 Granted SELECT on the temp `fx` table to `authenticated` and `anon`, set `plan(127)`, and kept the file in one `BEGIN`/`ROLLBACK`. Real table grants were not changed.
