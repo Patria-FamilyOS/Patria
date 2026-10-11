@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT no_plan();
+SELECT plan(127);
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -103,10 +103,12 @@ SET LOCAL ROLE authenticated;
 SELECT public.create_family_space('The Other Family', NULL);
 RESET ROLE;
 
+RESET ROLE;
 CREATE TEMP TABLE fx AS
 SELECT
   (SELECT id FROM public.family_spaces WHERE name = 'The Rivera Family') AS rivera,
   (SELECT id FROM public.family_spaces WHERE name = 'The Other Family') AS other;
+GRANT SELECT ON TABLE fx TO authenticated, anon;
 
 INSERT INTO public.space_members (family_space_id, user_id, role, relationship_label)
 SELECT rivera, user_id, role, label
@@ -1089,6 +1091,7 @@ SELECT throws_ok(
 );
 RESET ROLE;
 
+RESET ROLE;
 SELECT tests_create_auth_user(
   'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
   'autoprofile@example.com',
@@ -1100,5 +1103,6 @@ SELECT is(
   'new auth user gets a profile automatically'
 );
 
+RESET ROLE;
 SELECT * FROM finish();
 ROLLBACK;

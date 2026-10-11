@@ -6,6 +6,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-10 — pgTAP fixture role and plan
+
+Granted SELECT on the temp `fx` table to `authenticated` and `anon`, set `plan(127)`, and kept the file in one `BEGIN`/`ROLLBACK`. Real table grants were not changed.
+
+---
+
 ## 2026-10-10 — D8 pgTAP coverage and CI
 
 Added pgTAP for revoked invites, last-admin self-demote, and the remaining D8 cells. GitHub Actions runs app Jest and a fresh local Supabase `test db` with no hosted project.
