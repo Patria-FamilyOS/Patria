@@ -24,16 +24,14 @@ export const type = {
   heading: {
     fontFamily: 'serif',
     fontSize: 28,
-    lineHeight: 34,
   },
   body: {
     fontFamily: 'System',
     fontSize: 16,
-    lineHeight: 24,
   },
   caption: {
     fontFamily: 'System',
     fontSize: 14,
-    lineHeight: 20,
   },
+  titleMaxMultiplier: 2,
 } as const;

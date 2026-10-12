@@ -45,6 +45,7 @@ Patria is a private family app: it runs a family's day to day and keeps its memo
 * Shared UI components in `patria-app/src/components/`; design tokens (colors, spacing, type) in `patria-app/src/theme/`.
 * No `any` types. Handle loading, empty and error states on every screen.
 * Accessibility: every touchable has an accessibility label; support large text.
+* Support iOS and Android text size settings up to the largest accessibility sizes. No fixed text or line heights; every screen scrolls; test at the largest size before marking a screen done.
 * Plain, warm language in the UI. Patria is quiet by default: no streaks, no guilt messages, no pushy notifications.
 
 ## How to work

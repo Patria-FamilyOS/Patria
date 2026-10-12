@@ -54,15 +54,31 @@ export function Screen({
 type TitleProps = { children: ReactNode };
 
 export function Title({ children }: TitleProps) {
-  return <Text style={styles.title}>{children}</Text>;
+  return (
+    <Text
+      allowFontScaling
+      maxFontSizeMultiplier={type.titleMaxMultiplier}
+      style={styles.title}
+    >
+      {children}
+    </Text>
+  );
 }
 
 export function Body({ children }: TitleProps) {
-  return <Text style={styles.body}>{children}</Text>;
+  return (
+    <Text allowFontScaling style={styles.body}>
+      {children}
+    </Text>
+  );
 }
 
 export function Muted({ children }: TitleProps) {
-  return <Text style={styles.muted}>{children}</Text>;
+  return (
+    <Text allowFontScaling style={styles.muted}>
+      {children}
+    </Text>
+  );
 }
 
 type ButtonProps = {
@@ -105,6 +121,7 @@ export function Button({
         />
       ) : (
         <Text
+          allowFontScaling
           style={[
             styles.buttonLabel,
             variant === 'secondary' && styles.buttonLabelSecondary,
@@ -125,15 +142,22 @@ type FieldProps = TextInputProps & {
 export function Field({ label, error, ...inputProps }: FieldProps) {
   return (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <Text allowFontScaling style={styles.fieldLabel}>
+        {label}
+      </Text>
       <TextInput
         {...inputProps}
+        allowFontScaling
         accessibilityLabel={label}
         placeholderTextColor={colors.textMuted}
         style={styles.input}
         textAlignVertical="center"
       />
-      {error ? <Text style={styles.fieldError}>{error}</Text> : null}
+      {error ? (
+        <Text allowFontScaling style={styles.fieldError}>
+          {error}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -144,21 +168,27 @@ export function LoadingState({ message }: StatusProps) {
   return (
     <View style={styles.status} accessibilityRole="progressbar" accessibilityLabel={message}>
       <ActivityIndicator color={colors.primary} />
-      <Text style={styles.muted}>{message}</Text>
+      <Text allowFontScaling style={styles.muted}>
+        {message}
+      </Text>
     </View>
   );
 }
 
 export function ErrorState({ message }: StatusProps) {
   return (
-    <Text style={styles.fieldError} accessibilityRole="alert">
+    <Text allowFontScaling style={styles.fieldError} accessibilityRole="alert">
       {message}
     </Text>
   );
 }
 
 export function EmptyState({ message }: StatusProps) {
-  return <Text style={styles.muted}>{message}</Text>;
+  return (
+    <Text allowFontScaling style={styles.muted}>
+      {message}
+    </Text>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -188,7 +218,9 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
+    minHeight: 52,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   buttonSecondary: {
     backgroundColor: 'transparent',
@@ -208,6 +240,7 @@ const styles = StyleSheet.create({
     ...type.body,
     color: colors.onPrimary,
     fontWeight: '600',
+    textAlign: 'center',
   },
   buttonLabelSecondary: {
     color: colors.primary,

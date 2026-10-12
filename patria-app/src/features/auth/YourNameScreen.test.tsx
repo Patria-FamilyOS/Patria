@@ -2,6 +2,8 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { copy } from '../../lib/copy';
+import { ownDisplayNameQueryKey } from '../../lib/ownDisplayName';
+import { queryClient } from '../../lib/queryClient';
 import { supabase } from '../../lib/supabase';
 import { YourNameScreen } from './YourNameScreen';
 
@@ -15,7 +17,10 @@ jest.mock('../../lib/auth-context', () => ({
 }));
 
 jest.mock('../../lib/queryClient', () => ({
-  queryClient: { invalidateQueries: jest.fn() },
+  queryClient: {
+    setQueryData: jest.fn(),
+    invalidateQueries: jest.fn(),
+  },
 }));
 
 jest.mock('../../lib/supabase', () => {
@@ -65,6 +70,13 @@ describe('YourNameScreen', () => {
       expect.objectContaining({ display_name: 'Elena Rivera' }),
     );
     expect(mockedProfiles.eq).toHaveBeenCalledWith('id', 'u1');
+    expect(queryClient.setQueryData).toHaveBeenCalledWith(
+      ownDisplayNameQueryKey('u1'),
+      'Elena Rivera',
+    );
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ownDisplayNameQueryKey('u1'),
+    });
     await waitFor(() => {
       expect(mockedReplace()).toHaveBeenCalledWith('/');
     });

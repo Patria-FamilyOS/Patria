@@ -11,6 +11,17 @@ describe('resolveEntryHref', () => {
     ).toBe('/(signed-out)/welcome');
   });
 
+  it('only the gate decides whether a name is missing', () => {
+    expect(
+      resolveEntryHref({
+        hasSession: true,
+        membershipCount: 1,
+        pendingInviteToken: null,
+        needsDisplayName: false,
+      }),
+    ).toBe('/(signed-in)/home');
+  });
+
   it('asks for a display name before family or invite screens', () => {
     expect(
       resolveEntryHref({

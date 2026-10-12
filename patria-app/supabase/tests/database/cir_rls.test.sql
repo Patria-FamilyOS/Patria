@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(127);
+SELECT plan(136);
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -515,9 +515,22 @@ SELECT is((SELECT count(*)::int FROM public.invites WHERE email = 'invitee@examp
 -- Child profiles
 SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
 SET LOCAL ROLE authenticated;
-INSERT INTO public.child_profiles (family_space_id, display_name, created_by)
-SELECT rivera, 'Luis', '11111111-1111-1111-1111-111111111111' FROM fx;
-SELECT isnt_empty($$SELECT 1 FROM public.child_profiles WHERE display_name = 'Luis'$$, 'admin can add a child profile');
+SELECT lives_ok(
+  $sql$INSERT INTO public.child_profiles (family_space_id, display_name, created_by)
+       SELECT rivera, 'Luis', '11111111-1111-1111-1111-111111111111' FROM fx
+       RETURNING id$sql$,
+  'admin can add a child profile'
+);
+RESET ROLE;
+
+SELECT tests_jwt('22222222-2222-2222-2222-222222222222');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $sql$INSERT INTO public.child_profiles (family_space_id, display_name, created_by)
+       SELECT rivera, 'Mia', '22222222-2222-2222-2222-222222222222' FROM fx
+       RETURNING id$sql$,
+  'co admin can add a child profile'
+);
 RESET ROLE;
 
 SELECT tests_jwt('33333333-3333-3333-3333-333333333333');
@@ -1139,6 +1152,68 @@ SELECT is(
   'Auto Profile',
   'new auth user gets a profile automatically'
 );
+
+RESET ROLE;
+
+-- D8 Yes cells as the signed-in admin, including RETURNING (how the app writes).
+SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $sql$INSERT INTO public.invites (family_space_id, invited_by, email, role, default_circle_id)
+       SELECT fx.rivera, '11111111-1111-1111-1111-111111111111', 'd8-yes@example.com', 'teen', c.id
+       FROM fx
+       JOIN public.circles AS c ON c.family_space_id = fx.rivera AND c.kind = 'household'
+       RETURNING id$sql$,
+  'admin can invite a member (RETURNING)'
+);
+SELECT lives_ok(
+  $sql$UPDATE public.invites SET status = 'revoked'
+       WHERE email = 'd8-yes@example.com' AND status = 'pending'
+       RETURNING id$sql$,
+  'admin can revoke a pending invite (RETURNING)'
+);
+SELECT lives_ok(
+  $sql$UPDATE public.space_members SET role = 'teen'
+       WHERE user_id = '33333333-3333-3333-3333-333333333333'
+       RETURNING id$sql$,
+  'admin can change a member role (RETURNING)'
+);
+SELECT lives_ok(
+  $sql$DELETE FROM public.space_members
+       WHERE user_id = '55555555-5555-5555-5555-555555555555'
+       RETURNING id$sql$,
+  'admin can remove a member (RETURNING)'
+);
+SELECT lives_ok(
+  $sql$UPDATE public.family_spaces SET name = 'The Rivera Family'
+       WHERE id = (SELECT rivera FROM fx)
+       RETURNING id$sql$,
+  'admin can rename the family space (RETURNING)'
+);
+SELECT lives_ok(
+  $sql$UPDATE public.circle_item_type_defaults
+       SET circle_id = circle_id
+       WHERE family_space_id = (SELECT rivera FROM fx) AND item_type = 'photo'
+       RETURNING id$sql$,
+  'admin can change default circles per item type (RETURNING)'
+);
+SELECT lives_ok(
+  $sql$UPDATE public.space_members SET role = 'successor'
+       WHERE user_id = '44444444-4444-4444-4444-444444444444'
+       RETURNING id$sql$,
+  'admin can name a successor (RETURNING)'
+);
+RESET ROLE;
+
+SELECT tests_jwt('22222222-2222-2222-2222-222222222222');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $sql$UPDATE public.family_spaces SET name = 'The Rivera Family'
+       WHERE id = (SELECT rivera FROM fx)
+       RETURNING id$sql$,
+  'co admin can rename the family space (RETURNING)'
+);
+RESET ROLE;
 
 RESET ROLE;
 SELECT * FROM finish();

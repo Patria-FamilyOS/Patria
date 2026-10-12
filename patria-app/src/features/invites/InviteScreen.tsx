@@ -18,6 +18,7 @@ import {
 } from '../../components/ui';
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
+import { logFailedAction } from '../../lib/devLog';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
 import { fetchInviteCircles, fetchInviteShareToken, fetchPendingInvites } from '../../lib/family';
 import { inviteUrlFromToken } from '../../lib/inviteUrl';
@@ -93,6 +94,7 @@ export function InviteScreen() {
       .select('id')
       .single();
     if (error || !data) {
+      logFailedAction(error);
       setFormError(copy.invite.createFailed);
       return;
     }
@@ -269,6 +271,9 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    minHeight: 44,
+    justifyContent: 'center',
+    flexShrink: 1,
   },
   chipOn: {
     backgroundColor: colors.primary,

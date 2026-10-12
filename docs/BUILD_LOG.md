@@ -6,6 +6,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-11 — Name gate cache, add child RETURNING, Dynamic Type
+
+Your name was asked twice because the gate reused a stale empty profile cache after save; the gate is the only name check and now gets the new name immediately. Add a child failed with Postgres `42501` / “new row violates row-level security policy”: the insert succeeded, but PostgREST `RETURNING` ran `can_view_child`, which re-selected `child_profiles` before the new row was visible. EXECUTE on helpers was still granted to `authenticated`; the Yes-cell tests did not use `RETURNING`, so CI missed it. Admins/teens/elders now see children in their space without that nested select. Dev builds log action error code and message only. Type tokens no longer pin `lineHeight`; screens scroll; titles cap at 2×.
+
+---
+
 ## 2026-10-11 — Join another family, sign out, names
 
 Home no longer shows an invite paste box. People already in a family use a small Join another family link (D18; phone notes called this D15, but D15 already names the build log). Create family has Sign out with the same spinner and replace-to-welcome as Home. After sign in, a missing display name is collected on one screen; member cards fall back to “Family member” so we never show a blank name (D17: no emails to non-admins).

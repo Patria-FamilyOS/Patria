@@ -1,7 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { colors, spacing, type } from '../theme';
+import { Body, Screen, Title } from './ui';
 
 type PlaceholderScreenProps = {
   title: string;
@@ -15,32 +12,9 @@ export function PlaceholderScreen({
   accessibilityLabel,
 }: PlaceholderScreenProps) {
   return (
-    <SafeAreaView style={styles.safe} accessibilityLabel={accessibilityLabel}>
-      <View style={styles.inner}>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.body}>{body}</Text>
-      </View>
-    </SafeAreaView>
+    <Screen accessibilityLabel={accessibilityLabel}>
+      <Title>{title}</Title>
+      <Body>{body}</Body>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  inner: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  title: {
-    ...type.heading,
-    color: colors.primary,
-    marginBottom: spacing.md,
-  },
-  body: {
-    ...type.body,
-    color: colors.text,
-  },
-});

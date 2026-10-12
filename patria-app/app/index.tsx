@@ -6,6 +6,7 @@ import { useAuth } from '../src/lib/auth-context';
 import { copy } from '../src/lib/copy';
 import { hasDisplayName } from '../src/lib/displayName';
 import { fetchMemberships, fetchOwnDisplayName } from '../src/lib/family';
+import { ownDisplayNameQueryKey } from '../src/lib/ownDisplayName';
 import { readPendingInviteToken } from '../src/lib/pendingInvite';
 import { resolveEntryHref } from '../src/lib/sessionGate';
 
@@ -24,7 +25,7 @@ export default function Index() {
     queryFn: () => fetchMemberships(userId as string),
   });
   const nameQuery = useQuery({
-    queryKey: ['own-display-name', userId],
+    queryKey: userId ? ownDisplayNameQueryKey(userId) : ['own-display-name'],
     enabled: Boolean(userId),
     queryFn: () => fetchOwnDisplayName(userId as string),
   });

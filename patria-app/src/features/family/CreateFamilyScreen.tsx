@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import { Body, Button, ErrorState, Field, Muted, Screen, Title } from '../../components/ui';
 import { signOutAndGoWelcome } from '../../lib/authSession';
+import { logFailedAction } from '../../lib/devLog';
 import { copy } from '../../lib/copy';
 import { writeCurrentFamilyId } from '../../lib/currentFamily';
 import { routes } from '../../lib/navigation';
@@ -41,6 +42,7 @@ export function CreateFamilyScreen() {
       p_relationship_label: copy.relationships[values.relationship],
     });
     if (error || !data) {
+      logFailedAction(error);
       setFormError(copy.createFamily.failed);
       return;
     }
@@ -83,7 +85,10 @@ export function CreateFamilyScreen() {
                   onPress={() => field.onChange(key)}
                   style={[styles.chip, selected && styles.chipSelected]}
                 >
-                  <Text style={[styles.chipLabel, selected && styles.chipLabelSelected]}>
+                  <Text
+                    allowFontScaling
+                    style={[styles.chipLabel, selected && styles.chipLabelSelected]}
+                  >
                     {label}
                   </Text>
                 </Pressable>
@@ -133,6 +138,9 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    minHeight: 44,
+    justifyContent: 'center',
+    flexShrink: 1,
   },
   chipSelected: {
     backgroundColor: colors.primary,

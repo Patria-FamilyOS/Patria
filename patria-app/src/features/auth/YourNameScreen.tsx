@@ -8,6 +8,8 @@ import { Button, ErrorState, Field, Screen, Title } from '../../components/ui';
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { routes } from '../../lib/navigation';
+import { logFailedAction } from '../../lib/devLog';
+import { ownDisplayNameQueryKey } from '../../lib/ownDisplayName';
 import { queryClient } from '../../lib/queryClient';
 import { supabase } from '../../lib/supabase';
 
@@ -38,10 +40,12 @@ export function YourNameScreen() {
       .update({ display_name: values.name, updated_at: new Date().toISOString() })
       .eq('id', session.user.id);
     if (error) {
+      logFailedAction(error);
       setFormError(copy.common.error);
       return;
     }
-    await queryClient.invalidateQueries({ queryKey: ['own-display-name'] });
+    queryClient.setQueryData(ownDisplayNameQueryKey(session.user.id), values.name);
+    await queryClient.invalidateQueries({ queryKey: ownDisplayNameQueryKey(session.user.id) });
     router.replace(routes.gate);
   });
 

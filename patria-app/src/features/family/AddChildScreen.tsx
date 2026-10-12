@@ -8,6 +8,7 @@ import { Body, Button, ErrorState, Field, Muted, Screen, Title } from '../../com
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
+import { logFailedAction } from '../../lib/devLog';
 import { householdCircleId } from '../../lib/family';
 import { supabase } from '../../lib/supabase';
 
@@ -48,6 +49,7 @@ export function AddChildScreen() {
       .select('id')
       .single();
     if (error || !data) {
+      logFailedAction(error);
       setFormError(copy.child.failed);
       return;
     }

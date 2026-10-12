@@ -7,6 +7,7 @@ import { Body, Button, ErrorState, LoadingState, Muted, Screen, Title } from '..
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
+import { logFailedAction } from '../../lib/devLog';
 import { fetchAdminMemberEmail, fetchMembers } from '../../lib/family';
 import { countAdmins, INVITE_ROLES, isSpaceAdmin, type SpaceRole } from '../../lib/roles';
 import { supabase } from '../../lib/supabase';
@@ -70,6 +71,7 @@ export function MemberScreen({ userId }: MemberScreenProps) {
       .eq('family_space_id', spaceId)
       .eq('user_id', userId);
     if (updateError) {
+      logFailedAction(updateError);
       setError(copy.member.saveFailed);
       return;
     }
@@ -93,6 +95,7 @@ export function MemberScreen({ userId }: MemberScreenProps) {
             .eq('user_id', userId)
             .then(({ error: deleteError }) => {
               if (deleteError) {
+                logFailedAction(deleteError);
                 setError(copy.member.removeFailed);
                 return;
               }
@@ -156,6 +159,9 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    minHeight: 44,
+    justifyContent: 'center',
+    flexShrink: 1,
   },
   chipOn: {
     backgroundColor: colors.primary,
