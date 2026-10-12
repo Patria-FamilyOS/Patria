@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
   Body,
@@ -79,7 +79,29 @@ export function HomeScreen() {
     void membersQuery.refetch();
     void childrenQuery.refetch();
     void invitesQuery.refetch();
-  }, [membershipsQuery, membersQuery, childrenQuery, invitesQuery]);
+    // refetch fns are stable; the query objects change identity every render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    membershipsQuery.refetch,
+    membersQuery.refetch,
+    childrenQuery.refetch,
+    invitesQuery.refetch,
+  ]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') {
+        onRefresh();
+      }
+    });
+    return () => sub.remove();
+  }, [onRefresh]);
+
+  const refreshing =
+    membershipsQuery.isRefetching ||
+    membersQuery.isRefetching ||
+    childrenQuery.isRefetching ||
+    invitesQuery.isRefetching;
 
   if (membershipsQuery.isLoading) {
     return (
@@ -99,7 +121,11 @@ export function HomeScreen() {
 
   if (!current) {
     return (
-      <Screen accessibilityLabel={copy.home.noFamilyTitle}>
+      <Screen
+        accessibilityLabel={copy.home.noFamilyTitle}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+      >
         <Title>{copy.home.noFamilyTitle}</Title>
         <Body>{copy.home.noFamilyBody}</Body>
         <PasteInviteField onOpen={(token) => router.push(routes.inviteAccept(token))} />
@@ -127,7 +153,11 @@ export function HomeScreen() {
     membersQuery.data?.find((row) => row.userId === userId)?.displayName ?? copy.appName;
 
   return (
-    <Screen accessibilityLabel={current.space.name}>
+    <Screen
+      accessibilityLabel={current.space.name}
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+    >
       <Title>{copy.home.greeting.replace('{name}', displayName)}</Title>
       <Title>{current.space.name}</Title>
       <Muted>{copy.home.todoMemories}</Muted>
@@ -209,7 +239,6 @@ export function HomeScreen() {
         </>
       ) : null}
 
-      <Button label={copy.common.continue} variant="secondary" onPress={onRefresh} />
       <Button
         label={copy.auth.signOut}
         variant="secondary"

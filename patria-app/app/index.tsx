@@ -51,13 +51,15 @@ export default function Index() {
     );
   }
 
-  if (pendingQuery.data) {
+  const pendingToken = pendingQuery.data;
+
+  if (pendingToken) {
     return (
       <Redirect
         href={resolveEntryHref({
           hasSession: true,
           membershipCount: 0,
-          pendingInviteToken: pendingQuery.data,
+          pendingInviteToken: pendingToken,
         })}
       />
     );

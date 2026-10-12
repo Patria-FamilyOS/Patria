@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -17,9 +18,17 @@ type ScreenProps = {
   children: ReactNode;
   accessibilityLabel?: string;
   withHeader?: boolean;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 };
 
-export function Screen({ children, accessibilityLabel, withHeader = false }: ScreenProps) {
+export function Screen({
+  children,
+  accessibilityLabel,
+  withHeader = false,
+  refreshing = false,
+  onRefresh,
+}: ScreenProps) {
   return (
     <SafeAreaView
       style={styles.safe}
@@ -29,6 +38,12 @@ export function Screen({ children, accessibilityLabel, withHeader = false }: Scr
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
+        alwaysBounceVertical={Boolean(onRefresh)}
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          ) : undefined
+        }
       >
         {children}
       </ScrollView>
@@ -106,6 +121,7 @@ export function Field({ label, error, ...inputProps }: FieldProps) {
         accessibilityLabel={label}
         placeholderTextColor={colors.textMuted}
         style={styles.input}
+        textAlignVertical="center"
       />
       {error ? <Text style={styles.fieldError}>{error}</Text> : null}
     </View>
@@ -194,13 +210,15 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   input: {
-    ...type.body,
+    fontFamily: type.body.fontFamily,
+    fontSize: type.body.fontSize,
     backgroundColor: colors.surface,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.chip,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 4,
+    paddingVertical: spacing.md,
+    minHeight: 52,
     color: colors.text,
   },
   fieldError: {

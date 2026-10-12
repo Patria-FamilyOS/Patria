@@ -6,7 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClientProvider } from '@tanstack/react-query';
 
 import { AuthProvider } from '../src/lib/auth-context';
-import { hiddenRootHeader, pushedScreenHeader } from '../src/lib/navigation';
+import { hiddenRootHeader, pushedScreenHeader, screenTitles } from '../src/lib/navigation';
 import { queryClient } from '../src/lib/queryClient';
 import { colors } from '../src/theme';
 
@@ -23,14 +23,20 @@ export default function RootLayout() {
                 contentStyle: { backgroundColor: colors.background },
               }}
             >
-              <Stack.Screen name="index" />
-              <Stack.Screen name="(signed-out)" />
-              <Stack.Screen name="(signed-in)" />
+              <Stack.Screen name="index" options={{ title: screenTitles.home }} />
+              <Stack.Screen
+                name="(signed-out)"
+                options={{ ...hiddenRootHeader, title: screenTitles.home }}
+              />
+              <Stack.Screen
+                name="(signed-in)"
+                options={{ ...hiddenRootHeader, title: screenTitles.home }}
+              />
               <Stack.Screen
                 name="invite/[token]"
                 options={{
                   ...pushedScreenHeader,
-                  // Swipe is handled in the invite screen so it replace()s to the gate.
+                  title: screenTitles.inviteAccept,
                   gestureEnabled: true,
                 }}
               />

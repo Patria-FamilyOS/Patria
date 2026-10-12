@@ -1,18 +1,37 @@
+import { copy } from './copy';
 import { colors } from '../theme';
 
 export const hiddenRootHeader = {
   headerShown: false,
   gestureEnabled: false,
+  title: copy.appName,
+  headerBackTitle: '',
+  headerBackButtonDisplayMode: 'minimal',
 } as const;
 
 export const pushedScreenHeader = {
   headerShown: true,
   gestureEnabled: true,
   headerBackTitle: '',
-  headerTitle: '',
+  headerBackButtonDisplayMode: 'minimal',
   headerShadowVisible: false,
   headerTintColor: colors.primary,
   headerStyle: { backgroundColor: colors.background },
+} as const;
+
+export const screenTitles = {
+  welcome: copy.welcome.title,
+  signIn: copy.auth.signInTitle,
+  signUp: copy.auth.signUpTitle,
+  verify: copy.auth.verifyTitle,
+  home: copy.appName,
+  createFamily: copy.createFamily.title,
+  ready: copy.ready.title,
+  inviteSomeone: copy.invite.title,
+  addChild: copy.child.title,
+  member: copy.member.title,
+  child: copy.child.title,
+  inviteAccept: copy.invitePreview.title,
 } as const;
 
 export const routes = {
@@ -38,10 +57,6 @@ export function isRootWithoutBack(
     return true;
   }
   return !canGoBack;
-}
-
-export function shouldInterceptInviteBack(actionType: string): boolean {
-  return actionType === 'GO_BACK' || actionType === 'POP';
 }
 
 export function inviteAcceptBackHref(): '/' {

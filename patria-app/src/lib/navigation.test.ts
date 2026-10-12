@@ -6,7 +6,6 @@ import {
   isRootWithoutBack,
   pushedScreenHeader,
   routes,
-  shouldInterceptInviteBack,
 } from './navigation';
 
 describe('navigation headers', () => {
@@ -24,6 +23,9 @@ describe('navigation headers', () => {
     expect(headerWhenPushed(true)).toBe(pushedScreenHeader);
     expect(pushedScreenHeader.headerShown).toBe(true);
     expect(pushedScreenHeader.gestureEnabled).toBe(true);
+    expect(pushedScreenHeader.headerBackButtonDisplayMode).toBe('minimal');
+    expect(hiddenRootHeader.title).toBe('Patria');
+    expect(hiddenRootHeader.title).not.toMatch(/signed-out|signed-in/);
     expect(headerWhenPushed(true)).toEqual(
       expect.objectContaining({
         headerShown: true,
@@ -37,11 +39,7 @@ describe('navigation headers', () => {
     expect(routes.inviteAccept('abc')).toBe('/invite/abc');
   });
 
-  it('sends invite swipe-back to the gate instead of popping a group', () => {
-    expect(shouldInterceptInviteBack('GO_BACK')).toBe(true);
-    expect(shouldInterceptInviteBack('POP')).toBe(true);
-    expect(shouldInterceptInviteBack('REPLACE')).toBe(false);
-    expect(shouldInterceptInviteBack('NAVIGATE')).toBe(false);
+  it('lets native back leave the invite screen', () => {
     expect(inviteAcceptBackHref()).toBe('/');
   });
 

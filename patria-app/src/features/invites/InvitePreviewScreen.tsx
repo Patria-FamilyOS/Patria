@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useNavigation, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 
 import { Body, Button, ErrorState, LoadingState, Screen } from '../../components/ui';
@@ -7,8 +7,8 @@ import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { writeCurrentFamilyId } from '../../lib/currentFamily';
 import type { InvitePreview } from '../../lib/family';
+import { routes } from '../../lib/navigation';
 import { clearPendingInviteToken, savePendingInviteToken } from '../../lib/pendingInvite';
-import { inviteAcceptBackHref, shouldInterceptInviteBack } from '../../lib/navigation';
 import { supabase } from '../../lib/supabase';
 import { InvitePreviewView } from './InvitePreviewView';
 
@@ -18,24 +18,12 @@ type InvitePreviewScreenProps = {
 
 export function InvitePreviewScreen({ token }: InvitePreviewScreenProps) {
   const router = useRouter();
-  const navigation = useNavigation();
   const { session } = useAuth();
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove', (event) => {
-      if (!shouldInterceptInviteBack(event.data.action.type)) {
-        return;
-      }
-      event.preventDefault();
-      router.replace(inviteAcceptBackHref());
-    });
-    return unsubscribe;
-  }, [navigation, router]);
-
   const previewQuery = useQuery({
-    queryKey: ['invite-preview'],
+    queryKey: ['invite-preview', token],
     staleTime: 0,
     gcTime: 0,
     queryFn: async () => {
@@ -49,6 +37,15 @@ export function InvitePreviewScreen({ token }: InvitePreviewScreenProps) {
       return (row as InvitePreview | undefined) ?? null;
     },
   });
+
+  const inviteIsGone =
+    previewQuery.isError || (previewQuery.isSuccess && previewQuery.data == null);
+
+  useEffect(() => {
+    if (inviteIsGone) {
+      void clearPendingInviteToken();
+    }
+  }, [inviteIsGone]);
 
   const goAuth = async (path: '/(signed-out)/sign-in' | '/(signed-out)/sign-up') => {
     await savePendingInviteToken(token);
@@ -69,7 +66,7 @@ export function InvitePreviewScreen({ token }: InvitePreviewScreenProps) {
     if (data) {
       await writeCurrentFamilyId(String(data));
     }
-    router.replace('/(signed-in)/home');
+    router.replace(routes.home);
   };
 
   const onDecline = async () => {
@@ -85,6 +82,11 @@ export function InvitePreviewScreen({ token }: InvitePreviewScreenProps) {
     await previewQuery.refetch();
   };
 
+  const onLeaveInvalid = async () => {
+    await clearPendingInviteToken();
+    router.replace(routes.gate);
+  };
+
   if (previewQuery.isLoading) {
     return (
       <Screen withHeader>
@@ -93,10 +95,12 @@ export function InvitePreviewScreen({ token }: InvitePreviewScreenProps) {
     );
   }
 
-  if (previewQuery.error) {
+  if (inviteIsGone) {
     return (
-      <Screen withHeader>
-        <ErrorState message={copy.common.error} />
+      <Screen accessibilityLabel={copy.invitePreview.invalid} withHeader>
+        {previewQuery.isError ? <ErrorState message={copy.common.error} /> : null}
+        <Body>{copy.invitePreview.invalid}</Body>
+        <Button label={copy.common.continue} onPress={() => void onLeaveInvalid()} />
       </Screen>
     );
   }
@@ -105,7 +109,7 @@ export function InvitePreviewScreen({ token }: InvitePreviewScreenProps) {
     return (
       <Screen accessibilityLabel={copy.invitePreview.invalid} withHeader>
         <Body>{copy.invitePreview.invalid}</Body>
-        <Button label={copy.common.continue} onPress={() => router.replace(inviteAcceptBackHref())} />
+        <Button label={copy.common.continue} onPress={() => void onLeaveInvalid()} />
       </Screen>
     );
   }

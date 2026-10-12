@@ -50,4 +50,35 @@ describe('resolveEntryHref', () => {
       }),
     ).toBe('/invite/invite-token');
   });
+
+  it('never redirects to an invite after the pending token is cleared', () => {
+    expect(
+      resolveEntryHref({
+        hasSession: false,
+        membershipCount: 0,
+        pendingInviteToken: null,
+      }),
+    ).toBe('/(signed-out)/welcome');
+    expect(
+      resolveEntryHref({
+        hasSession: true,
+        membershipCount: 0,
+        pendingInviteToken: null,
+      }),
+    ).toBe('/(signed-in)/create');
+    expect(
+      resolveEntryHref({
+        hasSession: true,
+        membershipCount: 1,
+        pendingInviteToken: null,
+      }),
+    ).toBe('/(signed-in)/home');
+    expect(
+      resolveEntryHref({
+        hasSession: true,
+        membershipCount: 0,
+        pendingInviteToken: null,
+      }),
+    ).not.toMatch(/^\/invite\//);
+  });
 });

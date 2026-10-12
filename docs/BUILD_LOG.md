@@ -6,6 +6,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-11 — Phone Batch C follow-up
+
+Text fields no longer clip descenders. Home pull-to-refresh and foreground refetch actually reload. Headers use real titles and a plain back arrow so route groups never appear. Invalid invites clear the pending token immediately and leave with replace to `/`, with no `beforeRemove` trap.
+
+---
+
 ## 2026-10-10 — Local CI database tests pass
 
 New migration keeps profile emails unreadable while restoring `REFERENCES` on `profiles.id` so admins can insert invites. Invite email matching uses a definer helper. pgTAP now names schemas for `has_table`, grants fixture reads, and looks up invite tokens before switching to `authenticated`.
