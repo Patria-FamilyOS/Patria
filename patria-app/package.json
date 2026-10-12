@@ -49,7 +49,8 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "jest"
+    "test": "jest",
+    "test:linux": "docker run --rm -v \"$(cd .. && pwd)\":/repo -w /repo/patria-app node:22 bash -c 'npm ci && npm run typecheck && npm run lint && npm test -- --ci'"
   },
   "private": true
 }

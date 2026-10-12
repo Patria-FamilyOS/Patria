@@ -8,7 +8,7 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ## 2026-10-12 — Home join-family test was paying first-render cost
 
-The first `render()` of React Native Testing Library in a Jest worker took ~1.4s locally and could exceed Jest’s 5s test limit on GitHub. `findBy` was not hanging (it finished in ~50ms once render returned). We warm the renderer once per worker in `setupFilesAfterEnv`, outside the test clock, and tear down QueryClients synchronously so `afterEach` cannot wait on `cancelQueries`. Local Node 24 and CI Node 22 now share `.nvmrc`.
+Linux Docker (Node 22) showed the wait is `render(<HomeScreen />)`, not `findBy` and not a case-mismatched mock. A View warmup is not enough: the first HomeScreen tree takes ~1.7s on 2 CPUs and ~13s when the CPU is constrained, which is how GitHub blows Jest’s 5s test budget before `findBy` runs. That first mount now happens while the describe block is collected, which has no test timeout. `npm run test:linux` runs the CI app job in Docker.
 
 ---
 

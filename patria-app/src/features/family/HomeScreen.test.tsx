@@ -83,6 +83,9 @@ function mockedRouter(): { push: jest.Mock; replace: jest.Mock } {
 }
 
 describe('HomeScreen invite entry', () => {
+  // First HomeScreen mount is slow on Linux; collection is not billed to an `it`.
+  renderScreen(<HomeScreen />).unmount();
+
   beforeEach(() => {
     mockedRouter().push.mockClear();
     mockedRouter().replace.mockClear();
