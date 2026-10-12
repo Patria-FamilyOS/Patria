@@ -1,5 +1,6 @@
 // SECURITY REVIEW REQUIRED
 import { bytesToHex } from '@noble/hashes/utils.js';
+import { logKeyStep } from '../devLog';
 import { isSpaceAdmin } from '../roles';
 import { supabase } from '../supabase';
 import { sealXChaCha20Poly1305 } from './aead';
@@ -54,13 +55,6 @@ export type FamilyKeyGateway = {
 const KEY_EPOCH = 1;
 
 export { toPgBytea };
-
-export function logCeremonyFailure(step: string, ids?: string): void {
-  if (!__DEV__) {
-    return;
-  }
-  console.warn(ids ? `Patria keys: ${step} ${ids}` : `Patria keys: ${step}`);
-}
 
 export function createFoundingMaterial(input: {
   spaceId: string;
@@ -123,7 +117,7 @@ export const supabaseFamilyKeyGateway: FamilyKeyGateway = {
       .eq('family_space_id', spaceId)
       .maybeSingle();
     if (error) {
-      logCeremonyFailure('fetch_family_key_meta');
+      logKeyStep('fetch_family_key_meta');
       throw error;
     }
     if (!data) {
@@ -139,7 +133,7 @@ export const supabaseFamilyKeyGateway: FamilyKeyGateway = {
       .eq('family_space_id', spaceId)
       .eq('user_id', userId);
     if (error) {
-      logCeremonyFailure('fetch_family_key_wraps');
+      logKeyStep('fetch_family_key_wraps');
       throw error;
     }
     return (data ?? []).map((row) => ({
@@ -188,11 +182,11 @@ export async function runFoundingCeremony(
       );
       return 'ready';
     }
-    logCeremonyFailure('commit_family_key_ceremony');
+    logKeyStep('commit_family_key_ceremony');
     await discardLocalFamilySecrets(input.userId, input.spaceId);
     return 'waiting';
   } catch {
-    logCeremonyFailure('commit_family_key_ceremony');
+    logKeyStep('commit_family_key_ceremony');
     await discardLocalFamilySecrets(input.userId, input.spaceId);
     return 'waiting';
   } finally {

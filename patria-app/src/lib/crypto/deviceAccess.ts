@@ -1,4 +1,5 @@
 // SECURITY REVIEW REQUIRED
+import { logKeyStep } from '../devLog';
 import { isKeyEligibleRole, isSpaceAdmin } from '../roles';
 import { supabase } from '../supabase';
 import { wipe } from './bytes';
@@ -52,13 +53,6 @@ export type DeviceAccessGateway = {
   deleteNotice(noticeId: string): Promise<void>;
 };
 
-export function logDeviceAccess(step: string, ids?: string): void {
-  if (!__DEV__) {
-    return;
-  }
-  console.warn(ids ? `Patria keys: ${step} ${ids}` : `Patria keys: ${step}`);
-}
-
 export function firstDeviceWrapAad(input: {
   spaceId: string;
   userId: string;
@@ -89,7 +83,7 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
       public_key: toPgBytea(publicKey),
     });
     if (error && error.code !== '23505') {
-      logDeviceAccess('upsert_device_public_key');
+      logKeyStep('upsert_device_public_key');
       throw error;
     }
   },
@@ -101,7 +95,7 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
       .eq('family_space_id', spaceId)
       .eq('user_id', userId);
     if (error) {
-      logDeviceAccess('count_own_wraps');
+      logKeyStep('count_own_wraps');
       throw error;
     }
     return (data ?? []).length;
@@ -114,7 +108,7 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
       device_id: deviceId,
     });
     if (error && error.code !== '23505') {
-      logDeviceAccess('insert_notice', `${spaceId} ${deviceId}`);
+      logKeyStep('insert_notice', `${spaceId} ${deviceId}`);
       throw error;
     }
   },
@@ -125,7 +119,7 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
       .select('id, user_id, device_id')
       .eq('family_space_id', spaceId);
     if (error) {
-      logDeviceAccess('list_notices', spaceId);
+      logKeyStep('list_notices', spaceId);
       throw error;
     }
     const rows = notices ?? [];
@@ -136,7 +130,7 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
       .from('device_keys')
       .select('user_id, device_id, public_key, created_at');
     if (keysError) {
-      logDeviceAccess('list_notice_device_keys', spaceId);
+      logKeyStep('list_notice_device_keys', spaceId);
       throw keysError;
     }
     const byPair = new Map(
@@ -172,7 +166,7 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
       .eq('device_id', deviceId)
       .maybeSingle();
     if (error) {
-      logDeviceAccess('fetch_own_wrap');
+      logKeyStep('fetch_own_wrap');
       throw error;
     }
     if (!data) {
@@ -194,7 +188,7 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
       approved_by: input.approvedBy,
     });
     if (error) {
-      logDeviceAccess('insert_family_wrap', `${input.spaceId} ${input.deviceId}`);
+      logKeyStep('insert_family_wrap', `${input.spaceId} ${input.deviceId}`);
       throw error;
     }
   },
@@ -209,7 +203,7 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
       approved_by: input.approvedBy,
     });
     if (error) {
-      logDeviceAccess('insert_recovery_wrap', `${input.spaceId} ${input.deviceId}`);
+      logKeyStep('insert_recovery_wrap', `${input.spaceId} ${input.deviceId}`);
       throw error;
     }
   },
@@ -217,7 +211,7 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
   async deleteNotice(noticeId) {
     const { error } = await supabase.from('device_approval_notices').delete().eq('id', noticeId);
     if (error) {
-      logDeviceAccess('delete_notice', noticeId);
+      logKeyStep('delete_notice', noticeId);
       throw error;
     }
   },
@@ -241,7 +235,7 @@ export async function requestFirstDeviceAccess(
     return 'skipped';
   }
   await gateway.insertNotice(input.spaceId, input.userId, input.device.deviceId);
-  logDeviceAccess('request_first_device', `${input.spaceId} ${input.device.deviceId}`);
+  logKeyStep('request_first_device', `${input.spaceId} ${input.device.deviceId}`);
   return 'notice';
 }
 
@@ -257,7 +251,7 @@ export async function declineFirstDevice(
   gateway: DeviceAccessGateway = supabaseDeviceAccessGateway,
 ): Promise<void> {
   await gateway.deleteNotice(noticeId);
-  logDeviceAccess('decline_first_device', noticeId);
+  logKeyStep('decline_first_device', noticeId);
 }
 
 export async function approveFirstDevice(
@@ -318,7 +312,7 @@ export async function approveFirstDevice(
       }
     }
     await gateway.deleteNotice(input.notice.id);
-    logDeviceAccess('approve_first_device', `${input.spaceId} ${input.notice.deviceId}`);
+    logKeyStep('approve_first_device', `${input.spaceId} ${input.notice.deviceId}`);
   } finally {
     wipe(familyKey);
   }

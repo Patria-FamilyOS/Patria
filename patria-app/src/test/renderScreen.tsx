@@ -18,12 +18,14 @@ export function createTestQueryClient(): QueryClient {
       queries: {
         retry: false,
         gcTime: Infinity,
+        networkMode: 'always',
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
       },
       mutations: {
         retry: false,
         gcTime: Infinity,
+        networkMode: 'always',
       },
     },
   });

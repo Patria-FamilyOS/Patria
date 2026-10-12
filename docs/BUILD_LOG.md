@@ -6,6 +6,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-12 — Home tests mock keys; crypto logs go through devLog
+
+Home screen tests mock the key ceremony and device-access modules so they do not run crypto on mount. Key step logs use the shared `devLog` helper, which is silent in Jest and production and never takes key material.
+
+---
+
 ## 2026-10-12 — Admin lets in a member’s first phone (Step 4)
 
 A new member’s phone uploads its public key and one approval notice. An admin taps Let in on Home; that phone wraps the family key to the member device. Decline closes the notice with no wrap. SecureStore entries are namespaced by account so two people on one install cannot read each other’s keys. One shared phone and two separate phones use the same wrap path.

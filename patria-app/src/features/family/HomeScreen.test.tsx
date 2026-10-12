@@ -13,6 +13,7 @@ import {
   declineFirstDevice,
   fetchFirstDeviceNotices,
 } from '../../lib/crypto/deviceAccess';
+import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
 import { supabase } from '../../lib/supabase';
 import { renderScreen } from '../../test/renderScreen';
 import { HomeScreen } from './HomeScreen';
@@ -22,10 +23,32 @@ jest.mock('../../lib/auth-context', () => ({
 }));
 
 jest.mock('../../lib/family', () => ({
-  fetchMemberships: jest.fn(),
-  fetchMembers: jest.fn(),
-  fetchChildren: jest.fn(),
-  fetchPendingInvites: jest.fn(),
+  fetchMemberships: jest.fn(async () => [
+    { space: { id: 's1', name: 'The Riveras' }, role: 'family_admin' },
+  ]),
+  fetchMembers: jest.fn(async () => [
+    {
+      id: 'm1',
+      userId: 'u1',
+      role: 'family_admin',
+      relationshipLabel: null,
+      displayName: 'Family member',
+    },
+    {
+      id: 'm2',
+      userId: 'u2',
+      role: 'co_admin',
+      relationshipLabel: null,
+      displayName: 'Family member',
+    },
+  ]),
+  fetchChildren: jest.fn(async () => []),
+  fetchPendingInvites: jest.fn(async () => []),
+}));
+
+jest.mock('../../lib/currentFamily', () => ({
+  readCurrentFamilyId: jest.fn(async () => 's1'),
+  writeCurrentFamilyId: jest.fn(async () => undefined),
 }));
 
 jest.mock('../../lib/crypto/familyCeremony', () => ({
@@ -86,30 +109,27 @@ describe('HomeScreen invite entry', () => {
     (fetchChildren as jest.Mock).mockResolvedValue([]);
     (fetchPendingInvites as jest.Mock).mockResolvedValue([]);
     (fetchFirstDeviceNotices as jest.Mock).mockResolvedValue([]);
+    (ensureKeysForOpenFamily as jest.Mock).mockResolvedValue('ready');
     (approveFirstDevice as jest.Mock).mockClear();
     (declineFirstDevice as jest.Mock).mockClear();
   });
 
   it('uses a Join another family link instead of a paste box', async () => {
-    const { getByLabelText, queryByText } = renderScreen(<HomeScreen />);
+    const { findByLabelText, queryByText } = renderScreen(<HomeScreen />);
 
-    await waitFor(() => {
-      expect(getByLabelText(copy.home.joinFamily)).toBeTruthy();
-    });
+    const join = await findByLabelText(copy.home.joinFamily);
+    expect(join).toBeTruthy();
     expect(queryByText(copy.invite.pastePrompt)).toBeNull();
     expect(queryByText(copy.invite.pasteLabel)).toBeNull();
 
-    fireEvent.press(getByLabelText(copy.home.joinFamily));
+    fireEvent.press(join);
     expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/join-family');
   });
 
   it('signs out then replaces to welcome', async () => {
-    const { getByText } = renderScreen(<HomeScreen />);
+    const { findByText } = renderScreen(<HomeScreen />);
 
-    await waitFor(() => {
-      expect(getByText(copy.auth.signOut)).toBeTruthy();
-    });
-    fireEvent.press(getByText(copy.auth.signOut));
+    fireEvent.press(await findByText(copy.auth.signOut));
 
     await waitFor(() => {
       expect(supabase.auth.signOut).toHaveBeenCalled();
@@ -118,11 +138,8 @@ describe('HomeScreen invite entry', () => {
   });
 
   it('shows a quiet family-keys status on Home', async () => {
-    const { getByText } = renderScreen(<HomeScreen />);
-
-    await waitFor(() => {
-      expect(getByText(copy.home.keysReady)).toBeTruthy();
-    });
+    const { findByText } = renderScreen(<HomeScreen />);
+    expect(await findByText(copy.home.keysReady)).toBeTruthy();
   });
 
   it('lets an admin wrap or decline a first device from Home', async () => {
@@ -136,11 +153,9 @@ describe('HomeScreen invite entry', () => {
         deviceCreatedAt: '2026-10-12T12:00:00.000Z',
       },
     ]);
-    const { getByText } = renderScreen(<HomeScreen />);
+    const { findByText, getByText } = renderScreen(<HomeScreen />);
 
-    await waitFor(() => {
-      expect(getByText(`${copy.member.fallbackName} wants this phone let in`)).toBeTruthy();
-    });
+    expect(await findByText(`${copy.member.fallbackName} wants this phone let in`)).toBeTruthy();
     fireEvent.press(getByText(copy.home.letIn));
     await waitFor(() => {
       expect(approveFirstDevice).toHaveBeenCalled();
@@ -148,11 +163,9 @@ describe('HomeScreen invite entry', () => {
   });
 
   it('never shows a blank member card', async () => {
-    const { getAllByText } = renderScreen(<HomeScreen />);
+    const { findAllByText, getAllByText } = renderScreen(<HomeScreen />);
 
-    await waitFor(() => {
-      expect(getAllByText(copy.member.fallbackName).length).toBeGreaterThan(0);
-    });
+    expect((await findAllByText(copy.member.fallbackName)).length).toBeGreaterThan(0);
     expect(getAllByText(copy.roles.co_admin).length).toBeGreaterThan(0);
   });
 });
