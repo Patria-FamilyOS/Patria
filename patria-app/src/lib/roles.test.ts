@@ -1,4 +1,4 @@
-import { countAdmins, isKeyEligibleRole, isSpaceAdmin } from './roles';
+import { countAdmins, isKeyEligibleRole, isRecoveryContactRole, isSpaceAdmin } from './roles';
 
 describe('roles', () => {
   it('treats family admin and co admin as the same permission level', () => {
@@ -15,6 +15,16 @@ describe('roles', () => {
     expect(isKeyEligibleRole('extended_relative')).toBe(false);
     expect(isKeyEligibleRole('caregiver')).toBe(false);
     expect(isKeyEligibleRole('successor')).toBe(false);
+  });
+
+  it('allows only adult members with keys as recovery contacts', () => {
+    expect(isRecoveryContactRole('family_admin')).toBe(true);
+    expect(isRecoveryContactRole('co_admin')).toBe(true);
+    expect(isRecoveryContactRole('elder')).toBe(true);
+    expect(isRecoveryContactRole('teen')).toBe(false);
+    expect(isRecoveryContactRole('extended_relative')).toBe(false);
+    expect(isRecoveryContactRole('caregiver')).toBe(false);
+    expect(isRecoveryContactRole('successor')).toBe(false);
   });
 
   it('counts the last remaining admin', () => {

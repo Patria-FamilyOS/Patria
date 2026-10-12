@@ -3,9 +3,12 @@ import {
   decodePrintedCode,
   encodePrintedCode,
   generatePrintedCode,
+  pickPrintedCodeChecks,
+  printedChecksMatch,
   PRINTED_CODE_ENTROPY_BITS,
   PRINTED_CODE_WORD_COUNT,
 } from './printedCode';
+import { confirmPrintedCodeLocally } from './recoverySetup';
 import { randomKey32 } from './random';
 import { createRecoveryBoxes, openWithHolders } from './recovery';
 
@@ -83,6 +86,40 @@ describe('pairwise 2-of-3 recovery boxes', () => {
       ),
     ).toThrow('unwrap failed');
 
+    wipe(recoveryKey);
+  });
+
+  it('confirms the printed code by opening the matching box', () => {
+    const recoveryKey = randomKey32();
+    const secretA = randomKey32();
+    const secretB = randomKey32();
+    const printed = generatePrintedCode();
+    const checks = pickPrintedCodeChecks(printed.words);
+    expect(printedChecksMatch(printed.words, checks.map((item) => ({
+      index: item.index,
+      word: item.expected,
+    })))).toBe(true);
+    const boxes = confirmPrintedCodeLocally(
+      recoveryKey,
+      secretA,
+      secretB,
+      printed,
+      ctx,
+      checks.map((item) => ({ index: item.index, word: item.expected })),
+    );
+    const opened = openWithHolders(
+      boxes,
+      { id: 'a', secret: secretA },
+      { id: 'p', secret: printed.secret },
+      ctx,
+    );
+    expect(secretsEqual(opened, recoveryKey)).toBe(true);
+    expect(() =>
+      confirmPrintedCodeLocally(recoveryKey, secretA, secretB, printed, ctx, [
+        { index: 0, word: 'zzzzz' },
+      ]),
+    ).toThrow('printed code failed');
+    wipe(opened);
     wipe(recoveryKey);
   });
 });

@@ -34,6 +34,11 @@ import {
 } from '../../lib/crypto/deviceAccess';
 import { ensureDeviceIdentity } from '../../lib/crypto/deviceIdentity';
 import { ensureKeysForOpenFamily, type FamilyKeyStatus } from '../../lib/crypto/familyCeremony';
+import {
+  fulfillAcceptedContacts,
+  loadRecoverySnapshot,
+  respondRecoveryInvite,
+} from '../../lib/crypto/recoverySetup';
 import { ApproveMyDeviceCard, formatDeviceWhen } from '../keys/ApproveMyDeviceScreen';
 import { memberDisplayName } from '../../lib/displayName';
 import { describeCaughtError, logFailedAction, logKeyStep } from '../../lib/devLog';
@@ -108,6 +113,13 @@ export function HomeScreen() {
     refetchOnMount: 'always',
     queryFn: () => fetchFirstDeviceNotices(spaceId as string),
   });
+  const recoveryQuery = useQuery({
+    queryKey: ['recoverySnapshot', spaceId, userId],
+    enabled: Boolean(spaceId && userId && current),
+    refetchOnMount: 'always',
+    queryFn: () =>
+      loadRecoverySnapshot(spaceId as string, userId as string, current?.role),
+  });
   const adminCount = countAdmins((membersQuery.data ?? []).map((row) => row.role));
 
   const onRefresh = useCallback(() => {
@@ -120,6 +132,7 @@ export function HomeScreen() {
       void queryClient.invalidateQueries({ queryKey: ['invites', spaceId] });
       void queryClient.invalidateQueries({ queryKey: ['familyKeyStatus'] });
       void queryClient.invalidateQueries({ queryKey: ['deviceApprovalNotices', spaceId] });
+      void queryClient.invalidateQueries({ queryKey: ['recoverySnapshot', spaceId, userId] });
     }
   }, [queryClient, userId, spaceId]);
 
@@ -144,7 +157,8 @@ export function HomeScreen() {
     membersQuery.isRefetching ||
     childrenQuery.isRefetching ||
     invitesQuery.isRefetching ||
-    noticesQuery.isRefetching;
+    noticesQuery.isRefetching ||
+    recoveryQuery.isRefetching;
 
   const onSignOut = async () => {
     setSigningOut(true);
@@ -246,6 +260,38 @@ export function HomeScreen() {
     }
   };
 
+  useEffect(() => {
+    if (!admin || !spaceId || !userId || keyStatusQuery.data !== 'ready') {
+      return;
+    }
+    if ((recoveryQuery.data?.accepted ?? 0) === 0) {
+      return;
+    }
+    const adminUserIds = (membersQuery.data ?? [])
+      .filter((row) => isSpaceAdmin(row.role))
+      .map((row) => row.userId);
+    void fulfillAcceptedContacts({
+      spaceId,
+      adminUserId: userId,
+      adminUserIds,
+    }).catch((caught: unknown) => {
+      logFailedAction(caught);
+    });
+  }, [admin, spaceId, userId, keyStatusQuery.data, recoveryQuery.data?.accepted, membersQuery.data]);
+
+  const onRecoveryRespond = async (accept: boolean) => {
+    if (!spaceId || !userId) {
+      return;
+    }
+    try {
+      await respondRecoveryInvite({ spaceId, userId, accept });
+      await queryClient.invalidateQueries({ queryKey: ['recoverySnapshot', spaceId, userId] });
+    } catch (caught) {
+      logFailedAction(caught);
+      setNoticeError(copy.common.error);
+    }
+  };
+
   const keyStatusCopy = (status: FamilyKeyStatus): string => {
     if (status === 'ready') {
       return copy.home.keysReady;
@@ -331,6 +377,57 @@ export function HomeScreen() {
       <Title>{current.space.name}</Title>
       <Muted>{copy.home.todoMemories}</Muted>
       {keyStatusQuery.data ? <Muted>{keyStatusCopy(keyStatusQuery.data)}</Muted> : null}
+      {admin && recoveryQuery.data?.status === 'not_setup' ? (
+        <Muted>{copy.home.recoveryNotSetup}</Muted>
+      ) : null}
+      {admin && recoveryQuery.data?.status === 'one_of_two' ? (
+        <Muted>{copy.home.recoveryOneOfTwo}</Muted>
+      ) : null}
+      {admin && recoveryQuery.data?.status === 'setup' ? (
+        <Muted>{copy.home.recoverySetup}</Muted>
+      ) : null}
+      {!admin && recoveryQuery.data?.status === 'contact' ? (
+        <Muted>
+          {copy.home.recoveryYouAreContact.replace('{family}', current.space.name)}
+        </Muted>
+      ) : null}
+      {admin && keyStatusQuery.data === 'ready' && (recoveryQuery.data?.accepted ?? 0) < 2 ? (
+        <View style={styles.row}>
+          <AppText style={styles.rowTitle}>{copy.home.recoveryCardTitle}</AppText>
+          <Muted>{copy.home.recoveryCardBody}</Muted>
+          <Button
+            label={copy.home.recoveryCardAction}
+            onPress={() => router.push(routes.recoverySetup)}
+          />
+        </View>
+      ) : null}
+      {admin &&
+      recoveryQuery.data &&
+      recoveryQuery.data.accepted >= 2 &&
+      !recoveryQuery.data.hasPaper ? (
+        <Button
+          label={copy.home.recoveryPrintedAction}
+          variant="secondary"
+          onPress={() => router.push(routes.printedCode)}
+        />
+      ) : null}
+      {(recoveryQuery.data?.pending ?? [])
+        .filter((row) => row.userId === userId)
+        .map((row) => (
+          <View key={row.id} style={styles.row}>
+            <AppText style={styles.rowTitle}>{copy.home.recoveryInviteTitle}</AppText>
+            <Muted>{copy.home.recoveryInviteBody}</Muted>
+            <Button
+              label={copy.home.recoveryAccept}
+              onPress={() => void onRecoveryRespond(true)}
+            />
+            <Button
+              label={copy.home.recoveryDecline}
+              variant="secondary"
+              onPress={() => void onRecoveryRespond(false)}
+            />
+          </View>
+        ))}
       {noticeError ? <ErrorState message={noticeError} /> : null}
       {(noticesQuery.data ?? []).map((notice) => {
         const member = (membersQuery.data ?? []).find((row) => row.userId === notice.userId);
@@ -491,6 +588,13 @@ export function HomeScreen() {
         </>
       ) : null}
 
+      {admin ? (
+        <Button
+          label={copy.recovery.title}
+          variant="secondary"
+          onPress={() => router.push(routes.recoverySetup)}
+        />
+      ) : null}
       <Button
         label={copy.home.yourPhones}
         variant="secondary"

@@ -6,6 +6,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-12 — Recovery contacts and printed code (Step 6)
+
+Admins set up two recovery contacts from adult members who already have a wrap (D26). Contacts accept on Home; the admin phone then wraps a holder secret to that person’s approved devices and rebuilds pairwise boxes over the recovery key. The optional 24-word printed code is shown once and checked locally; nothing about it is stored on the server. Changing a contact or reporting the code lost rotates the recovery key. Home is never blocked. The 48-hour recovery flow is Step 7.
+
+---
+
 ## 2026-10-12 — Extra phones are let in only by the same member (Step 5)
 
 A second phone for someone who already has a wrap uploads its public key and waits for that person’s existing phone. That phone shows “Is this your new phone?” and wraps with the KEYS.md AAD. Admins see that a new phone was added and cannot wrap it. “This wasn’t me” rejects that device forever and tells admins the member may want to change their password. Your phones lists this account’s devices and removes another device through a SECURITY DEFINER function. Stolen-phone key rotation stays in Step 8.

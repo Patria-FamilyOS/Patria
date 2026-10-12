@@ -77,6 +77,14 @@ export default function SignedInLayout() {
         name="your-phones"
         options={{ ...pushedScreenHeader, title: screenTitles.yourPhones }}
       />
+      <Stack.Screen
+        name="recovery-setup"
+        options={{ ...pushedScreenHeader, title: screenTitles.recoverySetup }}
+      />
+      <Stack.Screen
+        name="printed-code"
+        options={{ ...pushedScreenHeader, title: screenTitles.printedCode }}
+      />
     </Stack>
   );
 }

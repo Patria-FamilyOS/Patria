@@ -40,6 +40,8 @@ describe('navigation headers', () => {
     expect(routes.joinFamily).toBe('/(signed-in)/join-family');
     expect(routes.yourName).toBe('/(signed-in)/your-name');
     expect(routes.yourPhones).toBe('/(signed-in)/your-phones');
+    expect(routes.recoverySetup).toBe('/(signed-in)/recovery-setup');
+    expect(routes.printedCode).toBe('/(signed-in)/printed-code');
   });
 
   it('lets native back leave the invite screen', () => {

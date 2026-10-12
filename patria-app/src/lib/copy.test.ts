@@ -20,6 +20,9 @@ describe('copy', () => {
     expect(copy.home.yesMyPhone).toBe('Yes, this is my phone');
     expect(copy.home.notMyPhone).toBe('This wasn’t me');
     expect(copy.home.yourPhones).toBe('Your phones');
+    expect(copy.home.recoveryNotSetup).toBe('Recovery: not set up');
+    expect(copy.home.recoveryCardTitle).toBe('Set up recovery');
+    expect(copy.recovery.printedBody).toMatch(/cannot show them again/i);
     expect(copy.home.letIn).toBe('Let in');
     expect(copy.home.declineDevice).toBe('Decline');
     expect(copy.member.fallbackName).toBe('Family member');

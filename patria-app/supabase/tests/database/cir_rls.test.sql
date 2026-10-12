@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(233);
+SELECT plan(243);
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -2054,6 +2054,100 @@ SELECT is_empty(
        WHERE device_id = 'd1111111-1111-1111-1111-111111111112'$sql$,
   'removal deletes that device public key'
 );
+
+SELECT has_column(
+  'public'::name,
+  'recovery_contacts'::name,
+  'status'::name,
+  'recovery contacts have an accept status'
+);
+
+SELECT tests_jwt('33333333-3333-3333-3333-333333333333');
+SET LOCAL ROLE authenticated;
+SELECT throws_ok(
+  $sql$INSERT INTO public.recovery_contacts (
+         family_space_id, user_id, slot, created_by
+       ) SELECT rivera, '44444444-4444-4444-4444-444444444444',
+                'a', '33333333-3333-3333-3333-333333333333'
+       FROM fx$sql$,
+  '42501',
+  NULL,
+  'only admins create recovery contacts'
+);
+RESET ROLE;
+
+SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
+SELECT throws_ok(
+  $sql$INSERT INTO public.recovery_contacts (
+         family_space_id, user_id, slot, created_by
+       ) SELECT rivera, '33333333-3333-3333-3333-333333333333',
+                'a', '11111111-1111-1111-1111-111111111111'
+       FROM fx$sql$,
+  '42501',
+  NULL,
+  'ineligible roles cannot be recovery contacts'
+);
+SELECT lives_ok(
+  $sql$INSERT INTO public.recovery_contacts (
+         family_space_id, user_id, slot, created_by
+       ) SELECT rivera, '22222222-2222-2222-2222-222222222222',
+                'a', '11111111-1111-1111-1111-111111111111'
+       FROM fx$sql$,
+  'admin can invite an eligible co admin as a recovery contact'
+);
+SELECT lives_ok(
+  $sql$INSERT INTO public.recovery_contacts (
+         family_space_id, user_id, slot, created_by
+       ) SELECT rivera, '44444444-4444-4444-4444-444444444444',
+                'b', '11111111-1111-1111-1111-111111111111'
+       FROM fx$sql$,
+  'admin can invite an eligible elder as a recovery contact'
+);
+RESET ROLE;
+
+SELECT tests_jwt('22222222-2222-2222-2222-222222222222');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $sql$UPDATE public.recovery_contacts SET status = 'accepted'
+       WHERE user_id = '22222222-2222-2222-2222-222222222222'$sql$,
+  'contact can accept their invite'
+);
+RESET ROLE;
+
+SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $sql$INSERT INTO public.recovery_contact_secrets (
+         family_space_id, user_id, device_id, wrapped_secret, recovery_key_epoch
+       ) SELECT rivera, '22222222-2222-2222-2222-222222222222',
+                'd2222222-2222-2222-2222-222222222221',
+                tests_dummy_box(), 1
+       FROM fx$sql$,
+  'admin can wrap a holder secret after accept'
+);
+SELECT is_empty(
+  $sql$SELECT 1 FROM public.recovery_contact_secrets$sql$,
+  'admin cannot read another member holder secret'
+);
+RESET ROLE;
+
+SELECT tests_jwt('22222222-2222-2222-2222-222222222222');
+SET LOCAL ROLE authenticated;
+SELECT is(
+  (SELECT count(*)::integer FROM public.recovery_contact_secrets),
+  1,
+  'a contact reads only their own secret'
+);
+RESET ROLE;
+
+SELECT tests_jwt('44444444-4444-4444-4444-444444444444');
+SET LOCAL ROLE authenticated;
+SELECT is_empty(
+  $sql$SELECT 1 FROM public.recovery_contact_secrets$sql$,
+  'the other contact cannot read this holder secret'
+);
+RESET ROLE;
 
 -- D8 Yes cells as the signed-in admin, including RETURNING (how the app writes).
 SELECT tests_jwt('11111111-1111-1111-1111-111111111111');

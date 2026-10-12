@@ -66,6 +66,20 @@ jest.mock('../../lib/crypto/deviceAccess', () => ({
   rejectOwnExtraDevice: jest.fn(async () => undefined),
 }));
 
+jest.mock('../../lib/crypto/recoverySetup', () => ({
+  loadRecoverySnapshot: jest.fn(async () => ({
+    contacts: [],
+    accepted: 0,
+    pending: [],
+    hasPaper: false,
+    recoveryKeyEpoch: 1,
+    keyEpoch: 1,
+    status: 'not_setup',
+  })),
+  fulfillAcceptedContacts: jest.fn(async () => undefined),
+  respondRecoveryInvite: jest.fn(async () => undefined),
+}));
+
 jest.mock('../../lib/crypto/deviceIdentity', () => ({
   ensureDeviceIdentity: jest.fn(async () => ({
     deviceId: 'd-admin',
@@ -150,6 +164,13 @@ describe('HomeScreen invite entry', () => {
   it('shows a quiet family-keys status on Home', async () => {
     const { findByText } = renderScreen(<HomeScreen />);
     expect(await findByText(copy.home.keysReady)).toBeTruthy();
+  });
+
+  it('shows a calm recovery card on Home that does not block the family', async () => {
+    const { findByText } = renderScreen(<HomeScreen />);
+    expect(await findByText(copy.home.recoveryNotSetup)).toBeTruthy();
+    expect(await findByText(copy.home.recoveryCardTitle)).toBeTruthy();
+    expect(await findByText(copy.home.todoMemories)).toBeTruthy();
   });
 
   it('says this phone needs to be let in again when the family key cannot be obtained', async () => {

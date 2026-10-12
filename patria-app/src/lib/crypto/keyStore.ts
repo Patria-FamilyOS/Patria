@@ -104,6 +104,51 @@ export async function loadCachedRecoveryKey(
   return getSecretBytes(recoveryKeyStoreKey(userId, spaceId));
 }
 
+export async function cacheRecoveryKey(
+  userId: string,
+  spaceId: string,
+  recoveryKey: Uint8Array,
+): Promise<void> {
+  await setSecretBytes(recoveryKeyStoreKey(userId, spaceId), recoveryKey);
+}
+
+export async function obtainRecoveryKey(input: {
+  userId: string;
+  spaceId: string;
+  deviceId: string;
+  privateKey: Uint8Array | null;
+  recoveryKeyEpoch: number;
+  fetchOwnWrap: (
+    spaceId: string,
+    userId: string,
+    deviceId: string,
+  ) => Promise<{ wrappedKey: Uint8Array; keyEpoch: number } | null>;
+}): Promise<Uint8Array | null> {
+  const cached = await loadCachedRecoveryKey(input.userId, input.spaceId);
+  if (cached) {
+    return cached;
+  }
+  if (!input.privateKey || input.privateKey.length === 0) {
+    return null;
+  }
+  const own = await input.fetchOwnWrap(input.spaceId, input.userId, input.deviceId);
+  if (!own) {
+    return null;
+  }
+  try {
+    const opened = unwrapKeyFromDevice(own.wrappedKey, input.privateKey, {
+      familySpaceId: input.spaceId,
+      keyEpoch: own.keyEpoch,
+      userId: input.userId,
+      deviceId: input.deviceId,
+    });
+    await cacheRecoveryKey(input.userId, input.spaceId, opened);
+    return opened;
+  } catch {
+    return null;
+  }
+}
+
 export async function obtainFamilyKey(input: {
   userId: string;
   spaceId: string;

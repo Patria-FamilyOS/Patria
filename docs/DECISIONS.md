@@ -160,3 +160,7 @@ CIR05 uses noble with X25519, XChaCha20-Poly1305 and HKDF-SHA256 only. Switching
 ## D25. When recovery contacts are required (12 October 2026)
 
 Recovery contacts are required before the Legacy Vault, not before Home. (Asked as D22.)
+
+## D26. Recovery contacts in v1 are adult family members with keys (12 October 2026)
+
+Recovery contacts (first version) are adult family members with a key-eligible role (Family admin, Co admin, Elder) whose device has been let in. Not teens, children, extended relatives, caregivers or successors. Contacts outside the family come later with a recovery-contact invite. (Asked as D23; D23 already records the 2-of-3 recovery protocol.)

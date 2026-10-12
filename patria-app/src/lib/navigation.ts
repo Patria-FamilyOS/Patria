@@ -35,6 +35,8 @@ export const screenTitles = {
   joinFamily: copy.home.joinFamily,
   yourName: copy.auth.nameLabel,
   yourPhones: copy.phones.title,
+  recoverySetup: copy.recovery.title,
+  printedCode: copy.recovery.printedTitle,
 } as const;
 
 export const routes = {
@@ -49,6 +51,8 @@ export const routes = {
   joinFamily: '/(signed-in)/join-family',
   yourName: '/(signed-in)/your-name',
   yourPhones: '/(signed-in)/your-phones',
+  recoverySetup: '/(signed-in)/recovery-setup',
+  printedCode: '/(signed-in)/printed-code',
 } as const;
 
 export function headerWhenPushed(canGoBack: boolean) {
