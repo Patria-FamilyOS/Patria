@@ -116,7 +116,6 @@ describe('HomeScreen invite entry', () => {
 
   it('uses a Join another family link instead of a paste box', async () => {
     const { findByLabelText, queryByText } = renderScreen(<HomeScreen />);
-
     const join = await findByLabelText(copy.home.joinFamily);
     expect(join).toBeTruthy();
     expect(queryByText(copy.invite.pastePrompt)).toBeNull();

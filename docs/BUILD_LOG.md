@@ -6,6 +6,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-12 — Home join-family test was paying first-render cost
+
+The first `render()` of React Native Testing Library in a Jest worker took ~1.4s locally and could exceed Jest’s 5s test limit on GitHub. `findBy` was not hanging (it finished in ~50ms once render returned). We warm the renderer once per worker in `setupFilesAfterEnv`, outside the test clock, and tear down QueryClients synchronously so `afterEach` cannot wait on `cancelQueries`. Local Node 24 and CI Node 22 now share `.nvmrc`.
+
+---
+
 ## 2026-10-12 — Home tests mock keys; crypto logs go through devLog
 
 Home screen tests mock the key ceremony and device-access modules so they do not run crypto on mount. Key step logs use the shared `devLog` helper, which is silent in Jest and production and never takes key material.

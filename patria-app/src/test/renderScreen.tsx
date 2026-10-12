@@ -45,16 +45,11 @@ export function renderScreen(ui: ReactElement, options?: Omit<RenderOptions, 'wr
   return Object.assign(result, { queryClient });
 }
 
-export async function clearTestQueryClients(): Promise<void> {
-  const pending = [...liveClients].map(async (client) => {
-    await client.cancelQueries();
+export function clearTestQueryClients(): void {
+  for (const client of liveClients) {
     client.clear();
-  });
-  liveClients.clear();
-  await Promise.all(pending);
-  if (typeof appQueryClient.clear === 'function') {
-    await appQueryClient.cancelQueries?.();
-    appQueryClient.clear();
   }
+  liveClients.clear();
+  appQueryClient.clear();
   cleanup();
 }

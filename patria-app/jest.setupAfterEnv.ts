@@ -1,8 +1,9 @@
+import { createElement } from 'react';
 import { focusManager, onlineManager } from '@tanstack/react-query';
 import * as SecureStore from 'expo-secure-store';
-import { AppState } from 'react-native';
+import { AppState, View } from 'react-native';
 
-import { clearTestQueryClients } from './src/test/renderScreen';
+import { clearTestQueryClients, renderScreen } from './src/test/renderScreen';
 
 focusManager.setEventListener(() => () => undefined);
 onlineManager.setEventListener(() => () => undefined);
@@ -13,13 +14,20 @@ jest.spyOn(AppState, 'addEventListener').mockImplementation(() => ({
   remove: jest.fn(),
 }));
 
+const jestGlobal = globalThis as typeof globalThis & { __patriaRtlWarmed?: boolean };
+if (!jestGlobal.__patriaRtlWarmed) {
+  renderScreen(createElement(View));
+  clearTestQueryClients();
+  jestGlobal.__patriaRtlWarmed = true;
+}
+
 beforeEach(() => {
   (SecureStore.getItemAsync as jest.Mock).mockResolvedValue(null);
   (SecureStore.setItemAsync as jest.Mock).mockResolvedValue(undefined);
   (SecureStore.deleteItemAsync as jest.Mock).mockResolvedValue(undefined);
 });
 
-afterEach(async () => {
-  await clearTestQueryClients();
+afterEach(() => {
+  clearTestQueryClients();
   jest.useRealTimers();
 });
