@@ -26,6 +26,7 @@ import { routes } from '../../lib/navigation';
 import { countAdmins, isSpaceAdmin } from '../../lib/roles';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing, type } from '../../theme';
+import { PasteInviteField } from '../invites/PasteInviteField';
 
 export function HomeScreen() {
   const router = useRouter();
@@ -101,6 +102,7 @@ export function HomeScreen() {
       <Screen accessibilityLabel={copy.home.noFamilyTitle}>
         <Title>{copy.home.noFamilyTitle}</Title>
         <Body>{copy.home.noFamilyBody}</Body>
+        <PasteInviteField onOpen={(token) => router.push(routes.inviteAccept(token))} />
         <Button label={copy.createFamily.submit} onPress={() => router.push('/(signed-in)/create')} />
       </Screen>
     );
@@ -129,6 +131,7 @@ export function HomeScreen() {
       <Title>{copy.home.greeting.replace('{name}', displayName)}</Title>
       <Title>{current.space.name}</Title>
       <Muted>{copy.home.todoMemories}</Muted>
+      <PasteInviteField onOpen={(token) => router.push(routes.inviteAccept(token))} />
 
       {(membershipsQuery.data ?? []).length > 1 ? (
         <View>

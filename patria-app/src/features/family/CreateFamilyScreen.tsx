@@ -8,8 +8,10 @@ import { z } from 'zod';
 import { Body, Button, ErrorState, Field, Muted, Screen, Title } from '../../components/ui';
 import { copy } from '../../lib/copy';
 import { writeCurrentFamilyId } from '../../lib/currentFamily';
+import { routes } from '../../lib/navigation';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing, type } from '../../theme';
+import { PasteInviteField } from '../invites/PasteInviteField';
 
 const RELATIONSHIPS = ['mum', 'dad', 'grandparent', 'guardian'] as const;
 
@@ -48,6 +50,7 @@ export function CreateFamilyScreen() {
     <Screen accessibilityLabel={copy.createFamily.title} withHeader={withHeader}>
       <Title>{copy.createFamily.title}</Title>
       <Body>{copy.createFamily.subtitle}</Body>
+      <PasteInviteField onOpen={(token) => router.push(routes.inviteAccept(token))} />
       <Controller
         control={control}
         name="name"

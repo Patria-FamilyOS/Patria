@@ -2,6 +2,9 @@ import { useRouter } from 'expo-router';
 
 import { Body, Button, Muted, Screen, Title } from '../../components/ui';
 import { copy } from '../../lib/copy';
+import { routes } from '../../lib/navigation';
+import { savePendingInviteToken } from '../../lib/pendingInvite';
+import { PasteInviteField } from '../invites/PasteInviteField';
 
 export function WelcomeScreen() {
   const router = useRouter();
@@ -12,6 +15,12 @@ export function WelcomeScreen() {
       <Title>{copy.welcome.title}</Title>
       <Title>{copy.welcome.subtitle}</Title>
       <Body>{copy.welcome.body}</Body>
+      <PasteInviteField
+        onOpen={(token) => {
+          void savePendingInviteToken(token);
+          router.push(routes.inviteAccept(token));
+        }}
+      />
       <Button
         label={copy.welcome.createAccount}
         onPress={() => router.push('/(signed-out)/sign-up')}
