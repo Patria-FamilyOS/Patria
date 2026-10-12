@@ -9,7 +9,7 @@ import {
   loadCachedFamilyKey,
   loadCachedRecoveryKey,
 } from './keyStore';
-import { fromPgBytea, toPgBytea } from './pgBytea';
+import { fromPgBytea, requireX25519PublicKey, toPgBytea } from './pgBytea';
 import { unwrapKeyFromDevice, wrapKeyToDevice, type MemberWrapAad } from './wrap';
 
 export type FirstDeviceNotice = {
@@ -83,7 +83,7 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
       public_key: toPgBytea(publicKey),
     });
     if (error && error.code !== '23505') {
-      logKeyStep('upsert_device_public_key');
+      logKeyStep('upsert_device_public_key', error.code ?? 'unknown');
       throw error;
     }
   },
@@ -95,7 +95,7 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
       .eq('family_space_id', spaceId)
       .eq('user_id', userId);
     if (error) {
-      logKeyStep('count_own_wraps');
+      logKeyStep('count_own_wraps', error.code ?? 'unknown');
       throw error;
     }
     return (data ?? []).length;
@@ -108,7 +108,7 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
       device_id: deviceId,
     });
     if (error && error.code !== '23505') {
-      logKeyStep('insert_notice', `${spaceId} ${deviceId}`);
+      logKeyStep('insert_notice', error.code ?? 'unknown');
       throw error;
     }
   },
@@ -119,7 +119,7 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
       .select('id, user_id, device_id')
       .eq('family_space_id', spaceId);
     if (error) {
-      logKeyStep('list_notices', spaceId);
+      logKeyStep('list_notices', error.code ?? 'unknown');
       throw error;
     }
     const rows = notices ?? [];
@@ -130,7 +130,7 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
       .from('device_keys')
       .select('user_id, device_id, public_key, created_at');
     if (keysError) {
-      logKeyStep('list_notice_device_keys', spaceId);
+      logKeyStep('list_notice_device_keys', keysError.code ?? 'unknown');
       throw keysError;
     }
     const byPair = new Map(
@@ -150,7 +150,7 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
           spaceId,
           userId: notice.user_id as string,
           deviceId: notice.device_id as string,
-          publicKey: fromPgBytea(key.public_key as string | Uint8Array),
+          publicKey: requireX25519PublicKey(fromPgBytea(key.public_key)),
           deviceCreatedAt: key.created_at as string,
         },
       ];
@@ -166,14 +166,14 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
       .eq('device_id', deviceId)
       .maybeSingle();
     if (error) {
-      logKeyStep('fetch_own_wrap');
+      logKeyStep('fetch_own_wrap', error.code ?? 'unknown');
       throw error;
     }
     if (!data) {
       return null;
     }
     return {
-      wrappedKey: fromPgBytea(data.wrapped_key as string | Uint8Array),
+      wrappedKey: fromPgBytea(data.wrapped_key),
       keyEpoch: data.key_epoch as number,
     };
   },
@@ -188,7 +188,7 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
       approved_by: input.approvedBy,
     });
     if (error) {
-      logKeyStep('insert_family_wrap', `${input.spaceId} ${input.deviceId}`);
+      logKeyStep('insert_family_wrap', error.code ?? 'unknown');
       throw error;
     }
   },
@@ -203,7 +203,7 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
       approved_by: input.approvedBy,
     });
     if (error) {
-      logKeyStep('insert_recovery_wrap', `${input.spaceId} ${input.deviceId}`);
+      logKeyStep('insert_recovery_wrap', error.code ?? 'unknown');
       throw error;
     }
   },
@@ -211,7 +211,7 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
   async deleteNotice(noticeId) {
     const { error } = await supabase.from('device_approval_notices').delete().eq('id', noticeId);
     if (error) {
-      logKeyStep('delete_notice', noticeId);
+      logKeyStep('delete_notice', error.code ?? 'unknown');
       throw error;
     }
   },
@@ -265,6 +265,7 @@ export async function approveFirstDevice(
   },
   gateway: DeviceAccessGateway = supabaseDeviceAccessGateway,
 ): Promise<void> {
+  const recipientPublicKey = requireX25519PublicKey(fromPgBytea(input.notice.publicKey));
   const aad = firstDeviceWrapAad({
     spaceId: input.spaceId,
     userId: input.notice.userId,
@@ -285,7 +286,7 @@ export async function approveFirstDevice(
     await cacheFamilySecrets(input.adminUserId, input.spaceId, familyKey);
   }
   try {
-    const wrapped = wrapFamilyKeyForFirstDevice(familyKey, input.notice.publicKey, aad);
+    const wrapped = wrapFamilyKeyForFirstDevice(familyKey, recipientPublicKey, aad);
     await gateway.insertFamilyWrap({
       spaceId: input.spaceId,
       userId: input.notice.userId,
@@ -298,7 +299,7 @@ export async function approveFirstDevice(
       const recoveryKey = await loadCachedRecoveryKey(input.adminUserId, input.spaceId);
       if (recoveryKey) {
         try {
-          const wrappedRecovery = wrapKeyToDevice(recoveryKey, input.notice.publicKey, aad);
+          const wrappedRecovery = wrapKeyToDevice(recoveryKey, recipientPublicKey, aad);
           await gateway.insertRecoveryWrap({
             spaceId: input.spaceId,
             userId: input.notice.userId,

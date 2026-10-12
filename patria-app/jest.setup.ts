@@ -24,7 +24,9 @@ jest.mock('expo-router', () => {
     useRouter: () => ({ push, replace }),
     useNavigation: () => ({
       canGoBack: () => false,
-      addListener: () => () => undefined,
+      addListener: (_event: string, _handler: () => void) => {
+        return () => undefined;
+      },
     }),
     useLocalSearchParams: () => ({}),
     Redirect: () => null,

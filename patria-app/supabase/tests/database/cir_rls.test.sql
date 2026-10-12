@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(215);
+SELECT plan(216);
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -1821,6 +1821,18 @@ SELECT lives_ok(
        FROM fx$sql$,
   'only admins of that family can approve a first device'
 );
+RESET ROLE;
+SELECT is(
+  (
+    SELECT count(*)::integer FROM public.family_key_wraps
+    WHERE user_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+      AND device_id = 'dbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1'
+  ),
+  1,
+  'Yes: admin can approve a key-eligible member first device'
+);
+SELECT tests_jwt('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+SET LOCAL ROLE authenticated;
 SELECT throws_ok(
   $sql$INSERT INTO public.family_key_wraps (
          family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by

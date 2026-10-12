@@ -273,6 +273,41 @@ describe('first-device approval', () => {
     wipe(twoInstalls.opened);
   });
 
+  it('approves when the member public key was JSON-cloned between two installs', async () => {
+    const adminPhone = new Map<string, string>();
+    const memberPhone = new Map<string, string>();
+    const server = emptyServer();
+    const gateway = serverGateway(server);
+    const admin = await foundOnInstall(adminPhone, ELENA);
+    installMemoryStore(memberPhone);
+    const marco = await ensureDeviceIdentity(MARCO);
+    await requestFirstDeviceAccess(
+      { spaceId: SPACE, userId: MARCO, role: 'elder', device: marco },
+      gateway,
+    );
+    const cloned = JSON.parse(JSON.stringify(server.notices[0])) as FirstDeviceNotice;
+    installMemoryStore(adminPhone);
+    await approveFirstDevice(
+      {
+        spaceId: SPACE,
+        adminUserId: ELENA,
+        adminDeviceId: admin.deviceId,
+        adminPrivateKey: admin.privateKey,
+        notice: cloned,
+        memberRole: 'elder',
+      },
+      gateway,
+    );
+    const wrap = server.wraps[0];
+    const opened = unwrapKeyFromDevice(
+      wrap.wrappedKey,
+      marco.privateKey,
+      firstDeviceWrapAad({ spaceId: SPACE, userId: MARCO, deviceId: marco.deviceId }),
+    );
+    expect(secretsEqual(opened, admin.familyKey)).toBe(true);
+    wipe(opened);
+  });
+
   it('never auto-wraps when a public key is uploaded', async () => {
     const phone = new Map<string, string>();
     const server = emptyServer();

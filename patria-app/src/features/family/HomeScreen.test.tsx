@@ -1,4 +1,5 @@
 import { fireEvent, waitFor } from '@testing-library/react-native';
+import { RefreshControl } from 'react-native';
 
 import { copy } from '../../lib/copy';
 import { memberDisplayName } from '../../lib/displayName';
@@ -84,7 +85,9 @@ function mockedRouter(): { push: jest.Mock; replace: jest.Mock } {
 
 describe('HomeScreen invite entry', () => {
   // First HomeScreen mount is slow on Linux; collection is not billed to an `it`.
-  renderScreen(<HomeScreen />).unmount();
+  const warmed = renderScreen(<HomeScreen />);
+  warmed.unmount();
+  warmed.queryClient.clear();
 
   beforeEach(() => {
     mockedRouter().push.mockClear();
@@ -118,13 +121,12 @@ describe('HomeScreen invite entry', () => {
   });
 
   it('uses a Join another family link instead of a paste box', async () => {
-    const { findByLabelText, queryByText } = renderScreen(<HomeScreen />);
-    const join = await findByLabelText(copy.home.joinFamily);
-    expect(join).toBeTruthy();
-    expect(queryByText(copy.invite.pastePrompt)).toBeNull();
-    expect(queryByText(copy.invite.pasteLabel)).toBeNull();
+    const view = renderScreen(<HomeScreen />);
+    await view.findByLabelText(copy.home.joinFamily);
+    expect(view.queryByText(copy.invite.pastePrompt)).toBeNull();
+    expect(view.queryByText(copy.invite.pasteLabel)).toBeNull();
 
-    fireEvent.press(join);
+    fireEvent.press(view.getByLabelText(copy.home.joinFamily));
     expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/join-family');
   });
 
@@ -142,6 +144,16 @@ describe('HomeScreen invite entry', () => {
   it('shows a quiet family-keys status on Home', async () => {
     const { findByText } = renderScreen(<HomeScreen />);
     expect(await findByText(copy.home.keysReady)).toBeTruthy();
+  });
+
+  it('refetches first-device notices on pull to refresh', async () => {
+    const { UNSAFE_getByType, findByText } = renderScreen(<HomeScreen />);
+    expect(await findByText(copy.home.keysReady)).toBeTruthy();
+    const callsBefore = (fetchFirstDeviceNotices as jest.Mock).mock.calls.length;
+    fireEvent(UNSAFE_getByType(RefreshControl), 'refresh');
+    await waitFor(() => {
+      expect((fetchFirstDeviceNotices as jest.Mock).mock.calls.length).toBeGreaterThan(callsBefore);
+    });
   });
 
   it('lets an admin wrap or decline a first device from Home', async () => {

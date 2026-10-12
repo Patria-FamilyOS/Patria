@@ -6,6 +6,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-12 — Let in failed without a database code; notices needed a remount
+
+The Let in error was logged as `unknown` because Home swallowed the caught error. Local REST showed admin wrap-insert is allowed and PostgREST returns bytea as `\x` hex; a JSON-cloned public key is not a Uint8Array and wrapping then throws `invalid length`. One helper now decodes every bytea form and checks 32-byte public keys. Home invalidates notices on open, foreground and pull to refresh (D10). Failed approvals log the error class or database code, never key bytes.
+
+---
+
 ## 2026-10-12 — Home join-family test was paying first-render cost
 
 Linux Docker (Node 22) showed the wait is `render(<HomeScreen />)`, not `findBy` and not a case-mismatched mock. A View warmup is not enough: the first HomeScreen tree takes ~1.7s on 2 CPUs and ~13s when the CPU is constrained, which is how GitHub blows Jest’s 5s test budget before `findBy` runs. That first mount now happens while the describe block is collected, which has no test timeout. `npm run test:linux` runs the CI app job in Docker.

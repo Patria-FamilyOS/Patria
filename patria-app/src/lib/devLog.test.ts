@@ -1,4 +1,4 @@
-import { logFailedAction, logKeyStep } from './devLog';
+import { describeCaughtError, logFailedAction, logKeyStep } from './devLog';
 
 describe('devLog', () => {
   afterEach(() => {
@@ -21,6 +21,18 @@ describe('devLog', () => {
       'Patria action failed (42501): new row violates row-level security policy',
     );
     expect(JSON.stringify(warn.mock.calls)).not.toMatch(/@|token|password/i);
+    warn.mockRestore();
+  });
+
+  it('uses the error class when there is no database code', () => {
+    process.env.NODE_ENV = 'development';
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const error = new Error('invalid public key length 66');
+    const info = describeCaughtError(error);
+    expect(info.code).toBe('Error');
+    expect(info.message).toBe('invalid public key length 66');
+    logFailedAction(error);
+    expect(warn).toHaveBeenCalledWith('Patria action failed (Error): invalid public key length 66');
     warn.mockRestore();
   });
 

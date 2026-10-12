@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigation, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { AppState, Pressable, StyleSheet, View } from 'react-native';
 
@@ -32,7 +32,7 @@ import {
 import { ensureDeviceIdentity } from '../../lib/crypto/deviceIdentity';
 import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
 import { memberDisplayName } from '../../lib/displayName';
-import { logFailedAction } from '../../lib/devLog';
+import { describeCaughtError, logFailedAction, logKeyStep } from '../../lib/devLog';
 import { routes } from '../../lib/navigation';
 import { countAdmins, isSpaceAdmin } from '../../lib/roles';
 import { supabase } from '../../lib/supabase';
@@ -40,6 +40,8 @@ import { colors, spacing, type } from '../../theme';
 
 export function HomeScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
+  const queryClient = useQueryClient();
   const { session } = useAuth();
   const userId = session?.user.id;
   const [spaceId, setSpaceId] = useState<string | null>(null);
@@ -99,27 +101,23 @@ export function HomeScreen() {
   const noticesQuery = useQuery({
     queryKey: ['deviceApprovalNotices', spaceId],
     enabled: Boolean(spaceId && admin),
+    refetchOnMount: 'always',
     queryFn: () => fetchFirstDeviceNotices(spaceId as string),
   });
   const adminCount = countAdmins((membersQuery.data ?? []).map((row) => row.role));
 
   const onRefresh = useCallback(() => {
-    void membershipsQuery.refetch();
-    void membersQuery.refetch();
-    void childrenQuery.refetch();
-    void invitesQuery.refetch();
-    void keyStatusQuery.refetch();
-    void noticesQuery.refetch();
-    // refetch fns are stable; the query objects change identity every render.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    membershipsQuery.refetch,
-    membersQuery.refetch,
-    childrenQuery.refetch,
-    invitesQuery.refetch,
-    keyStatusQuery.refetch,
-    noticesQuery.refetch,
-  ]);
+    if (userId) {
+      void queryClient.invalidateQueries({ queryKey: ['memberships', userId] });
+    }
+    if (spaceId) {
+      void queryClient.invalidateQueries({ queryKey: ['members', spaceId] });
+      void queryClient.invalidateQueries({ queryKey: ['children', spaceId] });
+      void queryClient.invalidateQueries({ queryKey: ['invites', spaceId] });
+      void queryClient.invalidateQueries({ queryKey: ['familyKeyStatus'] });
+      void queryClient.invalidateQueries({ queryKey: ['deviceApprovalNotices', spaceId] });
+    }
+  }, [queryClient, userId, spaceId]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
@@ -129,6 +127,13 @@ export function HomeScreen() {
     });
     return () => sub.remove();
   }, [onRefresh]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      onRefresh();
+    });
+    return unsubscribe;
+  }, [navigation, onRefresh]);
 
   const refreshing =
     membershipsQuery.isRefetching ||
@@ -173,10 +178,12 @@ export function HomeScreen() {
         notice,
         memberRole: member?.role,
       });
-      await noticesQuery.refetch();
-      await keyStatusQuery.refetch();
-    } catch {
-      logFailedAction({ message: 'let_in_failed' });
+      await queryClient.invalidateQueries({ queryKey: ['deviceApprovalNotices', spaceId] });
+      await queryClient.invalidateQueries({ queryKey: ['familyKeyStatus'] });
+    } catch (error) {
+      const info = describeCaughtError(error);
+      logFailedAction(error);
+      logKeyStep('let_in_failed', `${info.code} ${info.message}`);
       setNoticeError(copy.home.letInFailed);
     } finally {
       setBusyNoticeId(null);
@@ -188,9 +195,9 @@ export function HomeScreen() {
     setBusyNoticeId(noticeId);
     try {
       await declineFirstDevice(noticeId);
-      await noticesQuery.refetch();
-    } catch {
-      logFailedAction({ message: 'decline_failed' });
+      await queryClient.invalidateQueries({ queryKey: ['deviceApprovalNotices', spaceId] });
+    } catch (error) {
+      logFailedAction(error);
       setNoticeError(copy.home.declineFailed);
     } finally {
       setBusyNoticeId(null);

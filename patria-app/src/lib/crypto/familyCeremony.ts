@@ -138,7 +138,7 @@ export const supabaseFamilyKeyGateway: FamilyKeyGateway = {
     }
     return (data ?? []).map((row) => ({
       deviceId: row.device_id as string,
-      wrappedKey: fromPgBytea(row.wrapped_key as string | Uint8Array),
+      wrappedKey: fromPgBytea(row.wrapped_key),
       keyEpoch: row.key_epoch as number,
     }));
   },

@@ -10,12 +10,24 @@ function canLog(): boolean {
   return typeof __DEV__ !== 'undefined' && __DEV__;
 }
 
-export function logFailedAction(error: ActionError | null | undefined): void {
-  if (!canLog() || !error) {
+export function describeCaughtError(error: unknown): { code: string; message: string } {
+  if (error && typeof error === 'object') {
+    const rec = error as { code?: unknown; name?: unknown; message?: unknown };
+    const code =
+      (typeof rec.code === 'string' && rec.code) ||
+      (typeof rec.name === 'string' && rec.name) ||
+      'unknown';
+    const message = typeof rec.message === 'string' ? rec.message : '';
+    return { code, message };
+  }
+  return { code: 'unknown', message: error == null ? '' : String(error) };
+}
+
+export function logFailedAction(error: ActionError | unknown | null | undefined): void {
+  if (!canLog() || error == null) {
     return;
   }
-  const code = error.code ?? 'unknown';
-  const message = error.message ?? '';
+  const { code, message } = describeCaughtError(error);
   console.warn(`Patria action failed (${code}): ${message}`);
 }
 
