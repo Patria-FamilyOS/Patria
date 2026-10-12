@@ -5,11 +5,35 @@ import { supabase } from '../supabase';
 import { sealXChaCha20Poly1305 } from './aead';
 import { wipe } from './bytes';
 import { ensureDeviceIdentity } from './deviceIdentity';
+import {
+  requestFirstDeviceAccess,
+  supabaseDeviceAccessGateway,
+  type DeviceAccessGateway,
+} from './deviceAccess';
+import {
+  cacheFamilySecrets,
+  discardLocalFamilySecrets,
+  familyKeyStoreKey,
+} from './keyStore';
+import { fromPgBytea, toPgBytea } from './pgBytea';
 import { randomKey32 } from './random';
-import { deleteSecret, getSecretBytes, setSecretBytes } from './secureKeys';
+import { getSecretBytes } from './secureKeys';
 import { encodeEpochAad, unwrapKeyFromDevice, wrapKeyToDevice } from './wrap';
 
+export {
+  cacheFamilySecrets,
+  discardLocalFamilySecrets,
+  familyKeyStoreKey,
+  recoveryKeyStoreKey,
+} from './keyStore';
+
 export type FamilyKeyStatus = 'ready' | 'waiting';
+
+export type OwnWrap = {
+  deviceId: string;
+  wrappedKey: Uint8Array;
+  keyEpoch: number;
+};
 
 export type CeremonyPayload = {
   spaceId: string;
@@ -23,29 +47,19 @@ export type CeremonyPayload = {
 
 export type FamilyKeyGateway = {
   fetchMeta(spaceId: string): Promise<{ keyEpoch: number } | null>;
-  fetchOwnWrapDeviceIds(spaceId: string, userId: string): Promise<string[]>;
+  fetchOwnWraps(spaceId: string, userId: string): Promise<OwnWrap[]>;
   commitCeremony(payload: CeremonyPayload): Promise<{ ok: true } | { ok: false; code: string }>;
 };
 
 const KEY_EPOCH = 1;
 
-export function familyKeyStoreKey(spaceId: string): string {
-  return `patria.familyKey.${spaceId}`;
-}
+export { toPgBytea };
 
-export function recoveryKeyStoreKey(spaceId: string): string {
-  return `patria.recoveryKey.${spaceId}`;
-}
-
-export function toPgBytea(bytes: Uint8Array): string {
-  return `\\x${bytesToHex(bytes)}`;
-}
-
-export function logCeremonyFailure(step: string): void {
+export function logCeremonyFailure(step: string, ids?: string): void {
   if (!__DEV__) {
     return;
   }
-  console.warn(`Patria keys: ${step}`);
+  console.warn(ids ? `Patria keys: ${step} ${ids}` : `Patria keys: ${step}`);
 }
 
 export function createFoundingMaterial(input: {
@@ -101,20 +115,6 @@ export function payloadContainsPlaintextKey(
   );
 }
 
-export async function discardLocalFamilySecrets(spaceId: string): Promise<void> {
-  await deleteSecret(familyKeyStoreKey(spaceId));
-  await deleteSecret(recoveryKeyStoreKey(spaceId));
-}
-
-async function cacheFamilySecrets(
-  spaceId: string,
-  familyKey: Uint8Array,
-  recoveryKey: Uint8Array,
-): Promise<void> {
-  await setSecretBytes(familyKeyStoreKey(spaceId), familyKey);
-  await setSecretBytes(recoveryKeyStoreKey(spaceId), recoveryKey);
-}
-
 export const supabaseFamilyKeyGateway: FamilyKeyGateway = {
   async fetchMeta(spaceId) {
     const { data, error } = await supabase
@@ -132,17 +132,21 @@ export const supabaseFamilyKeyGateway: FamilyKeyGateway = {
     return { keyEpoch: data.key_epoch as number };
   },
 
-  async fetchOwnWrapDeviceIds(spaceId, userId) {
+  async fetchOwnWraps(spaceId, userId) {
     const { data, error } = await supabase
       .from('family_key_wraps')
-      .select('device_id')
+      .select('device_id, wrapped_key, key_epoch')
       .eq('family_space_id', spaceId)
       .eq('user_id', userId);
     if (error) {
       logCeremonyFailure('fetch_family_key_wraps');
       throw error;
     }
-    return (data ?? []).map((row) => row.device_id as string);
+    return (data ?? []).map((row) => ({
+      deviceId: row.device_id as string,
+      wrappedKey: fromPgBytea(row.wrapped_key as string | Uint8Array),
+      keyEpoch: row.key_epoch as number,
+    }));
   },
 
   async commitCeremony(payload) {
@@ -166,7 +170,7 @@ export async function runFoundingCeremony(
   input: { spaceId: string; userId: string },
   gateway: FamilyKeyGateway = supabaseFamilyKeyGateway,
 ): Promise<FamilyKeyStatus> {
-  const device = await ensureDeviceIdentity();
+  const device = await ensureDeviceIdentity(input.userId);
   const material = createFoundingMaterial({
     spaceId: input.spaceId,
     userId: input.userId,
@@ -176,15 +180,20 @@ export async function runFoundingCeremony(
   try {
     const result = await gateway.commitCeremony(material.payload);
     if (result.ok) {
-      await cacheFamilySecrets(input.spaceId, material.familyKey, material.recoveryKey);
+      await cacheFamilySecrets(
+        input.userId,
+        input.spaceId,
+        material.familyKey,
+        material.recoveryKey,
+      );
       return 'ready';
     }
     logCeremonyFailure('commit_family_key_ceremony');
-    await discardLocalFamilySecrets(input.spaceId);
+    await discardLocalFamilySecrets(input.userId, input.spaceId);
     return 'waiting';
   } catch {
     logCeremonyFailure('commit_family_key_ceremony');
-    await discardLocalFamilySecrets(input.spaceId);
+    await discardLocalFamilySecrets(input.userId, input.spaceId);
     return 'waiting';
   } finally {
     wipe(material.familyKey);
@@ -195,44 +204,69 @@ export async function runFoundingCeremony(
 export async function ensureKeysForOpenFamily(
   input: { spaceId: string; userId: string; role: string | null | undefined },
   gateway: FamilyKeyGateway = supabaseFamilyKeyGateway,
+  access: DeviceAccessGateway = supabaseDeviceAccessGateway,
 ): Promise<FamilyKeyStatus> {
-  const device = await ensureDeviceIdentity();
-  if (!isSpaceAdmin(input.role)) {
-    return statusForDevice(input.spaceId, input.userId, device.deviceId, gateway);
-  }
-
-  try {
-    const meta = await gateway.fetchMeta(input.spaceId);
-    if (!meta) {
-      return runFoundingCeremony({ spaceId: input.spaceId, userId: input.userId }, gateway);
+  const device = await ensureDeviceIdentity(input.userId);
+  if (isSpaceAdmin(input.role)) {
+    try {
+      const meta = await gateway.fetchMeta(input.spaceId);
+      if (!meta) {
+        return runFoundingCeremony({ spaceId: input.spaceId, userId: input.userId }, gateway);
+      }
+    } catch {
+      return 'waiting';
     }
-  } catch {
-    return 'waiting';
   }
 
-  return statusForDevice(input.spaceId, input.userId, device.deviceId, gateway);
+  const status = await statusForDevice(input.spaceId, input.userId, device, gateway);
+  if (status === 'ready') {
+    return 'ready';
+  }
+
+  await requestFirstDeviceAccess(
+    {
+      spaceId: input.spaceId,
+      userId: input.userId,
+      role: input.role,
+      device,
+    },
+    access,
+  );
+  return 'waiting';
 }
 
 async function statusForDevice(
   spaceId: string,
   userId: string,
-  deviceId: string,
+  device: { deviceId: string; privateKey: Uint8Array },
   gateway: FamilyKeyGateway,
 ): Promise<FamilyKeyStatus> {
-  const cached = await getSecretBytes(familyKeyStoreKey(spaceId));
+  const cached = await getSecretBytes(familyKeyStoreKey(userId, spaceId));
   if (cached) {
     wipe(cached);
     return 'ready';
   }
   try {
-    const devices = await gateway.fetchOwnWrapDeviceIds(spaceId, userId);
-    if (devices.includes(deviceId)) {
+    const wraps = await gateway.fetchOwnWraps(spaceId, userId);
+    const mine = wraps.find((row) => row.deviceId === device.deviceId);
+    if (!mine) {
+      return 'waiting';
+    }
+    const opened = unwrapKeyFromDevice(mine.wrappedKey, device.privateKey, {
+      familySpaceId: spaceId,
+      keyEpoch: mine.keyEpoch,
+      userId,
+      deviceId: device.deviceId,
+    });
+    try {
+      await cacheFamilySecrets(userId, spaceId, opened);
       return 'ready';
+    } finally {
+      wipe(opened);
     }
   } catch {
     return 'waiting';
   }
-  return 'waiting';
 }
 
 export function unwrapFoundingFamilyKey(

@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(205);
+SELECT plan(215);
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -1734,6 +1734,148 @@ SELECT is(
   1,
   'other family has exactly one key meta row after a successful ceremony'
 );
+
+RESET ROLE;
+INSERT INTO public.device_keys (user_id, device_id, public_key)
+VALUES
+  (
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    'dbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1',
+    tests_dummy_pub('invitee-1')
+  ),
+  (
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    'dbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2',
+    tests_dummy_pub('invitee-2')
+  );
+INSERT INTO public.space_members (family_space_id, user_id, role)
+SELECT other, 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'teen' FROM fx;
+
+SELECT tests_jwt('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $sql$INSERT INTO public.device_approval_notices (family_space_id, user_id, device_id)
+       SELECT other, 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+              'dbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1'
+       FROM fx$sql$,
+  'key eligible member can request a first-device notice'
+);
+SELECT throws_ok(
+  $sql$INSERT INTO public.device_approval_notices (family_space_id, user_id, device_id)
+       SELECT other, 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+              'dbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1'
+       FROM fx$sql$,
+  '23505',
+  NULL,
+  'only one approval notice per device in a family'
+);
+SELECT throws_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT other, 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+                'dbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1',
+                tests_dummy_box(), 1, 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+       FROM fx$sql$,
+  '42501',
+  NULL,
+  'members cannot approve themselves'
+);
+RESET ROLE;
+
+SELECT tests_jwt('55555555-5555-5555-5555-555555555555');
+SET LOCAL ROLE authenticated;
+SELECT throws_ok(
+  $sql$INSERT INTO public.device_approval_notices (family_space_id, user_id, device_id)
+       SELECT rivera, '55555555-5555-5555-5555-555555555555',
+              'd5555555-5555-5555-5555-555555555551'
+       FROM fx$sql$,
+  '42501',
+  NULL,
+  'ineligible roles cannot create an approval notice'
+);
+RESET ROLE;
+
+SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
+SELECT throws_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT other, 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+                'dbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1',
+                tests_dummy_box(), 1, '11111111-1111-1111-1111-111111111111'
+       FROM fx$sql$,
+  '42501',
+  NULL,
+  'cannot approve a first device in another family'
+);
+RESET ROLE;
+
+SELECT tests_jwt('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT other, 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+                'dbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1',
+                tests_dummy_box(), 1, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+       FROM fx$sql$,
+  'only admins of that family can approve a first device'
+);
+SELECT throws_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT other, 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+                'dbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2',
+                tests_dummy_box(), 1, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+       FROM fx$sql$,
+  '42501',
+  NULL,
+  'approval is only for a first device of a key eligible member'
+);
+RESET ROLE;
+INSERT INTO public.device_approval_notices (family_space_id, user_id, device_id)
+SELECT other, 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+       'dbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2'
+FROM fx;
+
+SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
+DELETE FROM public.device_approval_notices
+WHERE device_id = 'dbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2';
+RESET ROLE;
+SELECT is(
+  (
+    SELECT count(*)::integer FROM public.device_approval_notices
+    WHERE device_id = 'dbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2'
+  ),
+  1,
+  'cross family notice delete fails'
+);
+
+SELECT tests_jwt('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $sql$DELETE FROM public.device_approval_notices
+       WHERE device_id = 'dbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1'
+          OR device_id = 'dbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2'$sql$,
+  'admin can close a first-device notice'
+);
+RESET ROLE;
+
+SELECT tests_jwt('77777777-7777-7777-7777-777777777777');
+SET LOCAL ROLE authenticated;
+SELECT throws_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT rivera, '77777777-7777-7777-7777-777777777777',
+                'd7777777-7777-7777-7777-777777777771',
+                tests_dummy_box(), 1, '77777777-7777-7777-7777-777777777777'
+       FROM fx$sql$,
+  '42501',
+  NULL,
+  'no wrap for ineligible roles'
+);
+RESET ROLE;
 
 -- D8 Yes cells as the signed-in admin, including RETURNING (how the app writes).
 SELECT tests_jwt('11111111-1111-1111-1111-111111111111');

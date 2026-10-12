@@ -6,6 +6,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-12 — Admin lets in a member’s first phone (Step 4)
+
+A new member’s phone uploads its public key and one approval notice. An admin taps Let in on Home; that phone wraps the family key to the member device. Decline closes the notice with no wrap. SecureStore entries are namespaced by account so two people on one install cannot read each other’s keys. One shared phone and two separate phones use the same wrap path.
+
+---
+
 ## 2026-10-12 — Screen tests share one QueryClient helper
 
 CI was killing two screen tests at Jest’s 5 second limit. Queries were retrying and garbage-collecting with leftover AppState and focus listeners. Screen tests now share a helper that turns retries off, keeps the cache for the test, and clears the client on the way out.

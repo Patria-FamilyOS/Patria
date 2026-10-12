@@ -24,8 +24,15 @@ import {
   fetchPendingInvites,
 } from '../../lib/family';
 import { signOutAndGoWelcome } from '../../lib/authSession';
+import {
+  approveFirstDevice,
+  declineFirstDevice,
+  fetchFirstDeviceNotices,
+} from '../../lib/crypto/deviceAccess';
+import { ensureDeviceIdentity } from '../../lib/crypto/deviceIdentity';
 import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
 import { memberDisplayName } from '../../lib/displayName';
+import { logFailedAction } from '../../lib/devLog';
 import { routes } from '../../lib/navigation';
 import { countAdmins, isSpaceAdmin } from '../../lib/roles';
 import { supabase } from '../../lib/supabase';
@@ -37,6 +44,8 @@ export function HomeScreen() {
   const userId = session?.user.id;
   const [spaceId, setSpaceId] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+  const [busyNoticeId, setBusyNoticeId] = useState<string | null>(null);
+  const [noticeError, setNoticeError] = useState<string | null>(null);
 
   const membershipsQuery = useQuery({
     queryKey: ['memberships', userId],
@@ -87,6 +96,11 @@ export function HomeScreen() {
         role: current?.role,
       }),
   });
+  const noticesQuery = useQuery({
+    queryKey: ['deviceApprovalNotices', spaceId],
+    enabled: Boolean(spaceId && admin),
+    queryFn: () => fetchFirstDeviceNotices(spaceId as string),
+  });
   const adminCount = countAdmins((membersQuery.data ?? []).map((row) => row.role));
 
   const onRefresh = useCallback(() => {
@@ -95,6 +109,7 @@ export function HomeScreen() {
     void childrenQuery.refetch();
     void invitesQuery.refetch();
     void keyStatusQuery.refetch();
+    void noticesQuery.refetch();
     // refetch fns are stable; the query objects change identity every render.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -103,6 +118,7 @@ export function HomeScreen() {
     childrenQuery.refetch,
     invitesQuery.refetch,
     keyStatusQuery.refetch,
+    noticesQuery.refetch,
   ]);
 
   useEffect(() => {
@@ -118,7 +134,8 @@ export function HomeScreen() {
     membershipsQuery.isRefetching ||
     membersQuery.isRefetching ||
     childrenQuery.isRefetching ||
-    invitesQuery.isRefetching;
+    invitesQuery.isRefetching ||
+    noticesQuery.isRefetching;
 
   const onSignOut = async () => {
     setSigningOut(true);
@@ -129,6 +146,54 @@ export function HomeScreen() {
       });
     } finally {
       setSigningOut(false);
+    }
+  };
+
+  const onLetIn = async (notice: {
+    id: string;
+    spaceId: string;
+    userId: string;
+    deviceId: string;
+    publicKey: Uint8Array;
+    deviceCreatedAt: string;
+  }) => {
+    if (!userId || !spaceId) {
+      return;
+    }
+    setNoticeError(null);
+    setBusyNoticeId(notice.id);
+    try {
+      const device = await ensureDeviceIdentity(userId);
+      const member = (membersQuery.data ?? []).find((row) => row.userId === notice.userId);
+      await approveFirstDevice({
+        spaceId,
+        adminUserId: userId,
+        adminDeviceId: device.deviceId,
+        adminPrivateKey: device.privateKey,
+        notice,
+        memberRole: member?.role,
+      });
+      await noticesQuery.refetch();
+      await keyStatusQuery.refetch();
+    } catch {
+      logFailedAction({ message: 'let_in_failed' });
+      setNoticeError(copy.home.letInFailed);
+    } finally {
+      setBusyNoticeId(null);
+    }
+  };
+
+  const onDecline = async (noticeId: string) => {
+    setNoticeError(null);
+    setBusyNoticeId(noticeId);
+    try {
+      await declineFirstDevice(noticeId);
+      await noticesQuery.refetch();
+    } catch {
+      logFailedAction({ message: 'decline_failed' });
+      setNoticeError(copy.home.declineFailed);
+    } finally {
+      setBusyNoticeId(null);
     }
   };
 
@@ -208,6 +273,42 @@ export function HomeScreen() {
           {keyStatusQuery.data === 'ready' ? copy.home.keysReady : copy.home.keysWaiting}
         </Muted>
       ) : null}
+      {noticeError ? <ErrorState message={noticeError} /> : null}
+      {admin
+        ? (noticesQuery.data ?? []).map((notice) => {
+            const member = (membersQuery.data ?? []).find((row) => row.userId === notice.userId);
+            const name = memberDisplayName(member?.displayName);
+            const title = copy.home.letInNotice.replace('{name}', name);
+            const when = new Date(notice.deviceCreatedAt);
+            const whenLabel = Number.isNaN(when.getTime())
+              ? notice.deviceCreatedAt
+              : when.toLocaleString();
+            return (
+              <View key={notice.id} style={styles.row}>
+                <AppText style={styles.rowTitle}>{title}</AppText>
+                <Muted>
+                  {member ? copy.roles[member.role] : ''}
+                  {member ? ' · ' : ''}
+                  {copy.home.deviceSetUp.replace('{when}', whenLabel)}
+                </Muted>
+                <Button
+                  label={copy.home.letIn}
+                  busy={busyNoticeId === notice.id}
+                  disabled={busyNoticeId !== null && busyNoticeId !== notice.id}
+                  onPress={() => void onLetIn(notice)}
+                  accessibilityHint={title}
+                />
+                <Button
+                  label={copy.home.declineDevice}
+                  variant="secondary"
+                  busy={busyNoticeId === notice.id}
+                  disabled={busyNoticeId !== null && busyNoticeId !== notice.id}
+                  onPress={() => void onDecline(notice.id)}
+                />
+              </View>
+            );
+          })
+        : null}
 
       {(membershipsQuery.data ?? []).length > 1 ? (
         <View>

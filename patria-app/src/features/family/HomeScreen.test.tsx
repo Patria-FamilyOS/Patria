@@ -8,6 +8,11 @@ import {
   fetchMemberships,
   fetchPendingInvites,
 } from '../../lib/family';
+import {
+  approveFirstDevice,
+  declineFirstDevice,
+  fetchFirstDeviceNotices,
+} from '../../lib/crypto/deviceAccess';
 import { supabase } from '../../lib/supabase';
 import { renderScreen } from '../../test/renderScreen';
 import { HomeScreen } from './HomeScreen';
@@ -25,6 +30,20 @@ jest.mock('../../lib/family', () => ({
 
 jest.mock('../../lib/crypto/familyCeremony', () => ({
   ensureKeysForOpenFamily: jest.fn(async () => 'ready'),
+}));
+
+jest.mock('../../lib/crypto/deviceAccess', () => ({
+  fetchFirstDeviceNotices: jest.fn(async () => []),
+  approveFirstDevice: jest.fn(async () => undefined),
+  declineFirstDevice: jest.fn(async () => undefined),
+}));
+
+jest.mock('../../lib/crypto/deviceIdentity', () => ({
+  ensureDeviceIdentity: jest.fn(async () => ({
+    deviceId: 'd-admin',
+    publicKey: new Uint8Array(32),
+    privateKey: new Uint8Array(32),
+  })),
 }));
 
 jest.mock('../../lib/supabase', () => ({
@@ -66,6 +85,9 @@ describe('HomeScreen invite entry', () => {
     ]);
     (fetchChildren as jest.Mock).mockResolvedValue([]);
     (fetchPendingInvites as jest.Mock).mockResolvedValue([]);
+    (fetchFirstDeviceNotices as jest.Mock).mockResolvedValue([]);
+    (approveFirstDevice as jest.Mock).mockClear();
+    (declineFirstDevice as jest.Mock).mockClear();
   });
 
   it('uses a Join another family link instead of a paste box', async () => {
@@ -100,6 +122,28 @@ describe('HomeScreen invite entry', () => {
 
     await waitFor(() => {
       expect(getByText(copy.home.keysReady)).toBeTruthy();
+    });
+  });
+
+  it('lets an admin wrap or decline a first device from Home', async () => {
+    (fetchFirstDeviceNotices as jest.Mock).mockResolvedValue([
+      {
+        id: 'n1',
+        spaceId: 's1',
+        userId: 'u2',
+        deviceId: 'd-marco',
+        publicKey: new Uint8Array(32),
+        deviceCreatedAt: '2026-10-12T12:00:00.000Z',
+      },
+    ]);
+    const { getByText } = renderScreen(<HomeScreen />);
+
+    await waitFor(() => {
+      expect(getByText(`${copy.member.fallbackName} wants this phone let in`)).toBeTruthy();
+    });
+    fireEvent.press(getByText(copy.home.letIn));
+    await waitFor(() => {
+      expect(approveFirstDevice).toHaveBeenCalled();
     });
   });
 

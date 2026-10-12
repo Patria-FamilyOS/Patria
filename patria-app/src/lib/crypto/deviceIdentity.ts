@@ -4,14 +4,19 @@ import { generateDeviceKeyPair, x25519PublicKey } from './x25519';
 import { randomBytes } from './random';
 import { getSecretBytes, getSecretText, setSecretBytes, setSecretText } from './secureKeys';
 
-export const DEVICE_ID_STORE_KEY = 'patria.device.id';
-export const DEVICE_PRIVATE_STORE_KEY = 'patria.device.private';
-
 export type DeviceIdentity = {
   deviceId: string;
   publicKey: Uint8Array;
   privateKey: Uint8Array;
 };
+
+export function deviceIdStoreKey(userId: string): string {
+  return `patria.u.${userId}.device.id`;
+}
+
+export function devicePrivateStoreKey(userId: string): string {
+  return `patria.u.${userId}.device.private`;
+}
 
 function randomDeviceId(): string {
   const bytes = randomBytes(16);
@@ -21,9 +26,9 @@ function randomDeviceId(): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-export async function ensureDeviceIdentity(): Promise<DeviceIdentity> {
-  const existingId = await getSecretText(DEVICE_ID_STORE_KEY);
-  const existingPrivate = await getSecretBytes(DEVICE_PRIVATE_STORE_KEY);
+export async function ensureDeviceIdentity(userId: string): Promise<DeviceIdentity> {
+  const existingId = await getSecretText(deviceIdStoreKey(userId));
+  const existingPrivate = await getSecretBytes(devicePrivateStoreKey(userId));
   if (existingId && existingPrivate) {
     return {
       deviceId: existingId,
@@ -34,8 +39,8 @@ export async function ensureDeviceIdentity(): Promise<DeviceIdentity> {
 
   const pair = generateDeviceKeyPair();
   const deviceId = randomDeviceId();
-  await setSecretText(DEVICE_ID_STORE_KEY, deviceId);
-  await setSecretBytes(DEVICE_PRIVATE_STORE_KEY, pair.privateKey);
+  await setSecretText(deviceIdStoreKey(userId), deviceId);
+  await setSecretBytes(devicePrivateStoreKey(userId), pair.privateKey);
   return {
     deviceId,
     privateKey: pair.privateKey,
