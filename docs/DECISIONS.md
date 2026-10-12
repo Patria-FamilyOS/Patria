@@ -132,3 +132,7 @@ Member email addresses are visible only to Family admins and Co admins. Other me
 ## D18. Where people paste an invite (October 2026)
 
 The invite paste box shows on Welcome and Create family. Members already in a family join another through a small Join another family link, not a box on Home. (Phone feedback asked to number this D15; D15 already records how we log builds.)
+
+## D19. Dynamic Type deferred until an accessibility pass (October 2026)
+
+Full Dynamic Type support is deferred to a dedicated accessibility pass before beta with grandparents. Until then, text scaling is capped so no screen breaks. (Phone feedback asked to number this D16; D16 already records invite delivery and decline.)

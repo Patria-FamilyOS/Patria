@@ -1,9 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
-import { Body, Button, ErrorState, LoadingState, Muted, Screen, Title } from '../../components/ui';
+import {
+  AppText,
+  Body,
+  Button,
+  ErrorState,
+  LoadingState,
+  Muted,
+  Screen,
+  Title,
+} from '../../components/ui';
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
@@ -123,9 +132,9 @@ export function MemberScreen({ userId }: MemberScreenProps) {
                 onPress={() => setRoleOverride(item)}
                 style={[styles.chip, role === item && styles.chipOn]}
               >
-                <Text style={[styles.chipText, role === item && styles.chipTextOn]}>
+                <AppText style={[styles.chipText, role === item && styles.chipTextOn]}>
                   {copy.roles[item]}
-                </Text>
+                </AppText>
               </Pressable>
             ))}
           </View>

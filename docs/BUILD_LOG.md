@@ -6,6 +6,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-11 — Cap text scaling at 1.3 (D19)
+
+Full Dynamic Type is deferred until an accessibility pass before grandparents beta. Until then every Text and TextInput uses a 1.3 multiplier, no pinned line heights, and every screen still scrolls.
+
+---
+
 ## 2026-10-11 — Name gate cache, add child RETURNING, Dynamic Type
 
 Your name was asked twice because the gate reused a stale empty profile cache after save; the gate is the only name check and now gets the new name immediately. Add a child failed with Postgres `42501` / “new row violates row-level security policy”: the insert succeeded, but PostgREST `RETURNING` ran `can_view_child`, which re-selected `child_profiles` before the new row was visible. EXECUTE on helpers was still granted to `authenticated`; the Yes-cell tests did not use `RETURNING`, so CI missed it. Admins/teens/elders now see children in their space without that nested select. Dev builds log action error code and message only. Type tokens no longer pin `lineHeight`; screens scroll; titles cap at 2×.

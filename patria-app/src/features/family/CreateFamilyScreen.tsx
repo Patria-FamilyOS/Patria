@@ -2,10 +2,19 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigation, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { z } from 'zod';
 
-import { Body, Button, ErrorState, Field, Muted, Screen, Title } from '../../components/ui';
+import {
+  AppText,
+  Body,
+  Button,
+  ErrorState,
+  Field,
+  Muted,
+  Screen,
+  Title,
+} from '../../components/ui';
 import { signOutAndGoWelcome } from '../../lib/authSession';
 import { logFailedAction } from '../../lib/devLog';
 import { copy } from '../../lib/copy';
@@ -85,12 +94,11 @@ export function CreateFamilyScreen() {
                   onPress={() => field.onChange(key)}
                   style={[styles.chip, selected && styles.chipSelected]}
                 >
-                  <Text
-                    allowFontScaling
+                  <AppText
                     style={[styles.chipLabel, selected && styles.chipLabelSelected]}
                   >
                     {label}
-                  </Text>
+                  </AppText>
                 </Pressable>
               );
             })}

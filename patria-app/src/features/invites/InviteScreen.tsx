@@ -2,10 +2,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Linking, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, Share, StyleSheet, View } from 'react-native';
 import { z } from 'zod';
 
 import {
+  AppText,
   Body,
   Button,
   EmptyState,
@@ -182,9 +183,9 @@ export function InviteScreen() {
                 onPress={() => field.onChange(role)}
                 style={[styles.chip, field.value === role && styles.chipOn]}
               >
-                <Text style={[styles.chipText, field.value === role && styles.chipTextOn]}>
+                <AppText style={[styles.chipText, field.value === role && styles.chipTextOn]}>
                   {copy.roles[role]}
-                </Text>
+                </AppText>
               </Pressable>
             ))}
           </View>
@@ -207,9 +208,9 @@ export function InviteScreen() {
                   onPress={() => field.onChange(circle.id)}
                   style={[styles.chip, selected && styles.chipOn]}
                 >
-                  <Text style={[styles.chipText, selected && styles.chipTextOn]}>
+                  <AppText style={[styles.chipText, selected && styles.chipTextOn]}>
                     {circle.name}
-                  </Text>
+                  </AppText>
                 </Pressable>
               );
             })}
@@ -238,7 +239,7 @@ export function InviteScreen() {
       {pendingQuery.data?.length ? (
         pendingQuery.data.map((invite) => (
           <View key={invite.id} style={styles.pending}>
-            <Text style={styles.chipText}>{invite.email}</Text>
+            <AppText style={styles.chipText}>{invite.email}</AppText>
             <Muted>
               {copy.roles[invite.role]} ·{' '}
               {copy.invite.expires.replace(

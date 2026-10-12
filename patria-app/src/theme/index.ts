@@ -33,5 +33,9 @@ export const type = {
     fontFamily: 'System',
     fontSize: 14,
   },
-  titleMaxMultiplier: 2,
+} as const;
+
+export const textScale = {
+  allowFontScaling: true,
+  maxFontSizeMultiplier: 1.3,
 } as const;

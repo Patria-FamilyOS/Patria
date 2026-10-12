@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppState, Pressable, StyleSheet, View } from 'react-native';
 
 import {
   Body,
@@ -12,6 +12,7 @@ import {
   Muted,
   Screen,
   Title,
+  AppText,
 } from '../../components/ui';
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
@@ -124,7 +125,7 @@ export function HomeScreen() {
       onPress={() => router.push(routes.joinFamily)}
       style={styles.joinLink}
     >
-      <Text style={styles.joinLinkText}>{copy.home.joinFamily}</Text>
+      <AppText style={styles.joinLinkText}>{copy.home.joinFamily}</AppText>
     </Pressable>
   );
 
@@ -203,7 +204,7 @@ export function HomeScreen() {
               }}
               style={[styles.row, item.space.id === spaceId && styles.rowSelected]}
             >
-              <Text style={styles.rowTitle}>{item.space.name}</Text>
+              <AppText style={styles.rowTitle}>{item.space.name}</AppText>
             </Pressable>
           ))}
         </View>
@@ -225,10 +226,10 @@ export function HomeScreen() {
           onPress={() => router.push(routes.member(row.userId))}
           style={styles.row}
         >
-          <Text style={styles.rowTitle}>
+          <AppText style={styles.rowTitle}>
             {row.displayName}
             {row.userId === userId ? ` · ${copy.invite.youBadge}` : ''}
-          </Text>
+          </AppText>
           <Muted>
             {row.relationshipLabel ? `${row.relationshipLabel} · ` : ''}
             {copy.roles[row.role]}
@@ -244,7 +245,7 @@ export function HomeScreen() {
           onPress={() => router.push(`/(signed-in)/child/${child.id}`)}
           style={styles.row}
         >
-          <Text style={styles.rowTitle}>{child.displayName}</Text>
+          <AppText style={styles.rowTitle}>{child.displayName}</AppText>
           <Muted>
             {copy.roles.child} · {copy.child.noEmail}
           </Muted>

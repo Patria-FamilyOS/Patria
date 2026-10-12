@@ -23,7 +23,7 @@ describe('PlaceholderScreen', () => {
 
     expect(getByText(copy.welcome.title)).toBeTruthy();
     expect(getByText(copy.welcome.body)).toBeTruthy();
-    expect(getByText(copy.welcome.title).props.maxFontSizeMultiplier).toBe(2);
+    expect(getByText(copy.welcome.title).props.maxFontSizeMultiplier).toBe(1.3);
     expect(getByText(copy.welcome.title).props.allowFontScaling).not.toBe(false);
   });
 });

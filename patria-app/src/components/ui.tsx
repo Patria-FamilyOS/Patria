@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { type ComponentProps, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -12,7 +12,29 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { colors, spacing, type } from '../theme';
+import { colors, spacing, textScale, type } from '../theme';
+
+export function AppText({ children, ...rest }: ComponentProps<typeof Text>) {
+  return (
+    <Text
+      {...rest}
+      allowFontScaling
+      maxFontSizeMultiplier={textScale.maxFontSizeMultiplier}
+    >
+      {children}
+    </Text>
+  );
+}
+
+export function AppTextInput(props: TextInputProps) {
+  return (
+    <TextInput
+      {...props}
+      allowFontScaling
+      maxFontSizeMultiplier={textScale.maxFontSizeMultiplier}
+    />
+  );
+}
 
 type ScreenProps = {
   children: ReactNode;
@@ -54,31 +76,15 @@ export function Screen({
 type TitleProps = { children: ReactNode };
 
 export function Title({ children }: TitleProps) {
-  return (
-    <Text
-      allowFontScaling
-      maxFontSizeMultiplier={type.titleMaxMultiplier}
-      style={styles.title}
-    >
-      {children}
-    </Text>
-  );
+  return <AppText style={styles.title}>{children}</AppText>;
 }
 
 export function Body({ children }: TitleProps) {
-  return (
-    <Text allowFontScaling style={styles.body}>
-      {children}
-    </Text>
-  );
+  return <AppText style={styles.body}>{children}</AppText>;
 }
 
 export function Muted({ children }: TitleProps) {
-  return (
-    <Text allowFontScaling style={styles.muted}>
-      {children}
-    </Text>
-  );
+  return <AppText style={styles.muted}>{children}</AppText>;
 }
 
 type ButtonProps = {
@@ -120,15 +126,14 @@ export function Button({
           color={variant === 'secondary' ? colors.primary : colors.onPrimary}
         />
       ) : (
-        <Text
-          allowFontScaling
+        <AppText
           style={[
             styles.buttonLabel,
             variant === 'secondary' && styles.buttonLabelSecondary,
           ]}
         >
           {label}
-        </Text>
+        </AppText>
       )}
     </Pressable>
   );
@@ -142,22 +147,15 @@ type FieldProps = TextInputProps & {
 export function Field({ label, error, ...inputProps }: FieldProps) {
   return (
     <View style={styles.field}>
-      <Text allowFontScaling style={styles.fieldLabel}>
-        {label}
-      </Text>
-      <TextInput
+      <AppText style={styles.fieldLabel}>{label}</AppText>
+      <AppTextInput
         {...inputProps}
-        allowFontScaling
         accessibilityLabel={label}
         placeholderTextColor={colors.textMuted}
         style={styles.input}
         textAlignVertical="center"
       />
-      {error ? (
-        <Text allowFontScaling style={styles.fieldError}>
-          {error}
-        </Text>
-      ) : null}
+      {error ? <AppText style={styles.fieldError}>{error}</AppText> : null}
     </View>
   );
 }
@@ -168,27 +166,21 @@ export function LoadingState({ message }: StatusProps) {
   return (
     <View style={styles.status} accessibilityRole="progressbar" accessibilityLabel={message}>
       <ActivityIndicator color={colors.primary} />
-      <Text allowFontScaling style={styles.muted}>
-        {message}
-      </Text>
+      <AppText style={styles.muted}>{message}</AppText>
     </View>
   );
 }
 
 export function ErrorState({ message }: StatusProps) {
   return (
-    <Text allowFontScaling style={styles.fieldError} accessibilityRole="alert">
+    <AppText style={styles.fieldError} accessibilityRole="alert">
       {message}
-    </Text>
+    </AppText>
   );
 }
 
 export function EmptyState({ message }: StatusProps) {
-  return (
-    <Text allowFontScaling style={styles.muted}>
-      {message}
-    </Text>
-  );
+  return <AppText style={styles.muted}>{message}</AppText>;
 }
 
 const styles = StyleSheet.create({
