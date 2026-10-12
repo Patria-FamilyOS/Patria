@@ -1,16 +1,11 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { fireEvent, waitFor } from '@testing-library/react-native';
 
 import { copy } from '../../lib/copy';
 import { ownDisplayNameQueryKey } from '../../lib/ownDisplayName';
 import { queryClient } from '../../lib/queryClient';
 import { supabase } from '../../lib/supabase';
+import { renderScreen } from '../../test/renderScreen';
 import { YourNameScreen } from './YourNameScreen';
-
-const metrics = {
-  frame: { x: 0, y: 0, width: 390, height: 844 },
-  insets: { top: 0, left: 0, right: 0, bottom: 0 },
-};
 
 jest.mock('../../lib/auth-context', () => ({
   useAuth: () => ({ session: { user: { id: 'u1' } }, loading: false }),
@@ -54,11 +49,7 @@ describe('YourNameScreen', () => {
   });
 
   it('saves a name with existing copy then returns to the gate', async () => {
-    const { getByLabelText, getByText } = render(
-      <SafeAreaProvider initialMetrics={metrics}>
-        <YourNameScreen />
-      </SafeAreaProvider>,
-    );
+    const { getByLabelText, getByText } = renderScreen(<YourNameScreen />);
 
     fireEvent.changeText(getByLabelText(copy.auth.nameLabel), 'Elena Rivera');
     fireEvent.press(getByText(copy.common.save));

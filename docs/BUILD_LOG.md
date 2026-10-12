@@ -6,6 +6,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-12 — Screen tests share one QueryClient helper
+
+CI was killing two screen tests at Jest’s 5 second limit. Queries were retrying and garbage-collecting with leftover AppState and focus listeners. Screen tests now share a helper that turns retries off, keeps the cache for the test, and clears the client on the way out.
+
+---
+
 ## 2026-10-12 — Create family keys on the founding phone (Step 3)
 
 After a family space is created, that admin phone generates the family and recovery keys, wraps them to itself, and writes meta, the device public key, and wraps in one database function. Existing families without keys do the same the next time an admin opens Home. A second ceremony for the same space is rejected; that phone discards its local key and waits.

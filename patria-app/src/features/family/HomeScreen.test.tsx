@@ -1,7 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
-import { AppState } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { fireEvent, waitFor } from '@testing-library/react-native';
 
 import { copy } from '../../lib/copy';
 import { memberDisplayName } from '../../lib/displayName';
@@ -12,12 +9,8 @@ import {
   fetchPendingInvites,
 } from '../../lib/family';
 import { supabase } from '../../lib/supabase';
+import { renderScreen } from '../../test/renderScreen';
 import { HomeScreen } from './HomeScreen';
-
-const metrics = {
-  frame: { x: 0, y: 0, width: 390, height: 844 },
-  insets: { top: 0, left: 0, right: 0, bottom: 0 },
-};
 
 jest.mock('../../lib/auth-context', () => ({
   useAuth: () => ({ session: { user: { id: 'u1' } }, loading: false }),
@@ -47,24 +40,8 @@ function mockedRouter(): { push: jest.Mock; replace: jest.Mock } {
   return expoRouter.useRouter();
 }
 
-function renderHome() {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: 0 } },
-  });
-  return render(
-    <QueryClientProvider client={client}>
-      <SafeAreaProvider initialMetrics={metrics}>
-        <HomeScreen />
-      </SafeAreaProvider>
-    </QueryClientProvider>,
-  );
-}
-
 describe('HomeScreen invite entry', () => {
   beforeEach(() => {
-    jest.spyOn(AppState, 'addEventListener').mockReturnValue({
-      remove: jest.fn(),
-    } as never);
     mockedRouter().push.mockClear();
     mockedRouter().replace.mockClear();
     (supabase.auth.signOut as jest.Mock).mockClear();
@@ -91,12 +68,8 @@ describe('HomeScreen invite entry', () => {
     (fetchPendingInvites as jest.Mock).mockResolvedValue([]);
   });
 
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
-
   it('uses a Join another family link instead of a paste box', async () => {
-    const { getByLabelText, queryByText } = renderHome();
+    const { getByLabelText, queryByText } = renderScreen(<HomeScreen />);
 
     await waitFor(() => {
       expect(getByLabelText(copy.home.joinFamily)).toBeTruthy();
@@ -109,7 +82,7 @@ describe('HomeScreen invite entry', () => {
   });
 
   it('signs out then replaces to welcome', async () => {
-    const { getByText } = renderHome();
+    const { getByText } = renderScreen(<HomeScreen />);
 
     await waitFor(() => {
       expect(getByText(copy.auth.signOut)).toBeTruthy();
@@ -123,7 +96,7 @@ describe('HomeScreen invite entry', () => {
   });
 
   it('shows a quiet family-keys status on Home', async () => {
-    const { getByText } = renderHome();
+    const { getByText } = renderScreen(<HomeScreen />);
 
     await waitFor(() => {
       expect(getByText(copy.home.keysReady)).toBeTruthy();
@@ -131,7 +104,7 @@ describe('HomeScreen invite entry', () => {
   });
 
   it('never shows a blank member card', async () => {
-    const { getAllByText } = renderHome();
+    const { getAllByText } = renderScreen(<HomeScreen />);
 
     await waitFor(() => {
       expect(getAllByText(copy.member.fallbackName).length).toBeGreaterThan(0);

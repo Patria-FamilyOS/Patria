@@ -25,7 +25,6 @@ export function InvitePreviewScreen({ token }: InvitePreviewScreenProps) {
   const previewQuery = useQuery({
     queryKey: ['invite-preview', token],
     staleTime: 0,
-    gcTime: 0,
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_invite_preview', {
         p_token: token,

@@ -1,13 +1,8 @@
-import { fireEvent, render } from '@testing-library/react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { fireEvent } from '@testing-library/react-native';
 
 import { copy } from '../../lib/copy';
+import { renderScreen } from '../../test/renderScreen';
 import { JoinFamilyScreen } from './JoinFamilyScreen';
-
-const metrics = {
-  frame: { x: 0, y: 0, width: 390, height: 844 },
-  insets: { top: 0, left: 0, right: 0, bottom: 0 },
-};
 
 function mockedPush(): jest.Mock {
   const expoRouter = jest.requireMock('expo-router') as {
@@ -22,11 +17,7 @@ describe('JoinFamilyScreen', () => {
   });
 
   it('opens a pasted invite on the accept screen', () => {
-    const { getByLabelText, getByText } = render(
-      <SafeAreaProvider initialMetrics={metrics}>
-        <JoinFamilyScreen />
-      </SafeAreaProvider>,
-    );
+    const { getByLabelText, getByText } = renderScreen(<JoinFamilyScreen />);
 
     expect(getByText(copy.home.joinFamily)).toBeTruthy();
     fireEvent.changeText(

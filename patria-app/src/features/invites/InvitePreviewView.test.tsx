@@ -1,13 +1,6 @@
-import { render } from '@testing-library/react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-
 import { copy } from '../../lib/copy';
+import { renderScreen } from '../../test/renderScreen';
 import { InvitePreviewView } from './InvitePreviewView';
-
-const metrics = {
-  frame: { x: 0, y: 0, width: 390, height: 844 },
-  insets: { top: 0, left: 0, right: 0, bottom: 0 },
-};
 
 const preview = {
   family_space_name: 'The Rivera Family',
@@ -20,19 +13,17 @@ const preview = {
 
 describe('InvitePreviewView', () => {
   it('shows who invited, the family, role, and visibility summary before accept', () => {
-    const { getByText } = render(
-      <SafeAreaProvider initialMetrics={metrics}>
-        <InvitePreviewView
-          preview={preview}
-          signedIn
-          busy={false}
-          error={null}
-          onAccept={() => undefined}
-          onDecline={() => undefined}
-          onSignIn={() => undefined}
-          onSignUp={() => undefined}
-        />
-      </SafeAreaProvider>,
+    const { getByText } = renderScreen(
+      <InvitePreviewView
+        preview={preview}
+        signedIn
+        busy={false}
+        error={null}
+        onAccept={() => undefined}
+        onDecline={() => undefined}
+        onSignIn={() => undefined}
+        onSignUp={() => undefined}
+      />,
     );
 
     expect(getByText(/Elena Rivera/)).toBeTruthy();
