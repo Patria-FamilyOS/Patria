@@ -277,7 +277,11 @@ export function HomeScreen() {
       <Muted>{copy.home.todoMemories}</Muted>
       {keyStatusQuery.data ? (
         <Muted>
-          {keyStatusQuery.data === 'ready' ? copy.home.keysReady : copy.home.keysWaiting}
+          {keyStatusQuery.data === 'ready'
+            ? copy.home.keysReady
+            : keyStatusQuery.data === 'needsRelink'
+              ? copy.home.keysNeedRelink
+              : copy.home.keysWaiting}
         </Muted>
       ) : null}
       {noticeError ? <ErrorState message={noticeError} /> : null}

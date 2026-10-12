@@ -80,6 +80,7 @@ export const copy = {
     joinFamilyBody: 'Paste your invite link to join another family space.',
     keysReady: 'Family keys: set up on this phone',
     keysWaiting: 'Waiting for a family admin to let this phone in',
+    keysNeedRelink: 'This phone needs to be let in again',
     letInNotice: '{name} wants this phone let in',
     letIn: 'Let in',
     declineDevice: 'Decline',

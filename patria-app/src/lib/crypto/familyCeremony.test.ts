@@ -1,7 +1,13 @@
 import { bytesToHex } from '@noble/hashes/utils.js';
 import * as SecureStore from 'expo-secure-store';
 import { secretsEqual, wipe } from './bytes';
-import { ensureDeviceIdentity } from './deviceIdentity';
+import {
+  ensureDeviceIdentity,
+  LEGACY_DEVICE_ID_STORE_KEY,
+  LEGACY_DEVICE_PRIVATE_STORE_KEY,
+  deviceIdStoreKey,
+  devicePrivateStoreKey,
+} from './deviceIdentity';
 import type { DeviceAccessGateway } from './deviceAccess';
 import {
   createFoundingMaterial,
@@ -14,7 +20,13 @@ import {
   unwrapFoundingFamilyKey,
   type FamilyKeyGateway,
 } from './familyCeremony';
+import {
+  legacyFamilyKeyStoreKey,
+  legacyRecoveryKeyStoreKey,
+  resetFamilyKeyMemory,
+} from './keyStore';
 import { getSecretBytes } from './secureKeys';
+import { wrapKeyToDevice } from './wrap';
 
 const USER = '22222222-2222-2222-2222-222222222222';
 const TEEN = '33333333-3333-3333-3333-333333333333';
@@ -160,6 +172,109 @@ describe('founding family key ceremony', () => {
     expect(status).toBe('waiting');
     expect(await getSecretBytes(familyKeyStoreKey(USER, SPACE))).toBeNull();
     await discardLocalFamilySecrets(USER, SPACE);
+  });
+
+  it('rebuilds the family key from this device wrap after an empty cache', async () => {
+    const stored = new Map<string, string>();
+    installMemoryStore(stored);
+    const device = await ensureDeviceIdentity(USER);
+    const material = createFoundingMaterial({
+      spaceId: SPACE,
+      userId: USER,
+      deviceId: device.deviceId,
+      publicKey: device.publicKey,
+    });
+    const wrapped = wrapKeyToDevice(material.familyKey, device.publicKey, {
+      familySpaceId: SPACE,
+      keyEpoch: 1,
+      userId: USER,
+      deviceId: device.deviceId,
+    });
+    resetFamilyKeyMemory();
+    stored.delete(familyKeyStoreKey(USER, SPACE));
+    const insertNotice = jest.fn(async () => undefined);
+    const status = await ensureKeysForOpenFamily(
+      { spaceId: SPACE, userId: USER, role: 'family_admin' },
+      memoryGateway({
+        meta: { keyEpoch: 1 },
+        wraps: async () => [{ deviceId: device.deviceId, wrappedKey: wrapped, keyEpoch: 1 }],
+      }),
+      memoryAccess(insertNotice),
+    );
+    expect(status).toBe('ready');
+    expect(insertNotice).not.toHaveBeenCalled();
+    expect(await getSecretBytes(familyKeyStoreKey(USER, SPACE))).not.toBeNull();
+    wipe(material.familyKey);
+    wipe(material.recoveryKey);
+  });
+
+  it('moves pre Step 4 SecureStore names to the signed-in user', async () => {
+    const stored = new Map<string, string>();
+    installMemoryStore(stored);
+    const device = await ensureDeviceIdentity(USER);
+    const material = createFoundingMaterial({
+      spaceId: SPACE,
+      userId: USER,
+      deviceId: device.deviceId,
+      publicKey: device.publicKey,
+    });
+    stored.set(LEGACY_DEVICE_ID_STORE_KEY, device.deviceId);
+    stored.set(LEGACY_DEVICE_PRIVATE_STORE_KEY, bytesToHex(device.privateKey));
+    stored.set(legacyFamilyKeyStoreKey(SPACE), bytesToHex(material.familyKey));
+    stored.set(legacyRecoveryKeyStoreKey(SPACE), bytesToHex(material.recoveryKey));
+    stored.delete(deviceIdStoreKey(USER));
+    stored.delete(devicePrivateStoreKey(USER));
+    stored.delete(familyKeyStoreKey(USER, SPACE));
+    stored.delete(recoveryKeyStoreKey(USER, SPACE));
+    resetFamilyKeyMemory();
+
+    const status = await ensureKeysForOpenFamily(
+      { spaceId: SPACE, userId: USER, role: 'family_admin' },
+      memoryGateway({ meta: { keyEpoch: 1 } }),
+      memoryAccess(),
+    );
+    expect(status).toBe('ready');
+    expect(stored.get(deviceIdStoreKey(USER))).toBe(device.deviceId);
+    expect(stored.get(devicePrivateStoreKey(USER))).toBe(bytesToHex(device.privateKey));
+    expect(await getSecretBytes(familyKeyStoreKey(USER, SPACE))).not.toBeNull();
+    expect(stored.has(LEGACY_DEVICE_ID_STORE_KEY)).toBe(false);
+    expect(stored.has(legacyFamilyKeyStoreKey(SPACE))).toBe(false);
+    wipe(material.familyKey);
+    wipe(material.recoveryKey);
+  });
+
+  it('asks to be let in again when this device has no private key', async () => {
+    const stored = new Map<string, string>();
+    installMemoryStore(stored);
+    const device = await ensureDeviceIdentity(USER);
+    const material = createFoundingMaterial({
+      spaceId: SPACE,
+      userId: USER,
+      deviceId: device.deviceId,
+      publicKey: device.publicKey,
+    });
+    const wrapped = wrapKeyToDevice(material.familyKey, device.publicKey, {
+      familySpaceId: SPACE,
+      keyEpoch: 1,
+      userId: USER,
+      deviceId: device.deviceId,
+    });
+    stored.delete(devicePrivateStoreKey(USER));
+    stored.delete(familyKeyStoreKey(USER, SPACE));
+    resetFamilyKeyMemory();
+    const insertNotice = jest.fn(async () => undefined);
+    const status = await ensureKeysForOpenFamily(
+      { spaceId: SPACE, userId: USER, role: 'family_admin' },
+      memoryGateway({
+        meta: { keyEpoch: 1 },
+        wraps: async () => [{ deviceId: device.deviceId, wrappedKey: wrapped, keyEpoch: 1 }],
+      }),
+      memoryAccess(insertNotice),
+    );
+    expect(status).toBe('needsRelink');
+    expect(insertNotice).toHaveBeenCalled();
+    wipe(material.familyKey);
+    wipe(material.recoveryKey);
   });
 
   it('does not put the family key hex in the postgres payload', async () => {

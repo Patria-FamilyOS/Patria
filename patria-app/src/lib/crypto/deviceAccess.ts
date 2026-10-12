@@ -4,13 +4,9 @@ import { isKeyEligibleRole, isSpaceAdmin } from '../roles';
 import { supabase } from '../supabase';
 import { wipe } from './bytes';
 import type { DeviceIdentity } from './deviceIdentity';
-import {
-  cacheFamilySecrets,
-  loadCachedFamilyKey,
-  loadCachedRecoveryKey,
-} from './keyStore';
+import { loadCachedRecoveryKey, obtainFamilyKey } from './keyStore';
 import { fromPgBytea, requireX25519PublicKey, toPgBytea } from './pgBytea';
-import { unwrapKeyFromDevice, wrapKeyToDevice, type MemberWrapAad } from './wrap';
+import { wrapKeyToDevice, type MemberWrapAad } from './wrap';
 
 export type FirstDeviceNotice = {
   id: string;
@@ -230,8 +226,8 @@ export async function requestFirstDeviceAccess(
     return 'skipped';
   }
   await gateway.upsertDevicePublicKey(input.userId, input.device.deviceId, input.device.publicKey);
-  const wraps = await gateway.countOwnWraps(input.spaceId, input.userId);
-  if (wraps > 0) {
+  const own = await gateway.fetchOwnWrap(input.spaceId, input.userId, input.device.deviceId);
+  if (own) {
     return 'skipped';
   }
   await gateway.insertNotice(input.spaceId, input.userId, input.device.deviceId);
@@ -271,19 +267,15 @@ export async function approveFirstDevice(
     userId: input.notice.userId,
     deviceId: input.notice.deviceId,
   });
-  let familyKey = await loadCachedFamilyKey(input.adminUserId, input.spaceId);
+  const familyKey = await obtainFamilyKey({
+    userId: input.adminUserId,
+    spaceId: input.spaceId,
+    deviceId: input.adminDeviceId,
+    privateKey: input.adminPrivateKey,
+    fetchOwnWrap: gateway.fetchOwnWrap,
+  });
   if (!familyKey) {
-    const own = await gateway.fetchOwnWrap(input.spaceId, input.adminUserId, input.adminDeviceId);
-    if (!own) {
-      throw new Error('missing family key');
-    }
-    familyKey = unwrapKeyFromDevice(own.wrappedKey, input.adminPrivateKey, {
-      familySpaceId: input.spaceId,
-      keyEpoch: own.keyEpoch,
-      userId: input.adminUserId,
-      deviceId: input.adminDeviceId,
-    });
-    await cacheFamilySecrets(input.adminUserId, input.spaceId, familyKey);
+    throw new Error('missing family key');
   }
   try {
     const wrapped = wrapFamilyKeyForFirstDevice(familyKey, recipientPublicKey, aad);

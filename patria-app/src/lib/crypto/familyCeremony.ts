@@ -14,11 +14,11 @@ import {
 import {
   cacheFamilySecrets,
   discardLocalFamilySecrets,
-  familyKeyStoreKey,
+  migrateLegacyFamilySecrets,
+  obtainFamilyKey,
 } from './keyStore';
 import { fromPgBytea, toPgBytea } from './pgBytea';
 import { randomKey32 } from './random';
-import { getSecretBytes } from './secureKeys';
 import { encodeEpochAad, unwrapKeyFromDevice, wrapKeyToDevice } from './wrap';
 
 export {
@@ -28,7 +28,7 @@ export {
   recoveryKeyStoreKey,
 } from './keyStore';
 
-export type FamilyKeyStatus = 'ready' | 'waiting';
+export type FamilyKeyStatus = 'ready' | 'waiting' | 'needsRelink';
 
 export type OwnWrap = {
   deviceId: string;
@@ -200,6 +200,7 @@ export async function ensureKeysForOpenFamily(
   gateway: FamilyKeyGateway = supabaseFamilyKeyGateway,
   access: DeviceAccessGateway = supabaseDeviceAccessGateway,
 ): Promise<FamilyKeyStatus> {
+  await migrateLegacyFamilySecrets(input.userId, input.spaceId);
   const device = await ensureDeviceIdentity(input.userId);
   if (isSpaceAdmin(input.role)) {
     try {
@@ -212,8 +213,22 @@ export async function ensureKeysForOpenFamily(
     }
   }
 
-  const status = await statusForDevice(input.spaceId, input.userId, device, gateway);
-  if (status === 'ready') {
+  const familyKey = await obtainFamilyKey({
+    userId: input.userId,
+    spaceId: input.spaceId,
+    deviceId: device.deviceId,
+    privateKey: device.privateKey,
+    fetchOwnWrap: async (spaceId, userId, deviceId) => {
+      const wraps = await gateway.fetchOwnWraps(spaceId, userId);
+      const mine = wraps.find((row) => row.deviceId === deviceId);
+      if (!mine) {
+        return null;
+      }
+      return { wrappedKey: mine.wrappedKey, keyEpoch: mine.keyEpoch };
+    },
+  });
+  if (familyKey) {
+    wipe(familyKey);
     return 'ready';
   }
 
@@ -226,41 +241,11 @@ export async function ensureKeysForOpenFamily(
     },
     access,
   );
+  const wraps = await gateway.fetchOwnWraps(input.spaceId, input.userId);
+  if (wraps.length > 0) {
+    return 'needsRelink';
+  }
   return 'waiting';
-}
-
-async function statusForDevice(
-  spaceId: string,
-  userId: string,
-  device: { deviceId: string; privateKey: Uint8Array },
-  gateway: FamilyKeyGateway,
-): Promise<FamilyKeyStatus> {
-  const cached = await getSecretBytes(familyKeyStoreKey(userId, spaceId));
-  if (cached) {
-    wipe(cached);
-    return 'ready';
-  }
-  try {
-    const wraps = await gateway.fetchOwnWraps(spaceId, userId);
-    const mine = wraps.find((row) => row.deviceId === device.deviceId);
-    if (!mine) {
-      return 'waiting';
-    }
-    const opened = unwrapKeyFromDevice(mine.wrappedKey, device.privateKey, {
-      familySpaceId: spaceId,
-      keyEpoch: mine.keyEpoch,
-      userId,
-      deviceId: device.deviceId,
-    });
-    try {
-      await cacheFamilySecrets(userId, spaceId, opened);
-      return 'ready';
-    } finally {
-      wipe(opened);
-    }
-  } catch {
-    return 'waiting';
-  }
 }
 
 export function unwrapFoundingFamilyKey(

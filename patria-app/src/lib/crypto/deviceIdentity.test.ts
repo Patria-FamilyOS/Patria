@@ -1,6 +1,12 @@
 import * as SecureStore from 'expo-secure-store';
 import { bytesToHex } from '@noble/hashes/utils.js';
-import { deviceIdStoreKey, devicePrivateStoreKey, ensureDeviceIdentity } from './deviceIdentity';
+import {
+  LEGACY_DEVICE_ID_STORE_KEY,
+  LEGACY_DEVICE_PRIVATE_STORE_KEY,
+  deviceIdStoreKey,
+  devicePrivateStoreKey,
+  ensureDeviceIdentity,
+} from './deviceIdentity';
 
 const ELENA = '11111111-1111-1111-1111-111111111111';
 const MARCO = '22222222-2222-2222-2222-222222222222';
@@ -11,6 +17,9 @@ function installMemoryStore(store: Map<string, string>): void {
   });
   (SecureStore.setItemAsync as jest.Mock).mockImplementation(async (key: string, value: string) => {
     store.set(key, value);
+  });
+  (SecureStore.deleteItemAsync as jest.Mock).mockImplementation(async (key: string) => {
+    store.delete(key);
   });
 }
 
@@ -39,5 +48,26 @@ describe('per-account device identity', () => {
     await ensureDeviceIdentity(MARCO);
     expect(phone.get(devicePrivateStoreKey(MARCO))).not.toBe(bytesToHex(elena.privateKey));
     expect(phone.get(deviceIdStoreKey(MARCO))).not.toBe(elena.deviceId);
+  });
+
+  it('moves pre Step 4 device keys to the signed-in user only', async () => {
+    const phone = new Map<string, string>();
+    installMemoryStore(phone);
+    const first = await ensureDeviceIdentity(ELENA);
+    phone.set(LEGACY_DEVICE_ID_STORE_KEY, first.deviceId);
+    phone.set(LEGACY_DEVICE_PRIVATE_STORE_KEY, bytesToHex(first.privateKey));
+    phone.delete(deviceIdStoreKey(ELENA));
+    phone.delete(devicePrivateStoreKey(ELENA));
+
+    const migrated = await ensureDeviceIdentity(ELENA);
+    expect(migrated.deviceId).toBe(first.deviceId);
+    expect(bytesToHex(migrated.privateKey)).toBe(bytesToHex(first.privateKey));
+    expect(phone.has(LEGACY_DEVICE_ID_STORE_KEY)).toBe(false);
+    expect(phone.has(LEGACY_DEVICE_PRIVATE_STORE_KEY)).toBe(false);
+
+    const marco = await ensureDeviceIdentity(MARCO);
+    expect(marco.deviceId).not.toBe(first.deviceId);
+    expect(phone.get(deviceIdStoreKey(ELENA))).toBe(first.deviceId);
+    expect(phone.get(devicePrivateStoreKey(ELENA))).toBe(bytesToHex(first.privateKey));
   });
 });

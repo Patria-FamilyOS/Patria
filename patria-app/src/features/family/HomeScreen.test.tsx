@@ -146,6 +146,12 @@ describe('HomeScreen invite entry', () => {
     expect(await findByText(copy.home.keysReady)).toBeTruthy();
   });
 
+  it('says this phone needs to be let in again when the family key cannot be obtained', async () => {
+    (ensureKeysForOpenFamily as jest.Mock).mockResolvedValue('needsRelink');
+    const { findByText } = renderScreen(<HomeScreen />);
+    expect(await findByText(copy.home.keysNeedRelink)).toBeTruthy();
+  });
+
   it('refetches first-device notices on pull to refresh', async () => {
     const { UNSAFE_getByType, findByText } = renderScreen(<HomeScreen />);
     expect(await findByText(copy.home.keysReady)).toBeTruthy();

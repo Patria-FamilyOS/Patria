@@ -11,9 +11,14 @@ import {
 } from './deviceAccess';
 import { ensureDeviceIdentity } from './deviceIdentity';
 import { createFoundingMaterial } from './familyCeremony';
-import { cacheFamilySecrets, familyKeyStoreKey, loadCachedFamilyKey } from './keyStore';
+import {
+  cacheFamilySecrets,
+  familyKeyStoreKey,
+  loadCachedFamilyKey,
+  resetFamilyKeyMemory,
+} from './keyStore';
 import { getSecretBytes } from './secureKeys';
-import { unwrapKeyFromDevice } from './wrap';
+import { unwrapKeyFromDevice, wrapKeyToDevice } from './wrap';
 
 const SPACE = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const ELENA = '11111111-1111-1111-1111-111111111111';
@@ -301,6 +306,56 @@ describe('first-device approval', () => {
     const wrap = server.wraps[0];
     const opened = unwrapKeyFromDevice(
       wrap.wrappedKey,
+      marco.privateKey,
+      firstDeviceWrapAad({ spaceId: SPACE, userId: MARCO, deviceId: marco.deviceId }),
+    );
+    expect(secretsEqual(opened, admin.familyKey)).toBe(true);
+    wipe(opened);
+  });
+
+  it('lets an admin wrap after a restart that cleared the local cache', async () => {
+    const adminPhone = new Map<string, string>();
+    const memberPhone = new Map<string, string>();
+    const server = emptyServer();
+    const gateway = serverGateway(server);
+    const admin = await foundOnInstall(adminPhone, ELENA);
+    const adminWrap = wrapKeyToDevice(admin.familyKey, admin.publicKey, firstDeviceWrapAad({
+      spaceId: SPACE,
+      userId: ELENA,
+      deviceId: admin.deviceId,
+    }));
+    server.wraps.push({
+      userId: ELENA,
+      deviceId: admin.deviceId,
+      wrappedKey: adminWrap,
+      keyEpoch: 1,
+      approvedBy: ELENA,
+    });
+    installMemoryStore(memberPhone);
+    const marco = await ensureDeviceIdentity(MARCO);
+    await requestFirstDeviceAccess(
+      { spaceId: SPACE, userId: MARCO, role: 'elder', device: marco },
+      gateway,
+    );
+
+    installMemoryStore(adminPhone);
+    adminPhone.delete(familyKeyStoreKey(ELENA, SPACE));
+    resetFamilyKeyMemory();
+    await approveFirstDevice(
+      {
+        spaceId: SPACE,
+        adminUserId: ELENA,
+        adminDeviceId: admin.deviceId,
+        adminPrivateKey: admin.privateKey,
+        notice: server.notices[0],
+        memberRole: 'elder',
+      },
+      gateway,
+    );
+    const memberWrap = server.wraps.find((row) => row.userId === MARCO);
+    expect(memberWrap).toBeTruthy();
+    const opened = unwrapKeyFromDevice(
+      memberWrap!.wrappedKey,
       marco.privateKey,
       firstDeviceWrapAad({ spaceId: SPACE, userId: MARCO, deviceId: marco.deviceId }),
     );

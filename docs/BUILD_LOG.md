@@ -6,6 +6,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-12 — Let in could not find the family key after SecureStore namespacing
+
+Step 4 stored device and family keys under `patria.u.{userId}.*`. Phones that created keys in Step 3 still had `patria.device.*` and `patria.familyKey.{space}`. Let in looked only at the new names, minted a new device, and threw `missing family key` while Home still said keys were set up. We migrate those old entries to the signed-in user once, then load the family key from memory, the namespaced cache, or this device’s wrap. Home says “set up” only when that load succeeds.
+
+---
+
 ## 2026-10-12 — Let in failed without a database code; notices needed a remount
 
 The Let in error was logged as `unknown` because Home swallowed the caught error. Local REST showed admin wrap-insert is allowed and PostgREST returns bytea as `\x` hex; a JSON-cloned public key is not a Uint8Array and wrapping then throws `invalid length`. One helper now decodes every bytea form and checks 32-byte public keys. Home invalidates notices on open, foreground and pull to refresh (D10). Failed approvals log the error class or database code, never key bytes.

@@ -3,6 +3,7 @@ import { focusManager, onlineManager } from '@tanstack/react-query';
 import * as SecureStore from 'expo-secure-store';
 import { AppState, View } from 'react-native';
 
+import { resetFamilyKeyMemory } from './src/lib/crypto/keyStore';
 import { clearTestQueryClients, renderScreen } from './src/test/renderScreen';
 
 focusManager.setEventListener(() => () => undefined);
@@ -28,6 +29,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  resetFamilyKeyMemory();
   clearTestQueryClients();
   jest.useRealTimers();
 });
