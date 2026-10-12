@@ -6,6 +6,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-12 — Create family keys on the founding phone (Step 3)
+
+After a family space is created, that admin phone generates the family and recovery keys, wraps them to itself, and writes meta, the device public key, and wraps in one database function. Existing families without keys do the same the next time an admin opens Home. A second ceremony for the same space is rejected; that phone discards its local key and waits.
+
+---
+
 ## 2026-10-12 — CIR05 key tables and RLS (Step 2)
 
 Added family key, recovery, and device-approval tables with forced RLS. Wraps are insert-only ciphertext; the 48-hour recovery wait is stamped on the server and stored in `patria_key_settings` so only a superuser can shorten it for local tests. pgTAP covers first-device vs extra-device wrapping, ineligible roles, and isolation.

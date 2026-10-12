@@ -28,6 +28,14 @@ export async function getSecretBytes(key: string): Promise<Uint8Array | null> {
   }
 }
 
+export async function setSecretText(key: string, value: string): Promise<void> {
+  await SecureStore.setItemAsync(key, value, STORE_OPTIONS);
+}
+
+export async function getSecretText(key: string): Promise<string | null> {
+  return SecureStore.getItemAsync(key, STORE_OPTIONS);
+}
+
 export async function deleteSecret(key: string): Promise<void> {
   await SecureStore.deleteItemAsync(key, STORE_OPTIONS);
 }

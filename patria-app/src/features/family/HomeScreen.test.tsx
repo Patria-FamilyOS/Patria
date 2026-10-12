@@ -30,6 +30,10 @@ jest.mock('../../lib/family', () => ({
   fetchPendingInvites: jest.fn(),
 }));
 
+jest.mock('../../lib/crypto/familyCeremony', () => ({
+  ensureKeysForOpenFamily: jest.fn(async () => 'ready'),
+}));
+
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     auth: { signOut: jest.fn(async () => ({ error: null })) },
@@ -116,6 +120,14 @@ describe('HomeScreen invite entry', () => {
       expect(supabase.auth.signOut).toHaveBeenCalled();
     });
     expect(mockedRouter().replace).toHaveBeenCalledWith('/(signed-out)/welcome');
+  });
+
+  it('shows a quiet family-keys status on Home', async () => {
+    const { getByText } = renderHome();
+
+    await waitFor(() => {
+      expect(getByText(copy.home.keysReady)).toBeTruthy();
+    });
   });
 
   it('never shows a blank member card', async () => {

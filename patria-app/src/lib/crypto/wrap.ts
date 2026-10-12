@@ -24,6 +24,10 @@ export function encodeMemberWrapAad(aad: MemberWrapAad): Uint8Array {
   );
 }
 
+export function encodeEpochAad(familySpaceId: string, keyEpoch: number): Uint8Array {
+  return concatBytes(encodeUtf8Prefixed(familySpaceId), u32be(keyEpoch));
+}
+
 function wrapKeyFromShared(shared: Uint8Array, aadBytes: Uint8Array): Uint8Array {
   return hkdfSha256(shared, aadBytes, WRAP_INFO, KEY_BYTES);
 }

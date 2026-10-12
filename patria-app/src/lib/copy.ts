@@ -60,7 +60,7 @@ export const copy = {
     created: 'Family space created',
     createdDetail: 'You are the Family admin. Default circles are ready.',
     keys: 'Your family holds the keys',
-    keysDetail: 'Private by design, no ads ever. Encryption keys come in a later step.',
+    keysDetail: 'Private by design, no ads ever. Keys stay on this phone.',
     next: 'Take me home',
   },
   home: {
@@ -78,6 +78,8 @@ export const copy = {
     todoMemories: 'Memories, the weekly Sync and the rest of Today will live here later.',
     joinFamily: 'Join another family',
     joinFamilyBody: 'Paste your invite link to join another family space.',
+    keysReady: 'Family keys: set up on this phone',
+    keysWaiting: 'Waiting for a family admin to let this phone in',
   },
   roles: {
     family_admin: 'Family admin',

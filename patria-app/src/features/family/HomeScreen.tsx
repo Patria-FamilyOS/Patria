@@ -24,6 +24,7 @@ import {
   fetchPendingInvites,
 } from '../../lib/family';
 import { signOutAndGoWelcome } from '../../lib/authSession';
+import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
 import { memberDisplayName } from '../../lib/displayName';
 import { routes } from '../../lib/navigation';
 import { countAdmins, isSpaceAdmin } from '../../lib/roles';
@@ -75,6 +76,17 @@ export function HomeScreen() {
 
   const current = membershipsQuery.data?.find((item) => item.space.id === spaceId);
   const admin = isSpaceAdmin(current?.role);
+
+  const keyStatusQuery = useQuery({
+    queryKey: ['familyKeyStatus', spaceId, userId, current?.role],
+    enabled: Boolean(spaceId && userId && current),
+    queryFn: () =>
+      ensureKeysForOpenFamily({
+        spaceId: spaceId as string,
+        userId: userId as string,
+        role: current?.role,
+      }),
+  });
   const adminCount = countAdmins((membersQuery.data ?? []).map((row) => row.role));
 
   const onRefresh = useCallback(() => {
@@ -82,6 +94,7 @@ export function HomeScreen() {
     void membersQuery.refetch();
     void childrenQuery.refetch();
     void invitesQuery.refetch();
+    void keyStatusQuery.refetch();
     // refetch fns are stable; the query objects change identity every render.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -89,6 +102,7 @@ export function HomeScreen() {
     membersQuery.refetch,
     childrenQuery.refetch,
     invitesQuery.refetch,
+    keyStatusQuery.refetch,
   ]);
 
   useEffect(() => {
@@ -189,6 +203,11 @@ export function HomeScreen() {
       <Title>{copy.home.greeting.replace('{name}', displayName)}</Title>
       <Title>{current.space.name}</Title>
       <Muted>{copy.home.todoMemories}</Muted>
+      {keyStatusQuery.data ? (
+        <Muted>
+          {keyStatusQuery.data === 'ready' ? copy.home.keysReady : copy.home.keysWaiting}
+        </Muted>
+      ) : null}
 
       {(membershipsQuery.data ?? []).length > 1 ? (
         <View>

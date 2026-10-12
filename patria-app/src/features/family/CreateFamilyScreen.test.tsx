@@ -2,6 +2,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { copy } from '../../lib/copy';
+import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
 import { supabase } from '../../lib/supabase';
 import { CreateFamilyScreen } from './CreateFamilyScreen';
 
@@ -10,6 +11,14 @@ jest.mock('../../lib/supabase', () => ({
     rpc: jest.fn(),
     auth: { signOut: jest.fn(async () => ({ error: null })) },
   },
+}));
+
+jest.mock('../../lib/auth-context', () => ({
+  useAuth: () => ({ session: { user: { id: 'u1' } }, loading: false }),
+}));
+
+jest.mock('../../lib/crypto/familyCeremony', () => ({
+  ensureKeysForOpenFamily: jest.fn(async () => 'ready'),
 }));
 
 const metrics = {
@@ -29,6 +38,7 @@ describe('CreateFamilyScreen', () => {
     mockedRouter().push.mockClear();
     mockedRouter().replace.mockClear();
     (supabase.auth.signOut as jest.Mock).mockClear();
+    (ensureKeysForOpenFamily as jest.Mock).mockClear();
   });
 
   it('opens a pasted invite on the accept screen instead of creating a family', () => {
@@ -75,5 +85,26 @@ describe('CreateFamilyScreen', () => {
       expect(supabase.auth.signOut).toHaveBeenCalled();
     });
     expect(mockedRouter().replace).toHaveBeenCalledWith('/(signed-out)/welcome');
+  });
+
+  it('runs the founding key ceremony after the family space is created', async () => {
+    (supabase.rpc as jest.Mock).mockResolvedValue({ data: 's1', error: null });
+    const { getByLabelText, getByText } = render(
+      <SafeAreaProvider initialMetrics={metrics}>
+        <CreateFamilyScreen />
+      </SafeAreaProvider>,
+    );
+
+    fireEvent.changeText(getByLabelText(copy.createFamily.spaceNameLabel), 'The Riveras');
+    fireEvent.press(getByText(copy.createFamily.submit));
+
+    await waitFor(() => {
+      expect(ensureKeysForOpenFamily).toHaveBeenCalledWith({
+        spaceId: 's1',
+        userId: 'u1',
+        role: 'family_admin',
+      });
+    });
+    expect(mockedRouter().replace).toHaveBeenCalledWith('/(signed-in)/ready');
   });
 });

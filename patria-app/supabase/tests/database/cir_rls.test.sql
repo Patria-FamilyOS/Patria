@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(199);
+SELECT plan(205);
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -1637,6 +1637,102 @@ SELECT tests_jwt('22222222-2222-2222-2222-222222222222');
 SELECT public.ensure_only_me_circle(
   (SELECT rivera FROM fx),
   '22222222-2222-2222-2222-222222222222'
+);
+
+-- Other family was deleted in the D8 delete-space checks. Recreate it so
+-- the founding ceremony can run against a live space that has no key yet.
+RESET ROLE;
+INSERT INTO public.family_spaces (id, name, created_by)
+SELECT other, 'The Other Family', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+FROM fx;
+INSERT INTO public.space_members (family_space_id, user_id, role)
+SELECT other, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'family_admin'
+FROM fx;
+
+SELECT tests_jwt('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $sql$SELECT public.commit_family_key_ceremony(
+         (SELECT other FROM fx),
+         'daaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
+         tests_dummy_pub('other-1'),
+         tests_dummy_box(),
+         tests_dummy_box(),
+         tests_dummy_box(),
+         1
+       )$sql$,
+  'admin of that space can commit founding keys atomically'
+);
+SELECT throws_ok(
+  $sql$SELECT public.commit_family_key_ceremony(
+         (SELECT other FROM fx),
+         'daaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
+         tests_dummy_pub('other-1'),
+         tests_dummy_box(),
+         tests_dummy_box(),
+         tests_dummy_box(),
+         1
+       )$sql$,
+  '23505',
+  NULL,
+  'only one family key per space and epoch'
+);
+RESET ROLE;
+
+SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
+SELECT throws_ok(
+  $sql$SELECT public.commit_family_key_ceremony(
+         (SELECT other FROM fx),
+         'd1111111-1111-1111-1111-111111111111',
+         tests_dummy_pub('elena-1'),
+         tests_dummy_box(),
+         tests_dummy_box(),
+         tests_dummy_box(),
+         1
+       )$sql$,
+  '42501',
+  NULL,
+  'cannot commit founding keys for another family'
+);
+SELECT throws_ok(
+  $sql$SELECT public.commit_family_key_ceremony(
+         (SELECT rivera FROM fx),
+         'd1111111-1111-1111-1111-111111111111',
+         tests_dummy_pub('elena-1'),
+         tests_dummy_box(),
+         tests_dummy_box(),
+         tests_dummy_box(),
+         1
+       )$sql$,
+  '23505',
+  NULL,
+  'second founding ceremony for the same space fails'
+);
+RESET ROLE;
+
+SELECT tests_jwt('33333333-3333-3333-3333-333333333333');
+SET LOCAL ROLE authenticated;
+SELECT throws_ok(
+  $sql$SELECT public.commit_family_key_ceremony(
+         (SELECT rivera FROM fx),
+         'd3333333-3333-3333-3333-333333333331',
+         tests_dummy_pub('jordan-1'),
+         tests_dummy_box(),
+         tests_dummy_box(),
+         tests_dummy_box(),
+         1
+       )$sql$,
+  '42501',
+  NULL,
+  'teen cannot commit founding keys'
+);
+RESET ROLE;
+
+SELECT is(
+  (SELECT count(*)::integer FROM public.family_key_meta WHERE family_space_id = (SELECT other FROM fx)),
+  1,
+  'other family has exactly one key meta row after a successful ceremony'
 );
 
 -- D8 Yes cells as the signed-in admin, including RETURNING (how the app writes).

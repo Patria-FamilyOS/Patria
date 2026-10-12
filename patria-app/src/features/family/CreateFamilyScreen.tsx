@@ -15,7 +15,9 @@ import {
   Screen,
   Title,
 } from '../../components/ui';
+import { useAuth } from '../../lib/auth-context';
 import { signOutAndGoWelcome } from '../../lib/authSession';
+import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
 import { logFailedAction } from '../../lib/devLog';
 import { copy } from '../../lib/copy';
 import { writeCurrentFamilyId } from '../../lib/currentFamily';
@@ -35,6 +37,7 @@ type FormValues = z.infer<typeof schema>;
 
 export function CreateFamilyScreen() {
   const router = useRouter();
+  const { session } = useAuth();
   const navigation = useNavigation();
   const withHeader = navigation.canGoBack();
   const [formError, setFormError] = useState<string | null>(null);
@@ -55,7 +58,16 @@ export function CreateFamilyScreen() {
       setFormError(copy.createFamily.failed);
       return;
     }
-    await writeCurrentFamilyId(String(data));
+    const spaceId = String(data);
+    await writeCurrentFamilyId(spaceId);
+    const userId = session?.user.id;
+    if (userId) {
+      await ensureKeysForOpenFamily({
+        spaceId,
+        userId,
+        role: 'family_admin',
+      });
+    }
     router.replace('/(signed-in)/ready');
   });
 
