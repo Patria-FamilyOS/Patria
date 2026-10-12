@@ -26,11 +26,15 @@ import {
 import { signOutAndGoWelcome } from '../../lib/authSession';
 import {
   approveFirstDevice,
+  approveOwnExtraDevice,
   declineFirstDevice,
   fetchFirstDeviceNotices,
+  rejectOwnExtraDevice,
+  type FirstDeviceNotice,
 } from '../../lib/crypto/deviceAccess';
 import { ensureDeviceIdentity } from '../../lib/crypto/deviceIdentity';
-import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
+import { ensureKeysForOpenFamily, type FamilyKeyStatus } from '../../lib/crypto/familyCeremony';
+import { ApproveMyDeviceCard, formatDeviceWhen } from '../keys/ApproveMyDeviceScreen';
 import { memberDisplayName } from '../../lib/displayName';
 import { describeCaughtError, logFailedAction, logKeyStep } from '../../lib/devLog';
 import { routes } from '../../lib/navigation';
@@ -100,7 +104,7 @@ export function HomeScreen() {
   });
   const noticesQuery = useQuery({
     queryKey: ['deviceApprovalNotices', spaceId],
-    enabled: Boolean(spaceId && admin),
+    enabled: Boolean(spaceId),
     refetchOnMount: 'always',
     queryFn: () => fetchFirstDeviceNotices(spaceId as string),
   });
@@ -154,14 +158,7 @@ export function HomeScreen() {
     }
   };
 
-  const onLetIn = async (notice: {
-    id: string;
-    spaceId: string;
-    userId: string;
-    deviceId: string;
-    publicKey: Uint8Array;
-    deviceCreatedAt: string;
-  }) => {
+  const onLetIn = async (notice: FirstDeviceNotice) => {
     if (!userId || !spaceId) {
       return;
     }
@@ -202,6 +199,64 @@ export function HomeScreen() {
     } finally {
       setBusyNoticeId(null);
     }
+  };
+
+  const onApproveMyPhone = async (notice: FirstDeviceNotice) => {
+    if (!userId || !spaceId || !current) {
+      return;
+    }
+    setNoticeError(null);
+    setBusyNoticeId(notice.id);
+    try {
+      const device = await ensureDeviceIdentity(userId);
+      await approveOwnExtraDevice({
+        spaceId,
+        userId,
+        approverDeviceId: device.deviceId,
+        approverPrivateKey: device.privateKey,
+        notice,
+        role: current.role,
+      });
+      await queryClient.invalidateQueries({ queryKey: ['deviceApprovalNotices', spaceId] });
+      await queryClient.invalidateQueries({ queryKey: ['familyKeyStatus'] });
+    } catch (error) {
+      const info = describeCaughtError(error);
+      logFailedAction(error);
+      logKeyStep('approve_own_phone_failed', `${info.code} ${info.message}`);
+      setNoticeError(copy.home.approvePhoneFailed);
+    } finally {
+      setBusyNoticeId(null);
+    }
+  };
+
+  const onRejectMyPhone = async (notice: FirstDeviceNotice) => {
+    if (!userId || !spaceId) {
+      return;
+    }
+    setNoticeError(null);
+    setBusyNoticeId(notice.id);
+    try {
+      await rejectOwnExtraDevice({ spaceId, userId, notice });
+      await queryClient.invalidateQueries({ queryKey: ['deviceApprovalNotices', spaceId] });
+    } catch (error) {
+      logFailedAction(error);
+      setNoticeError(copy.home.rejectPhoneFailed);
+    } finally {
+      setBusyNoticeId(null);
+    }
+  };
+
+  const keyStatusCopy = (status: FamilyKeyStatus): string => {
+    if (status === 'ready') {
+      return copy.home.keysReady;
+    }
+    if (status === 'needsRelink') {
+      return copy.home.keysNeedRelink;
+    }
+    if (status === 'waitingOwnPhone') {
+      return copy.home.keysWaitingOwnPhone;
+    }
+    return copy.home.keysWaiting;
   };
 
   const joinFamilyLink = (
@@ -275,51 +330,90 @@ export function HomeScreen() {
       <Title>{copy.home.greeting.replace('{name}', displayName)}</Title>
       <Title>{current.space.name}</Title>
       <Muted>{copy.home.todoMemories}</Muted>
-      {keyStatusQuery.data ? (
-        <Muted>
-          {keyStatusQuery.data === 'ready'
-            ? copy.home.keysReady
-            : keyStatusQuery.data === 'needsRelink'
-              ? copy.home.keysNeedRelink
-              : copy.home.keysWaiting}
-        </Muted>
-      ) : null}
+      {keyStatusQuery.data ? <Muted>{keyStatusCopy(keyStatusQuery.data)}</Muted> : null}
       {noticeError ? <ErrorState message={noticeError} /> : null}
-      {admin
-        ? (noticesQuery.data ?? []).map((notice) => {
-            const member = (membersQuery.data ?? []).find((row) => row.userId === notice.userId);
-            const name = memberDisplayName(member?.displayName);
-            const title = copy.home.letInNotice.replace('{name}', name);
-            const when = new Date(notice.deviceCreatedAt);
-            const whenLabel = Number.isNaN(when.getTime())
-              ? notice.deviceCreatedAt
-              : when.toLocaleString();
+      {(noticesQuery.data ?? []).map((notice) => {
+        const member = (membersQuery.data ?? []).find((row) => row.userId === notice.userId);
+        const name = memberDisplayName(member?.displayName);
+        const own = notice.userId === userId;
+        const whenLabel = formatDeviceWhen(notice.deviceCreatedAt);
+        const setUp = copy.home.deviceSetUp.replace('{when}', whenLabel);
+
+        if (notice.kind === 'extra_device') {
+          if (own && keyStatusQuery.data === 'ready') {
             return (
-              <View key={notice.id} style={styles.row}>
-                <AppText style={styles.rowTitle}>{title}</AppText>
-                <Muted>
-                  {member ? copy.roles[member.role] : ''}
-                  {member ? ' · ' : ''}
-                  {copy.home.deviceSetUp.replace('{when}', whenLabel)}
-                </Muted>
-                <Button
-                  label={copy.home.letIn}
-                  busy={busyNoticeId === notice.id}
-                  disabled={busyNoticeId !== null && busyNoticeId !== notice.id}
-                  onPress={() => void onLetIn(notice)}
-                  accessibilityHint={title}
-                />
-                <Button
-                  label={copy.home.declineDevice}
-                  variant="secondary"
-                  busy={busyNoticeId === notice.id}
-                  disabled={busyNoticeId !== null && busyNoticeId !== notice.id}
-                  onPress={() => void onDecline(notice.id)}
-                />
-              </View>
+              <ApproveMyDeviceCard
+                key={notice.id}
+                notice={notice}
+                name={name}
+                canApprove
+                busy={busyNoticeId === notice.id}
+                disabled={busyNoticeId !== null && busyNoticeId !== notice.id}
+                onApprove={() => void onApproveMyPhone(notice)}
+                onReject={() => void onRejectMyPhone(notice)}
+              />
             );
-          })
-        : null}
+          }
+          if (admin && !own) {
+            return (
+              <ApproveMyDeviceCard
+                key={notice.id}
+                notice={notice}
+                name={name}
+                canApprove={false}
+                busy={false}
+                disabled
+                onApprove={() => undefined}
+                onReject={() => undefined}
+              />
+            );
+          }
+          return null;
+        }
+
+        if (notice.kind === 'rejected_device') {
+          if (!admin) {
+            return null;
+          }
+          return (
+            <View key={notice.id} style={styles.row}>
+              <AppText style={styles.rowTitle}>
+                {copy.home.extraDeviceRejectedNotice.replace('{name}', name)}
+              </AppText>
+              <Muted>{setUp}</Muted>
+            </View>
+          );
+        }
+
+        if (!admin || own) {
+          return null;
+        }
+        const title = copy.home.letInNotice.replace('{name}', name);
+        return (
+          <View key={notice.id} style={styles.row}>
+            <AppText style={styles.rowTitle}>{title}</AppText>
+            <Muted>
+              {member ? copy.roles[member.role] : ''}
+              {member ? ' · ' : ''}
+              {setUp}
+            </Muted>
+            <Button
+              label={copy.home.letIn}
+              busy={busyNoticeId === notice.id}
+              disabled={busyNoticeId !== null && busyNoticeId !== notice.id}
+              onPress={() => void onLetIn(notice)}
+              accessibilityHint={title}
+            />
+            <Button
+              label={copy.home.declineDevice}
+              variant="secondary"
+              busy={busyNoticeId === notice.id}
+              disabled={busyNoticeId !== null && busyNoticeId !== notice.id}
+              onPress={() => void onDecline(notice.id)}
+            />
+          </View>
+        );
+      })}
 
       {(membershipsQuery.data ?? []).length > 1 ? (
         <View>
@@ -397,6 +491,11 @@ export function HomeScreen() {
         </>
       ) : null}
 
+      <Button
+        label={copy.home.yourPhones}
+        variant="secondary"
+        onPress={() => router.push(routes.yourPhones)}
+      />
       <Button
         label={copy.auth.signOut}
         variant="secondary"

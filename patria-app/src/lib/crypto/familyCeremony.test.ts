@@ -66,6 +66,9 @@ function memoryAccess(insertNotice = jest.fn(async () => undefined)): DeviceAcce
     insertFamilyWrap: jest.fn(async () => undefined),
     insertRecoveryWrap: jest.fn(async () => undefined),
     deleteNotice: jest.fn(async () => undefined),
+    rejectPendingDevice: jest.fn(async () => undefined),
+    removeOwnDevice: jest.fn(async () => undefined),
+    listOwnPhones: jest.fn(async () => []),
   };
 }
 
@@ -271,7 +274,41 @@ describe('founding family key ceremony', () => {
       }),
       memoryAccess(insertNotice),
     );
-    expect(status).toBe('needsRelink');
+    expect(status).toBe('waitingOwnPhone');
+    expect(insertNotice).toHaveBeenCalled();
+    wipe(material.familyKey);
+    wipe(material.recoveryKey);
+  });
+
+  it('waits for another of this member’s phones when this device has no wrap', async () => {
+    const stored = new Map<string, string>();
+    installMemoryStore(stored);
+    const oldDevice = await ensureDeviceIdentity(USER);
+    const material = createFoundingMaterial({
+      spaceId: SPACE,
+      userId: USER,
+      deviceId: oldDevice.deviceId,
+      publicKey: oldDevice.publicKey,
+    });
+    const wrapped = wrapKeyToDevice(material.familyKey, oldDevice.publicKey, {
+      familySpaceId: SPACE,
+      keyEpoch: 1,
+      userId: USER,
+      deviceId: oldDevice.deviceId,
+    });
+    stored.clear();
+    resetFamilyKeyMemory();
+    installMemoryStore(stored);
+    const insertNotice = jest.fn(async () => undefined);
+    const status = await ensureKeysForOpenFamily(
+      { spaceId: SPACE, userId: USER, role: 'teen' },
+      memoryGateway({
+        meta: { keyEpoch: 1 },
+        wraps: async () => [{ deviceId: oldDevice.deviceId, wrappedKey: wrapped, keyEpoch: 1 }],
+      }),
+      memoryAccess(insertNotice),
+    );
+    expect(status).toBe('waitingOwnPhone');
     expect(insertNotice).toHaveBeenCalled();
     wipe(material.familyKey);
     wipe(material.recoveryKey);

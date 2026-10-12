@@ -11,8 +11,10 @@ import {
 } from '../../lib/family';
 import {
   approveFirstDevice,
+  approveOwnExtraDevice,
   declineFirstDevice,
   fetchFirstDeviceNotices,
+  rejectOwnExtraDevice,
 } from '../../lib/crypto/deviceAccess';
 import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
 import { supabase } from '../../lib/supabase';
@@ -60,6 +62,8 @@ jest.mock('../../lib/crypto/deviceAccess', () => ({
   fetchFirstDeviceNotices: jest.fn(async () => []),
   approveFirstDevice: jest.fn(async () => undefined),
   declineFirstDevice: jest.fn(async () => undefined),
+  approveOwnExtraDevice: jest.fn(async () => undefined),
+  rejectOwnExtraDevice: jest.fn(async () => undefined),
 }));
 
 jest.mock('../../lib/crypto/deviceIdentity', () => ({
@@ -118,6 +122,8 @@ describe('HomeScreen invite entry', () => {
     (ensureKeysForOpenFamily as jest.Mock).mockResolvedValue('ready');
     (approveFirstDevice as jest.Mock).mockClear();
     (declineFirstDevice as jest.Mock).mockClear();
+    (approveOwnExtraDevice as jest.Mock).mockClear();
+    (rejectOwnExtraDevice as jest.Mock).mockClear();
   });
 
   it('uses a Join another family link instead of a paste box', async () => {
@@ -171,6 +177,7 @@ describe('HomeScreen invite entry', () => {
         deviceId: 'd-marco',
         publicKey: new Uint8Array(32),
         deviceCreatedAt: '2026-10-12T12:00:00.000Z',
+        kind: 'first_device',
       },
     ]);
     const { findByText, getByText } = renderScreen(<HomeScreen />);
@@ -180,6 +187,57 @@ describe('HomeScreen invite entry', () => {
     await waitFor(() => {
       expect(approveFirstDevice).toHaveBeenCalled();
     });
+  });
+
+  it('lets a member approve their own extra phone and hides Let in for admins', async () => {
+    (fetchFirstDeviceNotices as jest.Mock).mockResolvedValue([
+      {
+        id: 'n-extra',
+        spaceId: 's1',
+        userId: 'u1',
+        deviceId: 'd-new',
+        publicKey: new Uint8Array(32),
+        deviceCreatedAt: '2026-10-12T12:00:00.000Z',
+        kind: 'extra_device',
+      },
+    ]);
+    const { findByText, queryByText } = renderScreen(<HomeScreen />);
+    expect(await findByText(copy.home.extraDeviceOwnNotice)).toBeTruthy();
+    expect(queryByText(copy.home.letIn)).toBeNull();
+    fireEvent.press(await findByText(copy.home.yesMyPhone));
+    await waitFor(() => {
+      expect(approveOwnExtraDevice).toHaveBeenCalled();
+    });
+  });
+
+  it('shows admins an information-only extra-device notice', async () => {
+    (fetchFirstDeviceNotices as jest.Mock).mockResolvedValue([
+      {
+        id: 'n-extra-other',
+        spaceId: 's1',
+        userId: 'u2',
+        deviceId: 'd-marco-2',
+        publicKey: new Uint8Array(32),
+        deviceCreatedAt: '2026-10-12T12:00:00.000Z',
+        kind: 'extra_device',
+      },
+    ]);
+    const { findByText, queryByText } = renderScreen(<HomeScreen />);
+    expect(await findByText(`${copy.member.fallbackName} added a new phone`)).toBeTruthy();
+    expect(queryByText(copy.home.letIn)).toBeNull();
+    expect(queryByText(copy.home.yesMyPhone)).toBeNull();
+  });
+
+  it('waits for one of your phones when this is an extra device', async () => {
+    (ensureKeysForOpenFamily as jest.Mock).mockResolvedValue('waitingOwnPhone');
+    const { findByText } = renderScreen(<HomeScreen />);
+    expect(await findByText(copy.home.keysWaitingOwnPhone)).toBeTruthy();
+  });
+
+  it('opens Your phones from Home', async () => {
+    const { findByText } = renderScreen(<HomeScreen />);
+    fireEvent.press(await findByText(copy.home.yourPhones));
+    expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/your-phones');
   });
 
   it('never shows a blank member card', async () => {

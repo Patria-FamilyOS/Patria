@@ -39,6 +39,7 @@ describe('navigation headers', () => {
     expect(routes.inviteAccept('abc')).toBe('/invite/abc');
     expect(routes.joinFamily).toBe('/(signed-in)/join-family');
     expect(routes.yourName).toBe('/(signed-in)/your-name');
+    expect(routes.yourPhones).toBe('/(signed-in)/your-phones');
   });
 
   it('lets native back leave the invite screen', () => {

@@ -3,11 +3,17 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 import { secretsEqual, wipe } from './bytes';
 import {
   approveFirstDevice,
+  approveOwnExtraDevice,
+  assertOwnExtraDevice,
   declineFirstDevice,
+  extraDeviceWrapAad,
   firstDeviceWrapAad,
+  rejectOwnExtraDevice,
+  removeOwnPhone,
   requestFirstDeviceAccess,
   type DeviceAccessGateway,
   type FirstDeviceNotice,
+  type OwnPhone,
 } from './deviceAccess';
 import { ensureDeviceIdentity } from './deviceIdentity';
 import { createFoundingMaterial } from './familyCeremony';
@@ -38,7 +44,10 @@ function installMemoryStore(store: Map<string, string>): void {
 }
 
 type ServerState = {
-  deviceKeys: Map<string, { userId: string; deviceId: string; publicKey: Uint8Array }>;
+  deviceKeys: Map<
+    string,
+    { userId: string; deviceId: string; publicKey: Uint8Array; rejectedAt: string | null }
+  >;
   wraps: {
     userId: string;
     deviceId: string;
@@ -56,7 +65,12 @@ function emptyServer(): ServerState {
 function serverGateway(state: ServerState): DeviceAccessGateway {
   return {
     upsertDevicePublicKey: async (userId, deviceId, publicKey) => {
-      state.deviceKeys.set(`${userId}:${deviceId}`, { userId, deviceId, publicKey });
+      state.deviceKeys.set(`${userId}:${deviceId}`, {
+        userId,
+        deviceId,
+        publicKey,
+        rejectedAt: null,
+      });
     },
     countOwnWraps: async (_spaceId, userId) =>
       state.wraps.filter((row) => row.userId === userId).length,
@@ -68,6 +82,7 @@ function serverGateway(state: ServerState): DeviceAccessGateway {
       if (!key) {
         throw new Error('missing device key');
       }
+      const extra = state.wraps.some((row) => row.userId === userId);
       state.notices.push({
         id: `notice-${state.notices.length + 1}`,
         spaceId,
@@ -75,6 +90,7 @@ function serverGateway(state: ServerState): DeviceAccessGateway {
         deviceId,
         publicKey: key.publicKey,
         deviceCreatedAt: '2026-10-12T12:00:00.000Z',
+        kind: extra ? 'extra_device' : 'first_device',
       });
     },
     listNotices: async () => [...state.notices],
@@ -86,6 +102,10 @@ function serverGateway(state: ServerState): DeviceAccessGateway {
       return { wrappedKey: row.wrappedKey, keyEpoch: row.keyEpoch };
     },
     insertFamilyWrap: async (input) => {
+      const key = state.deviceKeys.get(`${input.userId}:${input.deviceId}`);
+      if (key?.rejectedAt) {
+        throw new Error('rejected device');
+      }
       state.wraps.push({
         userId: input.userId,
         deviceId: input.deviceId,
@@ -97,6 +117,39 @@ function serverGateway(state: ServerState): DeviceAccessGateway {
     insertRecoveryWrap: async () => undefined,
     deleteNotice: async (noticeId) => {
       state.notices = state.notices.filter((row) => row.id !== noticeId);
+    },
+    rejectPendingDevice: async (_spaceId, deviceId) => {
+      const key = [...state.deviceKeys.values()].find((row) => row.deviceId === deviceId);
+      if (key) {
+        key.rejectedAt = '2026-10-12T13:00:00.000Z';
+      }
+      state.notices = state.notices.map((row) =>
+        row.deviceId === deviceId ? { ...row, kind: 'rejected_device' } : row,
+      );
+    },
+    removeOwnDevice: async (_spaceId, deviceId) => {
+      state.wraps = state.wraps.filter((row) => row.deviceId !== deviceId);
+      state.notices = state.notices.filter((row) => row.deviceId !== deviceId);
+      for (const [pair, row] of [...state.deviceKeys.entries()]) {
+        if (row.deviceId === deviceId) {
+          state.deviceKeys.delete(pair);
+        }
+      }
+    },
+    listOwnPhones: async (_spaceId, userId) => {
+      const phones: OwnPhone[] = [];
+      for (const row of state.deviceKeys.values()) {
+        if (row.userId !== userId) {
+          continue;
+        }
+        phones.push({
+          deviceId: row.deviceId,
+          createdAt: '2026-10-12T12:00:00.000Z',
+          rejectedAt: row.rejectedAt,
+          hasWrap: state.wraps.some((wrap) => wrap.deviceId === row.deviceId),
+        });
+      }
+      return phones;
     },
   };
 }
@@ -374,5 +427,241 @@ describe('first-device approval', () => {
       gateway,
     );
     expect(server.wraps).toHaveLength(0);
+  });
+});
+
+describe('extra-device self approval', () => {
+  it('throws if the caller is not the device owner', () => {
+    expect(() => assertOwnExtraDevice(ELENA, MARCO)).toThrow('extra device wrap is self-only');
+  });
+
+  it('wraps from an existing phone after a restart, on two separate installs', async () => {
+    async function run(oldPhone: Map<string, string>, newPhone: Map<string, string>) {
+      const server = emptyServer();
+      const gateway = serverGateway(server);
+      const existing = await foundOnInstall(oldPhone, ELENA);
+      const foundingWrap = wrapKeyToDevice(
+        existing.familyKey,
+        existing.publicKey,
+        extraDeviceWrapAad({
+          spaceId: SPACE,
+          userId: ELENA,
+          deviceId: existing.deviceId,
+        }),
+      );
+      server.wraps.push({
+        userId: ELENA,
+        deviceId: existing.deviceId,
+        wrappedKey: foundingWrap,
+        keyEpoch: 1,
+        approvedBy: ELENA,
+      });
+      server.deviceKeys.set(`${ELENA}:${existing.deviceId}`, {
+        userId: ELENA,
+        deviceId: existing.deviceId,
+        publicKey: existing.publicKey,
+        rejectedAt: null,
+      });
+
+      installMemoryStore(newPhone);
+      const extra = await ensureDeviceIdentity(ELENA);
+      await requestFirstDeviceAccess(
+        { spaceId: SPACE, userId: ELENA, role: 'family_admin', device: extra },
+        gateway,
+      );
+      expect(server.notices[0].kind).toBe('extra_device');
+
+      installMemoryStore(oldPhone);
+      oldPhone.delete(familyKeyStoreKey(ELENA, SPACE));
+      resetFamilyKeyMemory();
+      await approveOwnExtraDevice(
+        {
+          spaceId: SPACE,
+          userId: ELENA,
+          approverDeviceId: existing.deviceId,
+          approverPrivateKey: existing.privateKey,
+          notice: server.notices[0],
+          role: 'family_admin',
+        },
+        gateway,
+      );
+      const extraWrap = server.wraps.find((row) => row.deviceId === extra.deviceId);
+      expect(extraWrap).toBeTruthy();
+      const opened = unwrapKeyFromDevice(
+        extraWrap!.wrappedKey,
+        extra.privateKey,
+        extraDeviceWrapAad({
+          spaceId: SPACE,
+          userId: ELENA,
+          deviceId: extra.deviceId,
+        }),
+      );
+      return {
+        opened,
+        familyKey: existing.familyKey,
+        approvedBy: extraWrap!.approvedBy,
+        noticeKind: 'extra_device' as const,
+        extraDeviceId: extra.deviceId,
+      };
+    }
+
+    const oneOld = new Map<string, string>();
+    const oneNew = new Map<string, string>();
+    const twoOld = new Map<string, string>();
+    const twoNew = new Map<string, string>();
+    const first = await run(oneOld, oneNew);
+    const second = await run(twoOld, twoNew);
+    expect(first.approvedBy).toBe(ELENA);
+    expect(second.approvedBy).toBe(ELENA);
+    expect(secretsEqual(first.opened, first.familyKey)).toBe(true);
+    expect(secretsEqual(second.opened, second.familyKey)).toBe(true);
+    wipe(first.opened);
+    wipe(second.opened);
+  });
+
+  it('rejects a pending extra device so it can never be wrapped', async () => {
+    const oldPhone = new Map<string, string>();
+    const newPhone = new Map<string, string>();
+    const server = emptyServer();
+    const gateway = serverGateway(server);
+    const existing = await foundOnInstall(oldPhone, ELENA);
+    server.wraps.push({
+      userId: ELENA,
+      deviceId: existing.deviceId,
+      wrappedKey: wrapKeyToDevice(
+        existing.familyKey,
+        existing.publicKey,
+        extraDeviceWrapAad({
+          spaceId: SPACE,
+          userId: ELENA,
+          deviceId: existing.deviceId,
+        }),
+      ),
+      keyEpoch: 1,
+      approvedBy: ELENA,
+    });
+    installMemoryStore(newPhone);
+    const extra = await ensureDeviceIdentity(ELENA);
+    await requestFirstDeviceAccess(
+      { spaceId: SPACE, userId: ELENA, role: 'family_admin', device: extra },
+      gateway,
+    );
+    installMemoryStore(oldPhone);
+    await rejectOwnExtraDevice(
+      { spaceId: SPACE, userId: ELENA, notice: server.notices[0] },
+      gateway,
+    );
+    expect(server.notices[0].kind).toBe('rejected_device');
+    await expect(
+      approveOwnExtraDevice(
+        {
+          spaceId: SPACE,
+          userId: ELENA,
+          approverDeviceId: existing.deviceId,
+          approverPrivateKey: existing.privateKey,
+          notice: { ...server.notices[0], kind: 'extra_device' },
+          role: 'family_admin',
+        },
+        gateway,
+      ),
+    ).rejects.toThrow('rejected device');
+  });
+
+  it('removes only the other device wraps and public key', async () => {
+    const oldPhone = new Map<string, string>();
+    const newPhone = new Map<string, string>();
+    const server = emptyServer();
+    const gateway = serverGateway(server);
+    const existing = await foundOnInstall(oldPhone, ELENA);
+    server.deviceKeys.set(`${ELENA}:${existing.deviceId}`, {
+      userId: ELENA,
+      deviceId: existing.deviceId,
+      publicKey: existing.publicKey,
+      rejectedAt: null,
+    });
+    server.wraps.push({
+      userId: ELENA,
+      deviceId: existing.deviceId,
+      wrappedKey: new Uint8Array(64),
+      keyEpoch: 1,
+      approvedBy: ELENA,
+    });
+    installMemoryStore(newPhone);
+    const extra = await ensureDeviceIdentity(ELENA);
+    await requestFirstDeviceAccess(
+      { spaceId: SPACE, userId: ELENA, role: 'family_admin', device: extra },
+      gateway,
+    );
+    server.wraps.push({
+      userId: ELENA,
+      deviceId: extra.deviceId,
+      wrappedKey: new Uint8Array(64),
+      keyEpoch: 1,
+      approvedBy: ELENA,
+    });
+    installMemoryStore(oldPhone);
+    await removeOwnPhone(
+      {
+        spaceId: SPACE,
+        userId: ELENA,
+        deviceId: extra.deviceId,
+        thisDeviceId: existing.deviceId,
+      },
+      gateway,
+    );
+    expect(server.wraps.some((row) => row.deviceId === extra.deviceId)).toBe(false);
+    expect(server.wraps.some((row) => row.deviceId === existing.deviceId)).toBe(true);
+    expect(server.deviceKeys.has(`${ELENA}:${extra.deviceId}`)).toBe(false);
+    expect(server.deviceKeys.has(`${ELENA}:${existing.deviceId}`)).toBe(true);
+    await expect(
+      removeOwnPhone(
+        {
+          spaceId: SPACE,
+          userId: ELENA,
+          deviceId: existing.deviceId,
+          thisDeviceId: existing.deviceId,
+        },
+        gateway,
+      ),
+    ).rejects.toThrow('cannot remove this phone');
+  });
+
+  it('does not let an admin wrap another member extra device', async () => {
+    const adminPhone = new Map<string, string>();
+    const memberOld = new Map<string, string>();
+    const memberNew = new Map<string, string>();
+    const server = emptyServer();
+    const gateway = serverGateway(server);
+    const admin = await foundOnInstall(adminPhone, ELENA);
+    const marcoOld = await foundOnInstall(memberOld, MARCO);
+    server.wraps.push({
+      userId: MARCO,
+      deviceId: marcoOld.deviceId,
+      wrappedKey: new Uint8Array(64),
+      keyEpoch: 1,
+      approvedBy: ELENA,
+    });
+    installMemoryStore(memberNew);
+    const extra = await ensureDeviceIdentity(MARCO);
+    await requestFirstDeviceAccess(
+      { spaceId: SPACE, userId: MARCO, role: 'co_admin', device: extra },
+      gateway,
+    );
+    expect(server.notices[0].kind).toBe('extra_device');
+    installMemoryStore(adminPhone);
+    await expect(
+      approveFirstDevice(
+        {
+          spaceId: SPACE,
+          adminUserId: ELENA,
+          adminDeviceId: admin.deviceId,
+          adminPrivateKey: admin.privateKey,
+          notice: server.notices[0],
+          memberRole: 'co_admin',
+        },
+        gateway,
+      ),
+    ).rejects.toThrow('first-device wrap only');
+    expect(() => assertOwnExtraDevice(ELENA, MARCO)).toThrow('extra device wrap is self-only');
   });
 });

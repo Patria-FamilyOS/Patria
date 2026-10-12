@@ -73,6 +73,10 @@ export default function SignedInLayout() {
           title: screenTitles.yourName,
         })}
       />
+      <Stack.Screen
+        name="your-phones"
+        options={{ ...pushedScreenHeader, title: screenTitles.yourPhones }}
+      />
     </Stack>
   );
 }

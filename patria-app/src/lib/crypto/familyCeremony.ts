@@ -28,7 +28,7 @@ export {
   recoveryKeyStoreKey,
 } from './keyStore';
 
-export type FamilyKeyStatus = 'ready' | 'waiting' | 'needsRelink';
+export type FamilyKeyStatus = 'ready' | 'waiting' | 'needsRelink' | 'waitingOwnPhone';
 
 export type OwnWrap = {
   deviceId: string;
@@ -242,8 +242,11 @@ export async function ensureKeysForOpenFamily(
     access,
   );
   const wraps = await gateway.fetchOwnWraps(input.spaceId, input.userId);
-  if (wraps.length > 0) {
+  if (wraps.some((row) => row.deviceId === device.deviceId)) {
     return 'needsRelink';
+  }
+  if (wraps.length > 0) {
+    return 'waitingOwnPhone';
   }
   return 'waiting';
 }

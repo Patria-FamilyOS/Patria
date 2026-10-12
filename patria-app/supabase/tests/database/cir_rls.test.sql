@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(216);
+SELECT plan(233);
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -1888,6 +1888,172 @@ SELECT throws_ok(
   'no wrap for ineligible roles'
 );
 RESET ROLE;
+
+SELECT has_column(
+  'public'::name,
+  'device_keys'::name,
+  'rejected_at'::name,
+  'rejected extra devices are marked on device_keys'
+);
+SELECT has_column(
+  'public'::name,
+  'device_approval_notices'::name,
+  'kind'::name,
+  'approval notices distinguish first, extra, and rejected'
+);
+
+RESET ROLE;
+INSERT INTO public.device_keys (user_id, device_id, public_key)
+VALUES
+  (
+    '11111111-1111-1111-1111-111111111111',
+    'd1111111-1111-1111-1111-111111111113',
+    tests_dummy_pub('elena-3')
+  ),
+  (
+    '22222222-2222-2222-2222-222222222222',
+    'd2222222-2222-2222-2222-222222222223',
+    tests_dummy_pub('marco-3')
+  );
+
+SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT rivera, '11111111-1111-1111-1111-111111111111',
+                'd1111111-1111-1111-1111-111111111112',
+                tests_dummy_box(), 1, '11111111-1111-1111-1111-111111111111'
+       FROM fx$sql$,
+  'only the same user can wrap to their additional device'
+);
+SELECT lives_ok(
+  $sql$INSERT INTO public.device_approval_notices (family_space_id, user_id, device_id)
+       SELECT rivera, '11111111-1111-1111-1111-111111111111',
+              'd1111111-1111-1111-1111-111111111113'
+       FROM fx$sql$,
+  'member can request an extra-device notice'
+);
+SELECT is(
+  (
+    SELECT kind FROM public.device_approval_notices
+    WHERE device_id = 'd1111111-1111-1111-1111-111111111113'
+  ),
+  'extra_device',
+  'extra-device notices are stamped extra_device'
+);
+SELECT lives_ok(
+  $sql$SELECT public.reject_own_pending_device(
+         (SELECT rivera FROM fx),
+         'd1111111-1111-1111-1111-111111111113'
+       )$sql$,
+  'member can reject a pending extra device'
+);
+SELECT is(
+  (
+    SELECT kind FROM public.device_approval_notices
+    WHERE device_id = 'd1111111-1111-1111-1111-111111111113'
+  ),
+  'rejected_device',
+  'rejected extra devices notify as rejected_device'
+);
+SELECT throws_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT rivera, '11111111-1111-1111-1111-111111111111',
+                'd1111111-1111-1111-1111-111111111113',
+                tests_dummy_box(), 1, '11111111-1111-1111-1111-111111111111'
+       FROM fx$sql$,
+  '42501',
+  NULL,
+  'a rejected device can never be wrapped'
+);
+SELECT lives_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT rivera, '22222222-2222-2222-2222-222222222222',
+                'd2222222-2222-2222-2222-222222222221',
+                tests_dummy_box(), 1, '11111111-1111-1111-1111-111111111111'
+       FROM fx$sql$,
+  'admin can wrap the restored member first device'
+);
+SELECT throws_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT rivera, '22222222-2222-2222-2222-222222222222',
+                'd2222222-2222-2222-2222-222222222223',
+                tests_dummy_box(), 1, '11111111-1111-1111-1111-111111111111'
+       FROM fx$sql$,
+  '42501',
+  NULL,
+  'admins cannot wrap another member additional device'
+);
+RESET ROLE;
+
+SELECT tests_jwt('22222222-2222-2222-2222-222222222222');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT rivera, '22222222-2222-2222-2222-222222222222',
+                'd2222222-2222-2222-2222-222222222222',
+                tests_dummy_box(), 1, '22222222-2222-2222-2222-222222222222'
+       FROM fx$sql$,
+  'member extra-device wrap after restore still works'
+);
+SELECT throws_ok(
+  $sql$SELECT public.remove_own_device(
+         (SELECT rivera FROM fx),
+         'd1111111-1111-1111-1111-111111111111'
+       )$sql$,
+  '42501',
+  NULL,
+  'another user cannot remove your device'
+);
+RESET ROLE;
+
+SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
+SELECT throws_ok(
+  $sql$SELECT public.remove_own_device(
+         (SELECT rivera FROM fx),
+         'd2222222-2222-2222-2222-222222222221'
+       )$sql$,
+  '42501',
+  NULL,
+  'owner-only removal cannot target another member device'
+);
+SELECT lives_ok(
+  $sql$SELECT public.remove_own_device(
+         (SELECT rivera FROM fx),
+         'd1111111-1111-1111-1111-111111111112'
+       )$sql$,
+  'member can remove another of their own devices'
+);
+RESET ROLE;
+SELECT is(
+  (
+    SELECT count(*)::integer FROM public.family_key_wraps
+    WHERE user_id = '11111111-1111-1111-1111-111111111111'
+      AND device_id = 'd1111111-1111-1111-1111-111111111112'
+  ),
+  0,
+  'removal deletes only that device wraps'
+);
+SELECT is(
+  (
+    SELECT count(*)::integer FROM public.family_key_wraps
+    WHERE user_id = '11111111-1111-1111-1111-111111111111'
+      AND device_id = 'd1111111-1111-1111-1111-111111111111'
+  ),
+  1,
+  'removal leaves this phone wrap in place'
+);
+SELECT is_empty(
+  $sql$SELECT 1 FROM public.device_keys
+       WHERE device_id = 'd1111111-1111-1111-1111-111111111112'$sql$,
+  'removal deletes that device public key'
+);
 
 -- D8 Yes cells as the signed-in admin, including RETURNING (how the app writes).
 SELECT tests_jwt('11111111-1111-1111-1111-111111111111');

@@ -6,6 +6,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-12 — Extra phones are let in only by the same member (Step 5)
+
+A second phone for someone who already has a wrap uploads its public key and waits for that person’s existing phone. That phone shows “Is this your new phone?” and wraps with the KEYS.md AAD. Admins see that a new phone was added and cannot wrap it. “This wasn’t me” rejects that device forever and tells admins the member may want to change their password. Your phones lists this account’s devices and removes another device through a SECURITY DEFINER function. Stolen-phone key rotation stays in Step 8.
+
+---
+
 ## 2026-10-12 — Let in could not find the family key after SecureStore namespacing
 
 Step 4 stored device and family keys under `patria.u.{userId}.*`. Phones that created keys in Step 3 still had `patria.device.*` and `patria.familyKey.{space}`. Let in looked only at the new names, minted a new device, and threw `missing family key` while Home still said keys were set up. We migrate those old entries to the signed-in user once, then load the family key from memory, the namespaced cache, or this device’s wrap. Home says “set up” only when that load succeeds.

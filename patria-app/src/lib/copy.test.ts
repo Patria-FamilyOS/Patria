@@ -11,8 +11,15 @@ describe('copy', () => {
     expect(copy.home.joinFamily).toBe('Join another family');
     expect(copy.home.keysReady).toBe('Family keys: set up on this phone');
     expect(copy.home.keysWaiting).toBe('Waiting for a family admin to let this phone in');
+    expect(copy.home.keysWaitingOwnPhone).toBe(
+      'Waiting for one of your phones to let this one in',
+    );
     expect(copy.home.keysNeedRelink).toBe('This phone needs to be let in again');
     expect(copy.home.letInNotice).toBe('{name} wants this phone let in');
+    expect(copy.home.extraDeviceOwnNotice).toBe('Is this your new phone?');
+    expect(copy.home.yesMyPhone).toBe('Yes, this is my phone');
+    expect(copy.home.notMyPhone).toBe('This wasn’t me');
+    expect(copy.home.yourPhones).toBe('Your phones');
     expect(copy.home.letIn).toBe('Let in');
     expect(copy.home.declineDevice).toBe('Decline');
     expect(copy.member.fallbackName).toBe('Family member');

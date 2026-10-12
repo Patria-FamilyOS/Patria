@@ -8,6 +8,8 @@ import { loadCachedRecoveryKey, obtainFamilyKey } from './keyStore';
 import { fromPgBytea, requireX25519PublicKey, toPgBytea } from './pgBytea';
 import { wrapKeyToDevice, type MemberWrapAad } from './wrap';
 
+export type DeviceNoticeKind = 'first_device' | 'extra_device' | 'rejected_device';
+
 export type FirstDeviceNotice = {
   id: string;
   spaceId: string;
@@ -15,6 +17,14 @@ export type FirstDeviceNotice = {
   deviceId: string;
   publicKey: Uint8Array;
   deviceCreatedAt: string;
+  kind: DeviceNoticeKind;
+};
+
+export type OwnPhone = {
+  deviceId: string;
+  createdAt: string;
+  rejectedAt: string | null;
+  hasWrap: boolean;
 };
 
 export type DeviceAccessGateway = {
@@ -47,7 +57,17 @@ export type DeviceAccessGateway = {
     approvedBy: string;
   }): Promise<void>;
   deleteNotice(noticeId: string): Promise<void>;
+  rejectPendingDevice(spaceId: string, deviceId: string): Promise<void>;
+  removeOwnDevice(spaceId: string, deviceId: string): Promise<void>;
+  listOwnPhones(spaceId: string, userId: string): Promise<OwnPhone[]>;
 };
+
+export function parseNoticeKind(value: unknown): DeviceNoticeKind {
+  if (value === 'extra_device' || value === 'rejected_device' || value === 'first_device') {
+    return value;
+  }
+  return 'first_device';
+}
 
 export function firstDeviceWrapAad(input: {
   spaceId: string;
@@ -61,6 +81,14 @@ export function firstDeviceWrapAad(input: {
     userId: input.userId,
     deviceId: input.deviceId,
   };
+}
+
+export const extraDeviceWrapAad = firstDeviceWrapAad;
+
+export function assertOwnExtraDevice(callerUserId: string, deviceOwnerUserId: string): void {
+  if (callerUserId !== deviceOwnerUserId) {
+    throw new Error('extra device wrap is self-only');
+  }
 }
 
 export function wrapFamilyKeyForFirstDevice(
@@ -112,7 +140,7 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
   async listNotices(spaceId) {
     const { data: notices, error } = await supabase
       .from('device_approval_notices')
-      .select('id, user_id, device_id')
+      .select('id, user_id, device_id, kind')
       .eq('family_space_id', spaceId);
     if (error) {
       logKeyStep('list_notices', error.code ?? 'unknown');
@@ -148,6 +176,7 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
           deviceId: notice.device_id as string,
           publicKey: requireX25519PublicKey(fromPgBytea(key.public_key)),
           deviceCreatedAt: key.created_at as string,
+          kind: parseNoticeKind(notice.kind),
         },
       ];
     });
@@ -211,6 +240,55 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
       throw error;
     }
   },
+
+  async rejectPendingDevice(spaceId, deviceId) {
+    const { error } = await supabase.rpc('reject_own_pending_device', {
+      p_space_id: spaceId,
+      p_device_id: deviceId,
+    });
+    if (error) {
+      logKeyStep('reject_pending_device', error.code ?? 'unknown');
+      throw error;
+    }
+  },
+
+  async removeOwnDevice(spaceId, deviceId) {
+    const { error } = await supabase.rpc('remove_own_device', {
+      p_space_id: spaceId,
+      p_device_id: deviceId,
+    });
+    if (error) {
+      logKeyStep('remove_own_device', error.code ?? 'unknown');
+      throw error;
+    }
+  },
+
+  async listOwnPhones(spaceId, userId) {
+    const { data: keys, error: keysError } = await supabase
+      .from('device_keys')
+      .select('device_id, created_at, rejected_at')
+      .eq('user_id', userId);
+    if (keysError) {
+      logKeyStep('list_own_phones', keysError.code ?? 'unknown');
+      throw keysError;
+    }
+    const { data: wraps, error: wrapsError } = await supabase
+      .from('family_key_wraps')
+      .select('device_id')
+      .eq('family_space_id', spaceId)
+      .eq('user_id', userId);
+    if (wrapsError) {
+      logKeyStep('list_own_phone_wraps', wrapsError.code ?? 'unknown');
+      throw wrapsError;
+    }
+    const withWrap = new Set((wraps ?? []).map((row) => row.device_id as string));
+    return (keys ?? []).map((row) => ({
+      deviceId: row.device_id as string,
+      createdAt: row.created_at as string,
+      rejectedAt: (row.rejected_at as string | null) ?? null,
+      hasWrap: withWrap.has(row.device_id as string),
+    }));
+  },
 };
 
 export async function requestFirstDeviceAccess(
@@ -261,6 +339,9 @@ export async function approveFirstDevice(
   },
   gateway: DeviceAccessGateway = supabaseDeviceAccessGateway,
 ): Promise<void> {
+  if (input.notice.kind !== 'first_device') {
+    throw new Error('first-device wrap only');
+  }
   const recipientPublicKey = requireX25519PublicKey(fromPgBytea(input.notice.publicKey));
   const aad = firstDeviceWrapAad({
     spaceId: input.spaceId,
@@ -309,4 +390,97 @@ export async function approveFirstDevice(
   } finally {
     wipe(familyKey);
   }
+}
+
+export async function approveOwnExtraDevice(
+  input: {
+    spaceId: string;
+    userId: string;
+    approverDeviceId: string;
+    approverPrivateKey: Uint8Array;
+    notice: FirstDeviceNotice;
+    role: string | null | undefined;
+  },
+  gateway: DeviceAccessGateway = supabaseDeviceAccessGateway,
+): Promise<void> {
+  assertOwnExtraDevice(input.userId, input.notice.userId);
+  if (input.notice.kind !== 'extra_device') {
+    throw new Error('extra-device wrap only');
+  }
+  const recipientPublicKey = requireX25519PublicKey(fromPgBytea(input.notice.publicKey));
+  const aad = extraDeviceWrapAad({
+    spaceId: input.spaceId,
+    userId: input.notice.userId,
+    deviceId: input.notice.deviceId,
+  });
+  const familyKey = await obtainFamilyKey({
+    userId: input.userId,
+    spaceId: input.spaceId,
+    deviceId: input.approverDeviceId,
+    privateKey: input.approverPrivateKey,
+    fetchOwnWrap: gateway.fetchOwnWrap,
+  });
+  if (!familyKey) {
+    throw new Error('missing family key');
+  }
+  try {
+    const wrapped = wrapFamilyKeyForFirstDevice(familyKey, recipientPublicKey, aad);
+    await gateway.insertFamilyWrap({
+      spaceId: input.spaceId,
+      userId: input.notice.userId,
+      deviceId: input.notice.deviceId,
+      wrappedKey: wrapped,
+      keyEpoch: aad.keyEpoch,
+      approvedBy: input.userId,
+    });
+    if (isSpaceAdmin(input.role)) {
+      const recoveryKey = await loadCachedRecoveryKey(input.userId, input.spaceId);
+      if (recoveryKey) {
+        try {
+          const wrappedRecovery = wrapKeyToDevice(recoveryKey, recipientPublicKey, aad);
+          await gateway.insertRecoveryWrap({
+            spaceId: input.spaceId,
+            userId: input.notice.userId,
+            deviceId: input.notice.deviceId,
+            wrappedKey: wrappedRecovery,
+            approvedBy: input.userId,
+          });
+        } finally {
+          wipe(recoveryKey);
+        }
+      }
+    }
+    await gateway.deleteNotice(input.notice.id);
+    logKeyStep('approve_own_extra_device', `${input.spaceId} ${input.notice.deviceId}`);
+  } finally {
+    wipe(familyKey);
+  }
+}
+
+export async function rejectOwnExtraDevice(
+  input: { spaceId: string; userId: string; notice: FirstDeviceNotice },
+  gateway: DeviceAccessGateway = supabaseDeviceAccessGateway,
+): Promise<void> {
+  assertOwnExtraDevice(input.userId, input.notice.userId);
+  await gateway.rejectPendingDevice(input.spaceId, input.notice.deviceId);
+  logKeyStep('reject_own_extra_device', input.notice.deviceId);
+}
+
+export async function removeOwnPhone(
+  input: { spaceId: string; userId: string; deviceId: string; thisDeviceId: string },
+  gateway: DeviceAccessGateway = supabaseDeviceAccessGateway,
+): Promise<void> {
+  if (input.deviceId === input.thisDeviceId) {
+    throw new Error('cannot remove this phone');
+  }
+  await gateway.removeOwnDevice(input.spaceId, input.deviceId);
+  logKeyStep('remove_own_phone', input.deviceId);
+}
+
+export async function listOwnPhones(
+  spaceId: string,
+  userId: string,
+  gateway: DeviceAccessGateway = supabaseDeviceAccessGateway,
+): Promise<OwnPhone[]> {
+  return gateway.listOwnPhones(spaceId, userId);
 }
