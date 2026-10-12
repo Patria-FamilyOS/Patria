@@ -53,5 +53,6 @@ Patria is a private family app: it runs a family's day to day and keeps its memo
 2. Build in small steps. After each step, run the type check, linter and tests, and fix failures before moving on.
 3. Write tests that map to the feature's acceptance criteria in `docs/FEATURES.md`.
 4. When finished, list which acceptance criteria are met, which are not yet, and anything that needs a human security review.
-5. Suggest a short commit message describing the change.
-6. If a requirement is unclear or conflicts with these rules, stop and ask instead of guessing.
+5. Before suggesting a commit that changes app code or tests, run `npm run test:linux` (CI checks on Linux in Docker) as well as `npx supabase test db`. If something fails only in CI, reproduce it in Docker before changing any code.
+6. Suggest a short commit message describing the change.
+7. If a requirement is unclear or conflicts with these rules, stop and ask instead of guessing.
