@@ -6,6 +6,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-12 — CIR05 key primitives (Step 1)
+
+Device-side crypto building blocks only: noble X25519 / HKDF-SHA256 / XChaCha20-Poly1305, pairwise recovery boxes over the recovery key, 24-word printed code, SecureStore with `WHEN_UNLOCKED_THIS_DEVICE_ONLY` and Android backup exclude. No tables, no screens. Every crypto file is marked for security review.
+
+---
+
 ## 2026-10-12 — Family keys protocol approved (D20–D25)
 
 `docs/security/KEYS.md` is the CIR05 step 2 protocol. Two additions landed with approval: a long-lived `recovery_key` so printed codes survive family-key rotation, and SecureStore that is excluded from cloud backups (`WHEN_UNLOCKED_THIS_DEVICE_ONLY` plus the Android SharedPreferences exclude). Lasting rules are D20–D25 (KEYS approval numbered them D17–D22; those numbers were already taken). Implementation steps are in `docs/security/KEYS_IMPLEMENTATION.md`. No crypto code yet.
