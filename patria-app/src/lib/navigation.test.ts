@@ -37,6 +37,8 @@ describe('navigation headers', () => {
   it('keeps compose invite off the accept-invite path', () => {
     expect(routes.inviteSomeone).toBe('/(signed-in)/invite-someone');
     expect(routes.inviteAccept('abc')).toBe('/invite/abc');
+    expect(routes.joinFamily).toBe('/(signed-in)/join-family');
+    expect(routes.yourName).toBe('/(signed-in)/your-name');
   });
 
   it('lets native back leave the invite screen', () => {

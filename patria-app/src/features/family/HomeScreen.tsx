@@ -22,17 +22,19 @@ import {
   fetchMemberships,
   fetchPendingInvites,
 } from '../../lib/family';
+import { signOutAndGoWelcome } from '../../lib/authSession';
+import { memberDisplayName } from '../../lib/displayName';
 import { routes } from '../../lib/navigation';
 import { countAdmins, isSpaceAdmin } from '../../lib/roles';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing, type } from '../../theme';
-import { PasteInviteField } from '../invites/PasteInviteField';
 
 export function HomeScreen() {
   const router = useRouter();
   const { session } = useAuth();
   const userId = session?.user.id;
   const [spaceId, setSpaceId] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
 
   const membershipsQuery = useQuery({
     queryKey: ['memberships', userId],
@@ -103,6 +105,29 @@ export function HomeScreen() {
     childrenQuery.isRefetching ||
     invitesQuery.isRefetching;
 
+  const onSignOut = async () => {
+    setSigningOut(true);
+    try {
+      await signOutAndGoWelcome({
+        signOut: () => supabase.auth.signOut(),
+        replace: (href) => router.replace(href),
+      });
+    } finally {
+      setSigningOut(false);
+    }
+  };
+
+  const joinFamilyLink = (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={copy.home.joinFamily}
+      onPress={() => router.push(routes.joinFamily)}
+      style={styles.joinLink}
+    >
+      <Text style={styles.joinLinkText}>{copy.home.joinFamily}</Text>
+    </Pressable>
+  );
+
   if (membershipsQuery.isLoading) {
     return (
       <Screen>
@@ -128,8 +153,8 @@ export function HomeScreen() {
       >
         <Title>{copy.home.noFamilyTitle}</Title>
         <Body>{copy.home.noFamilyBody}</Body>
-        <PasteInviteField onOpen={(token) => router.push(routes.inviteAccept(token))} />
-        <Button label={copy.createFamily.submit} onPress={() => router.push('/(signed-in)/create')} />
+        <Button label={copy.createFamily.submit} onPress={() => router.push(routes.createFamily)} />
+        {joinFamilyLink}
       </Screen>
     );
   }
@@ -142,15 +167,17 @@ export function HomeScreen() {
         <Button
           label={copy.auth.signOut}
           variant="secondary"
-          onPress={() => void supabase.auth.signOut()}
+          busy={signingOut}
+          onPress={() => void onSignOut()}
         />
       </Screen>
     );
   }
 
   const others = (membersQuery.data ?? []).filter((row) => row.userId !== userId);
-  const displayName =
-    membersQuery.data?.find((row) => row.userId === userId)?.displayName ?? copy.appName;
+  const displayName = memberDisplayName(
+    membersQuery.data?.find((row) => row.userId === userId)?.displayName,
+  );
 
   return (
     <Screen
@@ -161,7 +188,6 @@ export function HomeScreen() {
       <Title>{copy.home.greeting.replace('{name}', displayName)}</Title>
       <Title>{current.space.name}</Title>
       <Muted>{copy.home.todoMemories}</Muted>
-      <PasteInviteField onOpen={(token) => router.push(routes.inviteAccept(token))} />
 
       {(membershipsQuery.data ?? []).length > 1 ? (
         <View>
@@ -242,11 +268,13 @@ export function HomeScreen() {
       <Button
         label={copy.auth.signOut}
         variant="secondary"
-        onPress={() => void supabase.auth.signOut()}
+        busy={signingOut}
+        onPress={() => void onSignOut()}
       />
       {adminCount <= 1 && userId ? (
         <Muted>{copy.member.lastAdmin}</Muted>
       ) : null}
+      {joinFamilyLink}
     </Screen>
   );
 }
@@ -265,5 +293,14 @@ const styles = StyleSheet.create({
   rowTitle: {
     ...type.body,
     color: colors.text,
+  },
+  joinLink: {
+    alignSelf: 'center',
+    paddingVertical: spacing.md,
+  },
+  joinLinkText: {
+    ...type.caption,
+    color: colors.primary,
+    textAlign: 'center',
   },
 });

@@ -128,3 +128,7 @@ Append a dated entry to `docs/BUILD_LOG.md` whenever we implement a slice or mak
 ## D17. Member email visibility (October 2026)
 
 Member email addresses are visible only to Family admins and Co admins. Other members see names and roles.
+
+## D18. Where people paste an invite (October 2026)
+
+The invite paste box shows on Welcome and Create family. Members already in a family join another through a small Join another family link, not a box on Home. (Phone feedback asked to number this D15; D15 already records how we log builds.)

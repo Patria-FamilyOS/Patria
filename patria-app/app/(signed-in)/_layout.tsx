@@ -62,6 +62,17 @@ export default function SignedInLayout() {
         name="child/[childId]"
         options={{ ...pushedScreenHeader, title: screenTitles.child }}
       />
+      <Stack.Screen
+        name="join-family"
+        options={{ ...pushedScreenHeader, title: screenTitles.joinFamily }}
+      />
+      <Stack.Screen
+        name="your-name"
+        options={({ navigation }) => ({
+          ...headerWhenPushed(navigation.canGoBack()),
+          title: screenTitles.yourName,
+        })}
+      />
     </Stack>
   );
 }

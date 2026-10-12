@@ -8,5 +8,7 @@ describe('copy', () => {
     expect(copy.home.todoMemories.length).toBeGreaterThan(0);
     expect(copy.relationships.mum).toBe('Mom');
     expect(copy.createFamily.failed.length).toBeGreaterThan(0);
+    expect(copy.home.joinFamily).toBe('Join another family');
+    expect(copy.member.fallbackName).toBe('Family member');
   });
 });

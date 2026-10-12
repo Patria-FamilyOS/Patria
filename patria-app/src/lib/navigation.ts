@@ -32,6 +32,8 @@ export const screenTitles = {
   member: copy.member.title,
   child: copy.child.title,
   inviteAccept: copy.invitePreview.title,
+  joinFamily: copy.home.joinFamily,
+  yourName: copy.auth.nameLabel,
 } as const;
 
 export const routes = {
@@ -43,6 +45,8 @@ export const routes = {
   addChild: '/(signed-in)/add-child',
   member: (userId: string) => `/(signed-in)/member/${userId}` as const,
   inviteAccept: (token: string) => `/invite/${token}` as const,
+  joinFamily: '/(signed-in)/join-family',
+  yourName: '/(signed-in)/your-name',
 } as const;
 
 export function headerWhenPushed(canGoBack: boolean) {

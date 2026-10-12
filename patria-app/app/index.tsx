@@ -4,7 +4,8 @@ import { Redirect } from 'expo-router';
 import { ErrorState, LoadingState, Screen } from '../src/components/ui';
 import { useAuth } from '../src/lib/auth-context';
 import { copy } from '../src/lib/copy';
-import { fetchMemberships } from '../src/lib/family';
+import { hasDisplayName } from '../src/lib/displayName';
+import { fetchMemberships, fetchOwnDisplayName } from '../src/lib/family';
 import { readPendingInviteToken } from '../src/lib/pendingInvite';
 import { resolveEntryHref } from '../src/lib/sessionGate';
 
@@ -21,6 +22,11 @@ export default function Index() {
     queryKey: ['memberships-gate', userId],
     enabled: Boolean(userId),
     queryFn: () => fetchMemberships(userId as string),
+  });
+  const nameQuery = useQuery({
+    queryKey: ['own-display-name', userId],
+    enabled: Boolean(userId),
+    queryFn: () => fetchOwnDisplayName(userId as string),
   });
 
   if (loading) {
@@ -43,7 +49,15 @@ export default function Index() {
     );
   }
 
-  if (pendingQuery.isLoading) {
+  if (pendingQuery.isError || nameQuery.isError) {
+    return (
+      <Screen>
+        <ErrorState message={copy.common.error} />
+      </Screen>
+    );
+  }
+
+  if (pendingQuery.isLoading || nameQuery.isLoading) {
     return (
       <Screen>
         <LoadingState message={copy.common.loading} />
@@ -52,14 +66,16 @@ export default function Index() {
   }
 
   const pendingToken = pendingQuery.data;
+  const needsDisplayName = !hasDisplayName(nameQuery.data);
 
-  if (pendingToken) {
+  if (needsDisplayName || pendingToken) {
     return (
       <Redirect
         href={resolveEntryHref({
           hasSession: true,
           membershipCount: 0,
-          pendingInviteToken: pendingToken,
+          pendingInviteToken: pendingToken ?? null,
+          needsDisplayName,
         })}
       />
     );

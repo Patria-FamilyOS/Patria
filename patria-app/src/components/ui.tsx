@@ -70,6 +70,7 @@ type ButtonProps = {
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'danger';
   disabled?: boolean;
+  busy?: boolean;
   accessibilityHint?: string;
 };
 
@@ -78,31 +79,40 @@ export function Button({
   onPress,
   variant = 'primary',
   disabled = false,
+  busy = false,
   accessibilityHint,
 }: ButtonProps) {
+  const inactive = disabled || busy;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
-      disabled={disabled}
+      accessibilityState={{ disabled: inactive, busy }}
+      disabled={inactive}
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
         variant === 'secondary' && styles.buttonSecondary,
         variant === 'danger' && styles.buttonDanger,
-        disabled && styles.buttonDisabled,
-        pressed && !disabled && styles.buttonPressed,
+        inactive && styles.buttonDisabled,
+        pressed && !inactive && styles.buttonPressed,
       ]}
     >
-      <Text
-        style={[
-          styles.buttonLabel,
-          variant === 'secondary' && styles.buttonLabelSecondary,
-        ]}
-      >
-        {label}
-      </Text>
+      {busy ? (
+        <ActivityIndicator
+          color={variant === 'secondary' ? colors.primary : colors.onPrimary}
+        />
+      ) : (
+        <Text
+          style={[
+            styles.buttonLabel,
+            variant === 'secondary' && styles.buttonLabelSecondary,
+          ]}
+        >
+          {label}
+        </Text>
+      )}
     </Pressable>
   );
 }

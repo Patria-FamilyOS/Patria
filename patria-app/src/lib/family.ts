@@ -1,5 +1,6 @@
-import { supabase } from './supabase';
+import { memberDisplayName } from './displayName';
 import type { SpaceRole } from './roles';
+import { supabase } from './supabase';
 
 export type FamilySpace = {
   id: string;
@@ -85,9 +86,21 @@ export async function fetchMembers(spaceId: string): Promise<MemberRow[]> {
       userId: row.user_id as string,
       role: row.role as SpaceRole,
       relationshipLabel: row.relationship_label as string | null,
-      displayName: one?.display_name ?? '',
+      displayName: memberDisplayName(one?.display_name),
     };
   });
+}
+
+export async function fetchOwnDisplayName(userId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('display_name')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) {
+    throw error;
+  }
+  return data?.display_name ?? null;
 }
 
 export async function fetchAdminMemberEmail(

@@ -6,6 +6,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-11 — Join another family, sign out, names
+
+Home no longer shows an invite paste box. People already in a family use a small Join another family link (D18; phone notes called this D15, but D15 already names the build log). Create family has Sign out with the same spinner and replace-to-welcome as Home. After sign in, a missing display name is collected on one screen; member cards fall back to “Family member” so we never show a blank name (D17: no emails to non-admins).
+
+---
+
 ## 2026-10-11 — Phone Batch C follow-up
 
 Text fields no longer clip descenders. Home pull-to-refresh and foreground refetch actually reload. Headers use real titles and a plain back arrow so route groups never appear. Invalid invites clear the pending token immediately and leave with replace to `/`, with no `beforeRemove` trap.

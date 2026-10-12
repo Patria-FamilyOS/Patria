@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 
 import { Body, Button, ErrorState, Field, Muted, Screen, Title } from '../../components/ui';
+import { signOutAndGoWelcome } from '../../lib/authSession';
 import { copy } from '../../lib/copy';
 import { writeCurrentFamilyId } from '../../lib/currentFamily';
 import { routes } from '../../lib/navigation';
@@ -27,6 +28,7 @@ export function CreateFamilyScreen() {
   const navigation = useNavigation();
   const withHeader = navigation.canGoBack();
   const [formError, setFormError] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
   const { control, handleSubmit, formState } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { name: '', relationship: 'mum' },
@@ -95,8 +97,27 @@ export function CreateFamilyScreen() {
         label={copy.createFamily.submit}
         onPress={onSubmit}
         disabled={formState.isSubmitting}
+        busy={formState.isSubmitting}
       />
       <Muted>{copy.createFamily.privacy}</Muted>
+      <Button
+        label={copy.auth.signOut}
+        variant="secondary"
+        busy={signingOut}
+        onPress={() => {
+          void (async () => {
+            setSigningOut(true);
+            try {
+              await signOutAndGoWelcome({
+                signOut: () => supabase.auth.signOut(),
+                replace: (href) => router.replace(href),
+              });
+            } finally {
+              setSigningOut(false);
+            }
+          })();
+        }}
+      />
     </Screen>
   );
 }

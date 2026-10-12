@@ -1,0 +1,72 @@
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+import { copy } from '../../lib/copy';
+import { supabase } from '../../lib/supabase';
+import { YourNameScreen } from './YourNameScreen';
+
+const metrics = {
+  frame: { x: 0, y: 0, width: 390, height: 844 },
+  insets: { top: 0, left: 0, right: 0, bottom: 0 },
+};
+
+jest.mock('../../lib/auth-context', () => ({
+  useAuth: () => ({ session: { user: { id: 'u1' } }, loading: false }),
+}));
+
+jest.mock('../../lib/queryClient', () => ({
+  queryClient: { invalidateQueries: jest.fn() },
+}));
+
+jest.mock('../../lib/supabase', () => {
+  const eq = jest.fn(async () => ({ error: null }));
+  const update = jest.fn(() => ({ eq }));
+  const from = jest.fn(() => ({ update }));
+  return { supabase: { from, eq, update } };
+});
+
+type MockedProfiles = {
+  from: jest.Mock;
+  eq: jest.Mock;
+  update: jest.Mock;
+};
+
+const mockedProfiles = supabase as unknown as MockedProfiles;
+
+function mockedReplace(): jest.Mock {
+  const expoRouter = jest.requireMock('expo-router') as {
+    useRouter: () => { replace: jest.Mock };
+  };
+  return expoRouter.useRouter().replace;
+}
+
+describe('YourNameScreen', () => {
+  beforeEach(() => {
+    mockedReplace().mockClear();
+    mockedProfiles.from.mockClear();
+    mockedProfiles.update.mockClear();
+    mockedProfiles.eq.mockClear();
+  });
+
+  it('saves a name with existing copy then returns to the gate', async () => {
+    const { getByLabelText, getByText } = render(
+      <SafeAreaProvider initialMetrics={metrics}>
+        <YourNameScreen />
+      </SafeAreaProvider>,
+    );
+
+    fireEvent.changeText(getByLabelText(copy.auth.nameLabel), 'Elena Rivera');
+    fireEvent.press(getByText(copy.common.save));
+
+    await waitFor(() => {
+      expect(mockedProfiles.from).toHaveBeenCalledWith('profiles');
+    });
+    expect(mockedProfiles.update).toHaveBeenCalledWith(
+      expect.objectContaining({ display_name: 'Elena Rivera' }),
+    );
+    expect(mockedProfiles.eq).toHaveBeenCalledWith('id', 'u1');
+    await waitFor(() => {
+      expect(mockedReplace()).toHaveBeenCalledWith('/');
+    });
+  });
+});

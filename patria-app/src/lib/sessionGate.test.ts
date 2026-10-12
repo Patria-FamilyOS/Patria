@@ -11,6 +11,17 @@ describe('resolveEntryHref', () => {
     ).toBe('/(signed-out)/welcome');
   });
 
+  it('asks for a display name before family or invite screens', () => {
+    expect(
+      resolveEntryHref({
+        hasSession: true,
+        membershipCount: 2,
+        pendingInviteToken: 'invite-token',
+        needsDisplayName: true,
+      }),
+    ).toBe('/(signed-in)/your-name');
+  });
+
   it('sends a signed-in user with no family to create family', () => {
     expect(
       resolveEntryHref({

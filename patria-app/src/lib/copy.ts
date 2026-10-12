@@ -76,6 +76,8 @@ export const copy = {
     noFamilyTitle: 'Create a family space',
     noFamilyBody: 'Name your family to get started.',
     todoMemories: 'Memories, the weekly Sync and the rest of Today will live here later.',
+    joinFamily: 'Join another family',
+    joinFamilyBody: 'Paste your invite link to join another family space.',
   },
   roles: {
     family_admin: 'Family admin',
@@ -147,6 +149,7 @@ export const copy = {
     saveFailed: 'We couldn’t save that change. Please try again.',
     removeFailed: 'We couldn’t remove this person. Please try again.',
     childRemove: 'Remove this child profile',
+    fallbackName: 'Family member',
   },
   circles: {
     household: 'Household',
