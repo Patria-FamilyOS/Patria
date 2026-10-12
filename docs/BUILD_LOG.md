@@ -6,6 +6,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-12 — CIR05 key tables and RLS (Step 2)
+
+Added family key, recovery, and device-approval tables with forced RLS. Wraps are insert-only ciphertext; the 48-hour recovery wait is stamped on the server and stored in `patria_key_settings` so only a superuser can shorten it for local tests. pgTAP covers first-device vs extra-device wrapping, ineligible roles, and isolation.
+
+---
+
 ## 2026-10-12 — CIR05 key primitives (Step 1)
 
 Device-side crypto building blocks only: noble X25519 / HKDF-SHA256 / XChaCha20-Poly1305, pairwise recovery boxes over the recovery key, 24-word printed code, SecureStore with `WHEN_UNLOCKED_THIS_DEVICE_ONLY` and Android backup exclude. No tables, no screens. Every crypto file is marked for security review.

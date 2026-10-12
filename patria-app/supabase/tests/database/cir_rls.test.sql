@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(136);
+SELECT plan(199);
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -1154,6 +1154,490 @@ SELECT is(
 );
 
 RESET ROLE;
+
+-- CIR05 family key tables and wrap rules (KEYS.md / D21–D23).
+CREATE OR REPLACE FUNCTION tests_dummy_box()
+RETURNS bytea
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT decode(repeat('aa', 80), 'hex');
+$$;
+
+CREATE OR REPLACE FUNCTION tests_dummy_pub(p_seed text)
+RETURNS bytea
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT decode(rpad(encode(convert_to(p_seed, 'utf8'), 'hex'), 64, '11'), 'hex');
+$$;
+
+GRANT EXECUTE ON FUNCTION tests_dummy_box() TO authenticated;
+GRANT EXECUTE ON FUNCTION tests_dummy_pub(text) TO authenticated;
+
+SELECT has_table('public'::name, 'device_keys'::name);
+SELECT has_table('public'::name, 'family_key_meta'::name);
+SELECT has_table('public'::name, 'family_key_wraps'::name);
+SELECT has_table('public'::name, 'recovery_key_wraps'::name);
+SELECT has_table('public'::name, 'family_key_under_recovery'::name);
+SELECT has_table('public'::name, 'device_approval_notices'::name);
+SELECT has_table('public'::name, 'recovery_contacts'::name);
+SELECT has_table('public'::name, 'recovery_contact_secrets'::name);
+SELECT has_table('public'::name, 'recovery_pair_wraps'::name);
+SELECT has_table('public'::name, 'recovery_requests'::name);
+SELECT has_table('public'::name, 'patria_key_settings'::name);
+
+SELECT col_type_is('public'::name, 'device_keys'::name, 'public_key'::name, 'bytea'::name);
+SELECT col_type_is('public'::name, 'family_key_wraps'::name, 'wrapped_key'::name, 'bytea'::name);
+SELECT col_type_is('public'::name, 'recovery_key_wraps'::name, 'wrapped_key'::name, 'bytea'::name);
+SELECT col_type_is('public'::name, 'family_key_under_recovery'::name, 'wrapped_family_key'::name, 'bytea'::name);
+SELECT col_type_is('public'::name, 'recovery_pair_wraps'::name, 'wrapped_recovery_key'::name, 'bytea'::name);
+SELECT col_type_is('public'::name, 'recovery_contact_secrets'::name, 'wrapped_secret'::name, 'bytea'::name);
+
+SELECT hasnt_column('public'::name, 'recovery_requests'::name, 'printed_code'::name);
+SELECT hasnt_column('public'::name, 'recovery_requests'::name, 'printed_code_hash'::name);
+SELECT hasnt_column('public'::name, 'recovery_pair_wraps'::name, 'printed_code_hash'::name);
+SELECT hasnt_column('public'::name, 'recovery_pair_wraps'::name, 'mnemonic'::name);
+SELECT hasnt_column('public'::name, 'family_key_wraps'::name, 'family_key'::name);
+SELECT hasnt_column('public'::name, 'recovery_key_wraps'::name, 'recovery_key'::name);
+SELECT is(
+  (
+    SELECT count(*)::integer
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND (
+        table_name LIKE 'family_key%'
+        OR table_name LIKE 'recovery%'
+        OR table_name IN ('device_keys', 'device_approval_notices', 'patria_key_settings')
+      )
+      AND (
+        column_name ILIKE '%print%'
+        OR column_name ILIKE '%mnemonic%'
+        OR column_name ILIKE '%paper%'
+        OR column_name ILIKE '%verifier%'
+      )
+  ),
+  0,
+  'no printed-code hash or verifier columns'
+);
+
+SELECT is(
+  public.recovery_wait_interval(),
+  interval '48 hours',
+  'recovery wait default is exactly 48 hours'
+);
+SELECT is(
+  (SELECT recovery_wait FROM public.patria_key_settings WHERE singleton = 1),
+  interval '48 hours',
+  'patria_key_settings.recovery_wait defaults to 48 hours'
+);
+
+INSERT INTO public.device_keys (user_id, device_id, public_key)
+VALUES
+  (
+    '11111111-1111-1111-1111-111111111111',
+    'd1111111-1111-1111-1111-111111111111',
+    tests_dummy_pub('elena-1')
+  ),
+  (
+    '11111111-1111-1111-1111-111111111111',
+    'd1111111-1111-1111-1111-111111111112',
+    tests_dummy_pub('elena-2')
+  ),
+  (
+    '22222222-2222-2222-2222-222222222222',
+    'd2222222-2222-2222-2222-222222222221',
+    tests_dummy_pub('marco-1')
+  ),
+  (
+    '22222222-2222-2222-2222-222222222222',
+    'd2222222-2222-2222-2222-222222222222',
+    tests_dummy_pub('marco-2')
+  ),
+  (
+    '33333333-3333-3333-3333-333333333333',
+    'd3333333-3333-3333-3333-333333333331',
+    tests_dummy_pub('jordan-1')
+  ),
+  (
+    '44444444-4444-4444-4444-444444444444',
+    'd4444444-4444-4444-4444-444444444441',
+    tests_dummy_pub('rosa-1')
+  ),
+  (
+    '55555555-5555-5555-5555-555555555555',
+    'd5555555-5555-5555-5555-555555555551',
+    tests_dummy_pub('cousin-1')
+  ),
+  (
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    'daaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
+    tests_dummy_pub('other-1')
+  ),
+  (
+    '77777777-7777-7777-7777-777777777777',
+    'd7777777-7777-7777-7777-777777777771',
+    tests_dummy_pub('sitter-1')
+  ),
+  (
+    '99999999-9999-9999-9999-999999999999',
+    'd9999999-9999-9999-9999-999999999991',
+    tests_dummy_pub('heir-1')
+  );
+
+SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $sql$INSERT INTO public.family_key_meta (family_space_id, key_epoch, recovery_key_epoch)
+       SELECT rivera, 1, 1 FROM fx$sql$,
+  'admin can insert family key metadata'
+);
+SELECT lives_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT rivera, '11111111-1111-1111-1111-111111111111',
+                'd1111111-1111-1111-1111-111111111111',
+                tests_dummy_box(), 1, '11111111-1111-1111-1111-111111111111'
+       FROM fx$sql$,
+  'founding admin can wrap their own first device'
+);
+SELECT lives_ok(
+  $sql$INSERT INTO public.recovery_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, recovery_key_epoch, approved_by
+       ) SELECT rivera, '11111111-1111-1111-1111-111111111111',
+                'd1111111-1111-1111-1111-111111111111',
+                tests_dummy_box(), 1, '11111111-1111-1111-1111-111111111111'
+       FROM fx$sql$,
+  'founding admin can wrap the recovery key to their device'
+);
+SELECT lives_ok(
+  $sql$INSERT INTO public.family_key_under_recovery (family_space_id, key_epoch, wrapped_family_key)
+       SELECT rivera, 1, tests_dummy_box() FROM fx$sql$,
+  'admin can store family key sealed under recovery_key'
+);
+SELECT lives_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT rivera, '22222222-2222-2222-2222-222222222222',
+                'd2222222-2222-2222-2222-222222222221',
+                tests_dummy_box(), 1, '11111111-1111-1111-1111-111111111111'
+       FROM fx$sql$,
+  'admin can wrap another member first device'
+);
+SELECT lives_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT rivera, '33333333-3333-3333-3333-333333333333',
+                'd3333333-3333-3333-3333-333333333331',
+                tests_dummy_box(), 1, '11111111-1111-1111-1111-111111111111'
+       FROM fx$sql$,
+  'admin can wrap a teen first device'
+);
+SELECT lives_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT rivera, '44444444-4444-4444-4444-444444444444',
+                'd4444444-4444-4444-4444-444444444441',
+                tests_dummy_box(), 1, '11111111-1111-1111-1111-111111111111'
+       FROM fx$sql$,
+  'admin can wrap an elder first device'
+);
+SELECT throws_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT rivera, '55555555-5555-5555-5555-555555555555',
+                'd5555555-5555-5555-5555-555555555551',
+                tests_dummy_box(), 1, '11111111-1111-1111-1111-111111111111'
+       FROM fx$sql$,
+  '42501',
+  NULL,
+  'admin cannot wrap an extended relative'
+);
+SELECT throws_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT rivera, '77777777-7777-7777-7777-777777777777',
+                'd7777777-7777-7777-7777-777777777771',
+                tests_dummy_box(), 1, '11111111-1111-1111-1111-111111111111'
+       FROM fx$sql$,
+  '42501',
+  NULL,
+  'admin cannot wrap a caregiver'
+);
+SELECT throws_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT rivera, '99999999-9999-9999-9999-999999999999',
+                'd9999999-9999-9999-9999-999999999991',
+                tests_dummy_box(), 1, '11111111-1111-1111-1111-111111111111'
+       FROM fx$sql$,
+  '42501',
+  NULL,
+  'admin cannot wrap a successor'
+);
+SELECT throws_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT rivera, 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+                'd1111111-1111-1111-1111-111111111111',
+                tests_dummy_box(), 1, '11111111-1111-1111-1111-111111111111'
+       FROM fx$sql$,
+  '42501',
+  NULL,
+  'children have no device wraps'
+);
+SELECT throws_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT rivera, '22222222-2222-2222-2222-222222222222',
+                'd2222222-2222-2222-2222-222222222222',
+                tests_dummy_box(), 1, '11111111-1111-1111-1111-111111111111'
+       FROM fx$sql$,
+  '42501',
+  NULL,
+  'admin cannot wrap another member extra device'
+);
+SELECT throws_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT rivera, '11111111-1111-1111-1111-111111111111',
+                'd1111111-1111-1111-1111-111111111111',
+                tests_dummy_box(), 1, '11111111-1111-1111-1111-111111111111'
+       FROM fx$sql$,
+  '23505',
+  NULL,
+  'wrap unique key prevents overwrite or replay'
+);
+SELECT table_privs_are(
+  'public'::name,
+  'family_key_wraps'::name,
+  'authenticated'::name,
+  ARRAY['INSERT', 'SELECT']::text[],
+  'family key wraps are insert and select only for authenticated'
+);
+SELECT table_privs_are(
+  'public'::name,
+  'recovery_key_wraps'::name,
+  'authenticated'::name,
+  ARRAY['INSERT', 'SELECT']::text[],
+  'recovery key wraps are insert and select only for authenticated'
+);
+SELECT throws_ok(
+  $sql$INSERT INTO public.recovery_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, recovery_key_epoch, approved_by
+       ) SELECT rivera, '33333333-3333-3333-3333-333333333333',
+                'd3333333-3333-3333-3333-333333333331',
+                tests_dummy_box(), 1, '11111111-1111-1111-1111-111111111111'
+       FROM fx$sql$,
+  '42501',
+  NULL,
+  'recovery key wraps are not issued to teens'
+);
+SELECT is(
+  (SELECT count(*)::integer FROM public.family_key_wraps
+    WHERE user_id = '22222222-2222-2222-2222-222222222222'),
+  0,
+  'admin cannot read another member family key wrap'
+);
+SELECT lives_ok(
+  $sql$INSERT INTO public.recovery_requests (family_space_id, user_id, new_device_id, not_before)
+       SELECT rivera, '11111111-1111-1111-1111-111111111111',
+              'd1111111-1111-1111-1111-111111111112',
+              now() - interval '1 hour'
+       FROM fx$sql$,
+  'member can open a recovery request'
+);
+SELECT ok(
+  (
+    SELECT not_before - started_at = interval '48 hours'
+    FROM public.recovery_requests
+    WHERE user_id = '11111111-1111-1111-1111-111111111111'
+  ),
+  'server stamps not_before as now plus 48 hours ignoring the client'
+);
+SELECT is_empty(
+  $sql$SELECT 1 FROM public.family_key_under_recovery$sql$,
+  'sealed family key under recovery is hidden before not_before'
+);
+SELECT throws_ok(
+  $sql$SELECT public.complete_recovery_request(
+         (SELECT id FROM public.recovery_requests
+          WHERE user_id = '11111111-1111-1111-1111-111111111111' LIMIT 1)
+       )$sql$,
+  '42501',
+  NULL,
+  'recovery cannot complete before not_before'
+);
+RESET ROLE;
+
+SELECT tests_jwt('22222222-2222-2222-2222-222222222222');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT rivera, '22222222-2222-2222-2222-222222222222',
+                'd2222222-2222-2222-2222-222222222222',
+                tests_dummy_box(), 1, '22222222-2222-2222-2222-222222222222'
+       FROM fx$sql$,
+  'member can wrap their own extra device'
+);
+SELECT is(
+  (SELECT count(*)::integer FROM public.family_key_wraps),
+  2,
+  'member reads only their own family key wraps'
+);
+SELECT is_empty(
+  $sql$SELECT 1 FROM public.family_key_wraps
+       WHERE user_id = '11111111-1111-1111-1111-111111111111'$sql$,
+  'member cannot read another member wrap'
+);
+RESET ROLE;
+
+-- Co-admin wrapping teen extra would be unique fail if teen already wrapped; use cousin device as extra for jordan is wrong user.
+-- Co-admin trying to wrap marco extra already covered as admin. Co-admin wrapping jordan extra:
+SELECT tests_jwt('22222222-2222-2222-2222-222222222222');
+INSERT INTO public.device_keys (user_id, device_id, public_key)
+VALUES (
+  '33333333-3333-3333-3333-333333333333',
+  'd3333333-3333-3333-3333-333333333332',
+  tests_dummy_pub('jordan-2')
+);
+SET LOCAL ROLE authenticated;
+SELECT throws_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT rivera, '33333333-3333-3333-3333-333333333333',
+                'd3333333-3333-3333-3333-333333333332',
+                tests_dummy_box(), 1, '22222222-2222-2222-2222-222222222222'
+       FROM fx$sql$,
+  '42501',
+  NULL,
+  'co admin cannot wrap another member extra device'
+);
+RESET ROLE;
+
+SELECT tests_jwt('33333333-3333-3333-3333-333333333333');
+SET LOCAL ROLE authenticated;
+SELECT throws_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT rivera, '44444444-4444-4444-4444-444444444444',
+                'd4444444-4444-4444-4444-444444444441',
+                tests_dummy_box(), 1, '33333333-3333-3333-3333-333333333333'
+       FROM fx$sql$,
+  '42501',
+  NULL,
+  'teen cannot wrap another member'
+);
+SELECT is_empty(
+  $sql$SELECT 1 FROM public.family_key_wraps
+       WHERE user_id = '11111111-1111-1111-1111-111111111111'$sql$,
+  'teen cannot read an admin wrap'
+);
+RESET ROLE;
+
+SELECT tests_jwt('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+SET LOCAL ROLE authenticated;
+SELECT is_empty(
+  $sql$SELECT 1 FROM public.family_key_wraps
+       WHERE family_space_id = (SELECT rivera FROM fx)$sql$,
+  'other family cannot read Rivera wraps'
+);
+SELECT throws_ok(
+  $sql$INSERT INTO public.family_key_wraps (
+         family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+       ) SELECT rivera, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+                'daaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
+                tests_dummy_box(), 1, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+       FROM fx$sql$,
+  '42501',
+  NULL,
+  'other family cannot insert a wrap into Rivera'
+);
+SELECT throws_ok(
+  $sql$UPDATE public.patria_key_settings SET recovery_wait = interval '1 second'$sql$,
+  '42501',
+  NULL,
+  'authenticated clients cannot shorten the recovery wait'
+);
+RESET ROLE;
+
+SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $sql$SELECT public.cancel_recovery_request(
+         (SELECT id FROM public.recovery_requests
+          WHERE user_id = '11111111-1111-1111-1111-111111111111' LIMIT 1)
+       )$sql$,
+  'requester can cancel recovery'
+);
+SELECT throws_ok(
+  $sql$SELECT public.complete_recovery_request(
+         (SELECT id FROM public.recovery_requests
+          WHERE user_id = '11111111-1111-1111-1111-111111111111' LIMIT 1)
+       )$sql$,
+  '42501',
+  NULL,
+  'cancelled recovery cannot be completed'
+);
+RESET ROLE;
+
+UPDATE public.patria_key_settings SET recovery_wait = interval '2 minutes';
+SELECT tests_jwt('33333333-3333-3333-3333-333333333333');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $sql$INSERT INTO public.recovery_requests (family_space_id, user_id, new_device_id)
+       SELECT rivera, '33333333-3333-3333-3333-333333333333',
+              'd3333333-3333-3333-3333-333333333332'
+       FROM fx$sql$,
+  'recovery request can be created while wait is lowered for tests'
+);
+RESET ROLE;
+SELECT ok(
+  (
+    SELECT not_before - started_at = interval '2 minutes'
+    FROM public.recovery_requests
+    WHERE user_id = '33333333-3333-3333-3333-333333333333'
+  ),
+  'superuser can lower recovery wait on this project for tests'
+);
+UPDATE public.patria_key_settings SET recovery_wait = interval '48 hours';
+SELECT is(
+  public.recovery_wait_interval(),
+  interval '48 hours',
+  'recovery wait restored to 48 hours'
+);
+
+-- Remove Marco; wraps must go and he must read nothing.
+DELETE FROM public.space_members
+WHERE user_id = '22222222-2222-2222-2222-222222222222'
+  AND family_space_id = (SELECT rivera FROM fx);
+
+SELECT tests_jwt('22222222-2222-2222-2222-222222222222');
+SET LOCAL ROLE authenticated;
+SELECT is_empty(
+  $sql$SELECT 1 FROM public.family_key_wraps$sql$,
+  'removed member cannot read family key wraps'
+);
+RESET ROLE;
+
+SELECT is(
+  (
+    SELECT count(*)::integer FROM public.family_key_wraps
+    WHERE user_id = '22222222-2222-2222-2222-222222222222'
+  ),
+  0,
+  'member removal deletes that member wraps'
+);
+
+-- Restore Marco so later D8 tests that expect the co-admin still work.
+INSERT INTO public.space_members (family_space_id, user_id, role, relationship_label)
+SELECT rivera, '22222222-2222-2222-2222-222222222222', 'co_admin', 'Dad' FROM fx;
+SELECT tests_jwt('22222222-2222-2222-2222-222222222222');
+SELECT public.ensure_only_me_circle(
+  (SELECT rivera FROM fx),
+  '22222222-2222-2222-2222-222222222222'
+);
 
 -- D8 Yes cells as the signed-in admin, including RETURNING (how the app writes).
 SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
