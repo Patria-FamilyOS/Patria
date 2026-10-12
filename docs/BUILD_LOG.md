@@ -6,6 +6,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-12 — Family keys protocol approved (D20–D25)
+
+`docs/security/KEYS.md` is the CIR05 step 2 protocol. Two additions landed with approval: a long-lived `recovery_key` so printed codes survive family-key rotation, and SecureStore that is excluded from cloud backups (`WHEN_UNLOCKED_THIS_DEVICE_ONLY` plus the Android SharedPreferences exclude). Lasting rules are D20–D25 (KEYS approval numbered them D17–D22; those numbers were already taken). Implementation steps are in `docs/security/KEYS_IMPLEMENTATION.md`. No crypto code yet.
+
+---
+
 ## 2026-10-11 — Cap text scaling at 1.3 (D19)
 
 Full Dynamic Type is deferred until an accessibility pass before grandparents beta. Until then every Text and TextInput uses a 1.3 multiplier, no pinned line heights, and every screen still scrolls.

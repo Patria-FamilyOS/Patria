@@ -6,6 +6,8 @@
 * `BUILD_LOG.md`: running log of what we built, in what order, and why we chose each option. Append an entry after every slice.
 * `design/`: exported Figma screens. See `design/README.md`.
 * `FIRST_PROMPTS.md`: the prompts to paste into Cursor, in order, to build the first slice.
+* `security/KEYS.md`: family encryption keys and recovery (CIR05 step 2 protocol).
+* `security/KEYS_IMPLEMENTATION.md`: small-step build plan for those keys. No code until Step 1 is approved.
 
 Project rules for Cursor live in `.cursor/rules/patria.mdc` at the repository root.
 

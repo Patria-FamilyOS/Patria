@@ -136,3 +136,27 @@ The invite paste box shows on Welcome and Create family. Members already in a fa
 ## D19. Dynamic Type deferred until an accessibility pass (October 2026)
 
 Full Dynamic Type support is deferred to a dedicated accessibility pass before beta with grandparents. Until then, text scaling is capped so no screen breaks. (Phone feedback asked to number this D16; D16 already records invite delivery and decline.)
+
+## D20. Family keys stay on the phone (12 October 2026)
+
+Family keys are created on the phone; Patria never holds a usable family key. See `docs/security/KEYS.md`. (KEYS approval asked to number this D17; D17 already records member email visibility.)
+
+## D21. Who gets the family key (12 October 2026)
+
+Family admin, Co admin, Teen and Elder receive a wrap of the family key. Extended relatives, caregivers, successors and children do not. Only Family admin and Co admin devices also hold the long-lived recovery key. (Asked as D18; D18 already records where people paste an invite.)
+
+## D22. No automatic wrapping (12 October 2026)
+
+A device gets the family key only after a person taps approve. An admin lets in a member’s first phone. Members approve their own extra phones. Admins cannot approve someone else’s extra phone. (Asked as D19; D19 already records the Dynamic Type deferral.)
+
+## D23. Recovery contacts and the printed code (12 October 2026)
+
+Recovery needs any 2 of 3: contact A, contact B, and an optional 24-word printed code. There is a 48-hour wait with “This wasn’t me.” Nothing about the printed code is stored on the server. A long-lived recovery key means removing a member does not require a new printed code. (Asked as D20.)
+
+## D24. Crypto libraries for family keys (12 October 2026)
+
+CIR05 uses noble with X25519, XChaCha20-Poly1305 and HKDF-SHA256 only. Switching to libsodium before beta is the security reviewer’s decision. (Asked as D21.)
+
+## D25. When recovery contacts are required (12 October 2026)
+
+Recovery contacts are required before the Legacy Vault, not before Home. (Asked as D22.)
