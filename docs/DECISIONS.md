@@ -143,7 +143,7 @@ Family keys are created on the phone; Patria never holds a usable family key. Se
 
 ## D21. Who gets the family key (12 October 2026)
 
-Family admin, Co admin, Teen and Elder receive a wrap of the family key. Extended relatives, caregivers, successors and children do not. Only Family admin and Co admin devices also hold the long-lived recovery key. (Asked as D18; D18 already records where people paste an invite.)
+Family admin, Co admin, Teen and Elder receive a wrap of the family key. Extended relatives, caregivers, successors and children do not. Recovery private keys are not kept on any device (D27). (Asked as D18; D18 already records where people paste an invite.)
 
 ## D22. No automatic wrapping (12 October 2026)
 
@@ -151,7 +151,7 @@ A device gets the family key only after a person taps approve. An admin lets in 
 
 ## D23. Recovery contacts and the printed code (12 October 2026)
 
-Recovery needs any 2 of 3: contact A, contact B, and an optional 24-word printed code. There is a 48-hour wait with “This wasn’t me.” Nothing about the printed code is stored on the server. A long-lived recovery key means removing a member does not require a new printed code. (Asked as D20.)
+Recovery needs any 2 of 3: contact A, contact B, and an optional 24-word printed code. There is a 48-hour wait with “This wasn’t me.” Nothing about the printed code is stored on the server. Removing a key holder rotates the family key; other members do not need a new printed code unless that person was their recovery contact. (Asked as D20. D27 replaces a single family-wide recovery secret.)
 
 ## D24. Crypto libraries for family keys (12 October 2026)
 
@@ -164,3 +164,7 @@ Recovery contacts are required before the Legacy Vault, not before Home. (Asked 
 ## D26. Recovery contacts in v1 are adult family members with keys (12 October 2026)
 
 Recovery contacts (first version) are adult family members with a key-eligible role (Family admin, Co admin, Elder) whose device has been let in. Not teens, children, extended relatives, caregivers or successors. Contacts outside the family come later with a recovery-contact invite. (Asked as D23; D23 already records the 2-of-3 recovery protocol.)
+
+## D27. Per member recovery key pairs replace the single family recovery key (13 October 2026)
+
+Each key-holding member has an X25519 recovery key pair. The public half is stored on the server. The private half exists only inside that member’s 2-of-3 pair boxes and is wiped from memory after setup and after recovery. No device keeps it. There is no family-wide recovery secret and no `recovery_key_wraps`. The family key under recovery is one sealed box per member per epoch, sealed to that member’s recovery public key with the existing wrap module. Rotation seals the new family key to remaining members’ recovery public keys; it cannot open those private keys. A removed admin, a completed recovery, or two contacts of one member must not be able to open another member’s future recovery boxes.

@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-13 — Per-member recovery key pairs (D27)
+
+One family-wide recovery secret would let a removed admin, anyone who had recovered, or two contacts of any member open every future sealed family-key box. D27 gives each key-holding member an X25519 recovery pair: public half on the server, private half only in that member’s 2-of-3 boxes, wiped after use. Docs (PRD, FEATURES CIR05 and Letters to the Future, KEYS 4d/4e) now match. Stolen-phone rotation with no membership change stays an open question.
+
+---
+
 ## 2026-10-12 — Recover after losing every phone (KEYS.md 4d)
 
 A signed-in member starts recovery on a new phone. The server stamps a 48-hour wait (D23; KEYS asked as D20) and a 7-day expiry after `not_before`. Keys stay on the phone (D20; KEYS asked as D17). Contacts confirm in person, then after the wait rewrap a holder secret to the new device. Any two of contact A, contact B, and the printed code reconstruct `recovery_key` on that phone, which opens the current epoch’s family-key box. Complete records the new wrap and does not revoke old devices: the server cannot tell that the new phone really unwrapped the family key, so auto-revoke would let a password plus one colluding contact wipe the owner’s phones. After a local unwrap, the new phone offers “Remove your old phones” through the existing remove-device RPC, which notifies admins. Cancel is the requester’s devices or a family admin, never a contact; we record who cancelled. One open request per user per family. If the recovering member is a family admin, that phone also wraps the recovery key to itself so they can keep helping with recovery. Paper is typed only on the new phone and never stored. Human security review still required on the crypto files.

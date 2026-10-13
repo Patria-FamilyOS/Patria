@@ -1,6 +1,6 @@
 # Family encryption keys and recovery contacts
 
-**CIR05 step 2.** Protocol approved (with recovery_key and backup-excluded SecureStore). Implementation waits on `docs/security/KEYS_IMPLEMENTATION.md` Step 1.
+**CIR05 step 2.** Protocol approved (with per-member recovery key pairs, D27, and backup-excluded SecureStore). Implementation waits on `docs/security/KEYS_IMPLEMENTATION.md` Step 1.
 
 This slice creates and stores keys so the Legacy Vault can later encrypt on the device. **Vault content encryption is not in this slice** (LEG01–LEG03). Successors getting keys at handover is **GROW04**, not now.
 
@@ -61,8 +61,8 @@ We do **not** encrypt the slice 1 family home (space name, member list, invites)
 * Family data encryption key (symmetric), one per family space (D5: many spaces ⇒ many family keys). Rotates when a member is removed.
 * **Recovery key** (symmetric, 256-bit), one per family space, **long-lived**. Rotates only when a recovery contact is removed or the printed code is reported lost.
 * Per-device X25519 key pair for each signed-in member.
-* Recovery boxes (Shamir or pairwise) protect the **recovery_key**, not the family key.
-* Per epoch: family key wrapped under recovery_key (on the server as ciphertext only).
+* Recovery boxes (pairwise) protect **that member’s recovery private key**, not the family key.
+* Per epoch and member: family key wrapped to that member’s recovery public key (on the server as ciphertext only).
 * Later: ciphertext of vault objects (not this slice), preferably with per-item or per-circle keys.
 
 **Adversaries we design for**
@@ -93,7 +93,7 @@ We do **not** encrypt the slice 1 family home (space name, member list, invites)
 Think of four things:
 
 1. **The family key** — one secret for “The Rivera Family” space. It will later lock and unlock vault items. It is created on a phone, never typed into our website, never stored as-is on our servers. When someone leaves the family, this key changes.
-2. **The recovery key** — a second secret for the same space. Contacts and the printed code unlock **this** key, not the family key. So if Marco is removed and the family key changes, Elena does **not** need a new printed code. We only change the recovery key if a contact is removed or the paper is reported lost.
+2. **That member’s recovery key pair** — contacts and the printed code unlock **this member’s** recovery private key, not the family key. If Marco is removed and the family key changes, Elena does **not** need a new printed code. She only redos recovery setup if one of **her** contacts left or she reported the paper lost. Until she redos, remaining contact plus paper still work; the removed contact cannot approve.
 3. **Each person’s device keys** — every phone that signs in makes its own lock (public) and key (private). The private half never leaves that phone’s secure store, and it is **never copied into iCloud or Google backup**.
 4. **A wrapped copy of the family key for each approved device** — like putting the family key in a box that only that phone’s lock can open. We store the boxes. We never store the family key sitting on the table.
 
@@ -111,16 +111,16 @@ The server can see: “Marco has a box, version 1, created Tuesday.” It cannot
 * Rotates (`key_epoch++`) when a **member who had a wrap is removed**.
 * Algorithm id stored with wraps, e.g. `fk-v1`, so we can migrate.
 
-### Recovery key
+### Recovery key pair (D27)
 
-* Separate random **256-bit** secret per family space.
-* **Long-lived.** Does not rotate when the family key rotates.
-* Held **only on approved admin (and Co admin) devices**, wrapped to those devices the same way as the family key (`recovery_key_wraps`). Teens and elders get the family key (Q2) but **not** the recovery key.
-* **Never** on the server in plaintext.
-* Recovery boxes (Shamir shares or pairwise AEAD) protect **`recovery_key`**, not the family key.
-* For each `key_epoch`, the server stores **`family_key` sealed under `recovery_key`**: XChaCha20-Poly1305, AAD = `family_space_id || key_epoch`.
-* After member-removal rotation: new family key is wrapped to remaining devices **and** sealed again under the **same** `recovery_key`. Contacts and the printed code stay valid.
-* Rotate `recovery_key` only when a **recovery contact is removed** or the **printed code is reported lost**, then prompt for a new printed code and rebuild recovery boxes.
+* Each key-holding member has an **X25519** recovery key pair. Not a family-wide secret.
+* **Public half** is stored on the server (`recovery_public_keys`).
+* **Private half** exists only inside that member’s 2-of-3 pair boxes (A with B, A with paper, B with paper). No device keeps it after setup or recovery; wipe it from memory after use. There is no `recovery_key_wraps` table and no path that wraps a recovery private key to a phone.
+* Pair boxes use the existing wrap / pairwise AEAD module (X25519, HKDF-SHA256, XChaCha20-Poly1305 with AAD). No new primitive.
+* For each `key_epoch` and member who has recovery set up, the server stores **`family_key` sealed to that member’s recovery public key** (`family_key_under_recovery`): same wrap module, AAD = `family_space_id || key_epoch || user_id`.
+* After member-removal rotation: new family key is wrapped to remaining let-in devices **and** sealed to each remaining member’s recovery public key. The rotating admin cannot open those private keys.
+* Members without recovery set up get no sealed box. When they set recovery up, their phone seals the current epoch to the new public key.
+* If a recovery contact is removed: that member’s existing pair boxes stay usable with the remaining contact plus printed code until they redo setup. The removed person is dropped as a contact so they cannot approve. On redo, delete the old recovery public key and all its sealed boxes, then mint a new pair.
 
 **Primitives (must exist in both noble and libsodium, so stored blobs stay compatible if we switch libraries):**
 
@@ -136,7 +136,7 @@ Associated data for every member wrap (decision Q9):
 
 * **X25519:** `device_private` + `device_public`.
 * **One pair per signed-in user per device**, not per family. Elena in two families (D5) has one device pair and two wrapped family keys (once each space has approved that device).
-* `device_private` only in **expo-secure-store**, never AsyncStorage, never logged, never in Postgres. Same for any cached unwrapped family key or recovery key on an admin device.
+* `device_private` only in **expo-secure-store**, never AsyncStorage, never logged, never in Postgres. Same for any cached unwrapped family key. Recovery private keys are not cached on devices (D27).
 * **Not in cloud backups.** Every `setItemAsync` for keys uses iOS `keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY` (item is not included in encrypted iCloud/device-to-device keychain backups). On Android, values already use Keystore-backed encryption; we **exclude** the `SecureStore` SharedPreferences from Auto Backup and device transfer (`configureAndroidBackup` / `<exclude domain="sharedpref" path="SecureStore"/>` per [Expo SecureStore](https://docs.expo.dev/versions/v57.0.0/sdk/securestore/)). Restoring a phone from the cloud must **not** restore usable family keys; the user goes through extra-device approval or recovery.
 * `device_public` uploaded so an **approving human’s phone** can wrap to this device. Uploading a public key does **not** grant the family key.
 
@@ -168,17 +168,17 @@ All with RLS. No plaintext key columns.
 | `device_keys` | `user_id`, `device_id`, `public_key`, `alg`, `created_at` | The user; admins and the user’s other devices (to show “approve this phone?”). Public keys are not vault secrets. |
 | `family_key_wraps` | `family_space_id`, `user_id`, `device_id`, `wrapped_key` (bytea), `alg`, `key_epoch`, `approved_by` | Only the row’s user (to unwrap). Approvers **insert**, they do not need to SELECT other people’s wrapped blobs. |
 | `family_key_meta` | `family_space_id`, `key_epoch`, `alg`, `created_at` | Members of the space. Metadata only. |
-| `recovery_key_wraps` | recovery_key boxed to **admin/co-admin devices** only | Only that admin user on that device. |
-| `family_key_under_recovery` | per `key_epoch`, family key AEAD-sealed under recovery_key; AAD `family_space_id \|\| key_epoch` | Readable by recovering devices after a valid recovery request (not before `not_before`). Admins do not need this row on a normal day (they have family_key_wraps). |
+| `recovery_public_keys` | that member’s recovery **public** key | Members of the space (needed so an admin phone can seal a new family key to them). |
+| `family_key_under_recovery` | per `user_id` and `key_epoch`, family key wrapped to that member’s recovery public key; AAD `family_space_id \|\| key_epoch \|\| user_id` | Readable by recovering devices after a valid recovery request (not before `not_before`). |
 | `device_approval_notices` | pending/seen notices for new devices | The member’s other devices and admins of spaces that member belongs to (for key-eligible roles). |
 | `recovery_contacts` | who is a recovery contact for a space | Admins manage; contacts see their own row. |
-| `recovery_pair_wraps` or Shamir share wraps | three boxes of **recovery_key** (not family key): under HKDF(A+B), HKDF(A+paper), HKDF(B+paper), or three wrapped Shamir shares of recovery_key | After recovery wait; recovering device. Contacts hold only their own secret wrap. |
+| `recovery_pair_wraps` | three boxes of **that member’s recovery private key**: under HKDF(A+B), HKDF(A+paper), HKDF(B+paper) | After recovery wait; recovering device. Contacts hold only their own secret wrap. |
 | `recovery_contact_secrets` | contact A or B’s holder secret, wrapped to **that contact’s** device public key | Only that contact. |
 | `recovery_requests` | who is recovering, new device, started_at, not_before (start+48h), cancelled | Admins, requester’s devices, named contacts (status only, not keys). |
 
-**The server never stores:** family key plaintext, recovery key plaintext, device private keys, printed recovery code, any hash or verifier of the printed code, Shamir share plaintext, contact holder secrets in plaintext.
+**The server never stores:** family key plaintext, recovery private keys, a family-wide recovery secret, device private keys, printed recovery code, any hash or verifier of the printed code, contact holder secrets in plaintext.
 
-**The server may store:** public keys, AEAD ciphertext of wraps, recovery_key wraps, family-key-under-recovery-key, pair-wraps/shares, epoch integers, algorithm strings, recovery request timestamps.
+**The server may store:** device public keys, recovery public keys, AEAD ciphertext of wraps and pair boxes, family-key-under-recovery per member per epoch, epoch integers, algorithm strings, recovery request timestamps.
 
 ---
 
@@ -214,21 +214,21 @@ We use only primitives **both** can speak, so ciphertext created today can still
 
 ## Recovery math (decision Q3 A, Q6 A)
 
-**Prefer an audited Shamir 2-of-3 package** that runs in Expo (implementation plan names `shamir-secret-sharing` and its audits). Threshold: any two of contact A, contact B, printed code. The secret that is split is **`recovery_key`**, not the family key.
+**Prefer an audited Shamir 2-of-3 package** that runs in Expo (implementation plan names `shamir-secret-sharing` and its audits). Threshold: any two of contact A, contact B, printed code. The secret that is split is **that member’s recovery private key**, not the family key.
 
-**If that package is rejected at review, do not hand-write Shamir.** Use **pairwise wrapping** of **`recovery_key`**:
+**If that package is rejected at review, do not hand-write Shamir.** Use **pairwise wrapping** of **that member’s recovery private key** with the existing wrap module:
 
 * Contact A holds `secret_A` (random 256-bit, wrapped only to A’s devices).
 * Contact B holds `secret_B` the same way.
 * Printed code is `secret_P` (≥128 bits of entropy; never on the server).
-* Store **three** AEAD ciphertexts of **recovery_key**:
-  * `box_AB = Enc(HKDF-SHA256(secret_A, secret_B), recovery_key)`
-  * `box_AP = Enc(HKDF-SHA256(secret_A, secret_P), recovery_key)`
-  * `box_BP = Enc(HKDF-SHA256(secret_B, secret_P), recovery_key)`
-* Any two holders derive the matching HKDF key and decrypt `recovery_key`. One holder cannot.
-* Then open `family_key_under_recovery` for the current `key_epoch`.
+* Store **three** AEAD ciphertexts of **the member’s recovery private key**:
+  * `box_AB = Enc(HKDF-SHA256(secret_A, secret_B), recovery_private)`
+  * `box_AP = Enc(HKDF-SHA256(secret_A, secret_P), recovery_private)`
+  * `box_BP = Enc(HKDF-SHA256(secret_B, secret_P), recovery_private)`
+* Any two holders derive the matching HKDF key and decrypt the recovery private key. One holder cannot.
+* Then open **that member’s** `family_key_under_recovery` row for the current `key_epoch` with the existing wrap module (sealed to the recovery public key). Wipe the recovery private key afterwards.
 
-HKDF info/salt must bind `family_space_id` (and a **recovery_key_epoch** if we ever rotate recovery_key) so boxes cannot be mixed across families.
+HKDF info/salt must bind `family_space_id` and the member `user_id` (and a **recovery_key_epoch** if that member redos setup) so boxes cannot be mixed across families or members.
 
 Printed code is checked **on device** by trying reconstruction (AEAD open succeeds or fails). **No hash of the code is stored on the server** (decision Q4).
 
@@ -244,18 +244,17 @@ Each flow: plain steps, then a short technical note.
 
 1. Elena names the family and we create the space (already built).
 2. Her phone creates a device key pair (once per phone) and stores the private key in the secure store.
-3. Her phone creates the **family key** and the **recovery key**.
-4. Her phone wraps both to **this same phone** (she is approving her own first device by creating the space) and uploads only the wraps.
-5. Home works. Recovery contacts are **required before Legacy Vault**, not before Home (Q1 A). We prompt until two contacts are set when she first opens a vault feature; that ceremony creates recovery boxes over **recovery_key** and the optional printed code.
+3. Her phone creates the **family key**.
+4. Her phone wraps it to **this same phone** (she is approving her own first device by creating the space) and uploads only the wrap.
+5. Home works. Recovery helpers are **required before Legacy Vault**, not before Home (Q1 A). We prompt until two contacts are set when she first opens a vault feature; that ceremony mints **her** recovery key pair, stores the public half, puts the private half only in 2-of-3 boxes, seals the current family key to that public key, and wipes the private half.
 
 **Technical**
 
 * Generate device pair if missing. Store private key with `WHEN_UNLOCKED_THIS_DEVICE_ONLY` / Android backup exclude.
-* `family_key ← random(32)`; `recovery_key ← random(32)`.
+* `family_key ← random(32)`.
 * `key_epoch = 1`.
-* Insert `family_key_meta`, `device_keys`, `family_key_wraps` and `recovery_key_wraps` for Elena’s device (`approved_by` = herself).
-* Insert `family_key_under_recovery` for epoch 1.
-* Cache family key (and recovery key on admin devices) in SecureStore with the same accessibility.
+* Insert `family_key_meta`, `device_keys`, `family_key_wraps` for Elena’s device (`approved_by` = herself). No recovery wrap on the device.
+* Cache the family key in SecureStore with the same accessibility.
 
 ## 4b. A new member’s first device
 
@@ -265,7 +264,7 @@ Each flow: plain steps, then a short technical note.
 2. His phone creates a device key pair and uploads the public key. That is a **request**, not access.
 3. **Admins** (and Co admins) get a notice: “Marco wants this phone let in,” with **his display name** and **when the device was created**.
 4. An admin opens that notice on a phone that already has the family key and taps **“Let Marco in”** (or decline).
-5. Only then does the admin’s phone wrap the **family key** to Marco’s public key. If Marco is an admin or co-admin, also wrap **recovery_key** to that device.
+5. Only then does the admin’s phone wrap the **family key** to Marco’s public key. There is no recovery-key wrap to the device (D27).
 6. Until then Marco sees a calm screen if he opens vault: “Waiting for a family admin to let this phone in.”
 
 Other members’ apps **must never auto-wrap** because a public key appeared.
@@ -317,9 +316,9 @@ Not required for CIR05 v1 unless the reviewer asks for it: both phones show a **
 
 **Plain language**
 
-CIR05 asks for **two** recovery contacts (spouse, sibling, trusted friend). They might already be in the family, or we invite them as contacts.
+CIR05 asks for **two** recovery contacts. In v1 they are adult family members who hold the key (D26). Contacts outside the family come later.
 
-**One rogue contact must not steal the family.** Contacts do not hold the family key. They help reconstruct **recovery_key**. You need **any two of:** contact A, contact B, printed code. Then the new phone opens the current epoch’s family-key-under-recovery box.
+**One rogue contact must not steal the family.** Contacts do not hold the family key. They help reconstruct **that member’s recovery private key**. You need **any two of:** contact A, contact B, printed code. Then the new phone opens **that member’s** current-epoch family-key-under-recovery box and wipes the recovery private key.
 
 **Printed code (Q4 A, change 2)**
 
@@ -327,7 +326,7 @@ CIR05 asks for **two** recovery contacts (spouse, sibling, trusted friend). They
 * **Full entropy, at least 128 bits** — for example **24 words from a standard wordlist** (BIP-39 style list is fine if we use it only as a wordlist, not as an HD wallet).
 * Shown once. “Write this down. We cannot show it again.”
 * Confirm by typing it back on the same phone (AEAD round-trip locally).
-* **Store nothing about it on the server** — no hash, no verifier, no preview. If they type it during recovery, the device tries to open `box_AP` or `box_BP` (those boxes hold **recovery_key**). Success means it was right. The code still works after later family-key rotations.
+* **Store nothing about it on the server** — no hash, no verifier, no preview. If they type it during recovery, the device tries to open `box_AP` or `box_BP` (those boxes hold **this member’s recovery private key**). Success means it was right. The code still works after later family-key rotations until this member redos recovery setup.
 
 To recover on a new phone after sign-in:
 
@@ -335,8 +334,8 @@ To recover on a new phone after sign-in:
 2. **Waiting period: 48 hours** from that moment. Recovery cannot finish earlier.
 3. At the start we notify **all of Elena’s existing devices** (if any still registered) and **all admins**, with **“This wasn’t me”** to cancel.
 4. Contacts are told: **confirm with Elena by phone or in person** before approving. The app shows her name, family, new device created-at — not a key.
-5. After 48 hours, if not cancelled, she still needs two of {A, B, paper}. Each approving contact’s phone sends what is needed to reconstruct **recovery_key**, wrapped to her **new** device public key.
-6. Her new phone reconstructs `recovery_key`, opens `family_key_under_recovery` for the current epoch, wraps **family key** (and if she is an admin, **recovery_key**) to that device, and we revoke the lost device’s wraps.
+5. After 48 hours, if not cancelled, she still needs two of {A, B, paper}. Each approving contact’s phone sends what is needed to reconstruct **her recovery private key**, wrapped to her **new** device public key.
+6. Her new phone reconstructs that private key, opens **her** `family_key_under_recovery` row for the newest epoch, wraps the **family key** to that device, wipes the recovery private key, and then she can remove old phones. Complete does not auto-revoke old devices.
 
 **How we stop one rogue contact**
 
@@ -361,8 +360,8 @@ GROW04 later: different split. Do not overload CIR05 tables for death handover.
 
 1. Admin removes Marco (already exists for membership).
 2. We **rotate the family key** on remaining **already-approved** devices (not a back door for new devices).
-3. Seal the **new** family key under the **same recovery_key**. Contacts and the printed code stay valid.
-4. Delete Marco’s family-key wraps. If Marco was a **recovery contact**, rotate **recovery_key** as well and prompt for a new printed code.
+3. Seal the **new** family key to each remaining member’s recovery **public** key (existing wrap module). The rotating admin cannot open those private keys.
+4. Delete Marco’s family-key wraps, recovery public key, and sealed boxes. If Marco was a **recovery contact**, the people who named him see “Recovery needs attention” and must redo setup when they are ready; until then remaining contact plus printed code still work, and Marco cannot approve.
 5. **Content he already saw:** we cannot unsay it. Re-encrypting vault objects to the new epoch is a Legacy Vault job.
 6. CIR05: remaining members’ existing devices get new family-key wraps; we never wrap to an unapproved device during rotation.
 
@@ -370,9 +369,10 @@ GROW04 later: different split. Do not overload CIR05 tables for death handover.
 
 * `key_epoch++`; new random family key.
 * Re-wrap family key only to device ids that had a wrap at the old epoch and still belong to remaining key-eligible members.
-* Re-seal `family_key_under_recovery` for the new epoch with existing `recovery_key` (admins who hold recovery_key do this).
-* If a recovery contact was removed or paper reported lost: new `recovery_key`, new `recovery_key_wraps` to remaining admins, new pair-wraps/shares, new printed-code prompt.
-* RLS: removed user cannot SELECT new wraps.
+* Re-seal `family_key_under_recovery` for the new epoch to each remaining member who has a recovery public key. Exact device set and exact sealed-box set; compare-and-swap on epoch.
+* If a recovery contact was removed: keep the remaining member’s pair boxes until they redo; on redo delete old recovery public key and all its sealed boxes, then mint a new pair.
+* RLS: removed user cannot SELECT new wraps. Their old recovery material cannot open a new epoch.
+* Open later: rotating the family key after a stolen phone **without** a membership change.
 
 ## 4f. Child profiles and successors
 
@@ -430,7 +430,7 @@ No server-side key generation. No plaintext in a migration.
 * AEAD fails if AAD (space, epoch, user, device) is wrong.
 * Pairwise (or Shamir if packaged): any 2 of 3 rebuild; 1 of 3 does not.
 * Printed code: reconstruction AEAD succeeds or fails; **no** server hash helper exists.
-* Recovery reconstructs **recovery_key**, then current-epoch family key; family-key rotation does not invalidate pairwise/Shamir boxes.
+* Recovery reconstructs **that member’s recovery private key**, then that member’s current-epoch family-key box; family-key rotation does not invalidate that member’s pairwise boxes until they redo setup.
 * Recovery wait is 48 hours in production; `__DEV__` may shorten it; a test proves production is 48 hours.
 * Recovery refuses to complete before `not_before`; cancel stops delivery.
 * SecureStore writes for keys use `WHEN_UNLOCKED_THIS_DEVICE_ONLY` (test the options object).
@@ -450,7 +450,7 @@ No server-side key generation. No plaintext in a migration.
 * Recovery pair-wraps / contact secrets RLS.
 * `recovery_requests` not usable before `not_before` / after cancel.
 * `family_key_under_recovery` is ciphertext; no printed-code hash column.
-* `recovery_key_wraps` only for Family admin / Co admin devices.
+* No `recovery_key_wraps` table. No column stores a recovery private key or a family-wide recovery secret.
 * Cross-family isolation (D5).
 
 ## Human security review (required before real families)
@@ -479,7 +479,13 @@ No server-side key generation. No plaintext in a migration.
 | **Q8** | **A.** Caregivers: no wrap. |
 | **Q9** | **A.** AEAD AAD = `family_space_id \|\| key_epoch \|\| user_id \|\| device_id`. |
 
-Plus: **no automatic wrapping**; **48-hour recovery wait** with cancel and in-person/phone confirm; **long-lived recovery_key**; **SecureStore not in cloud backups**. Recorded in `docs/DECISIONS.md` as D20–D25 (KEYS approval asked for D17–D22; those numbers were already taken).
+Plus: **no automatic wrapping**; **48-hour recovery wait** with cancel and in-person/phone confirm; **per-member recovery key pairs (D27)**; **SecureStore not in cloud backups**. Recorded in `docs/DECISIONS.md` as D20–D27 (KEYS approval asked for D17–D22; those numbers were already taken).
+
+---
+
+# Open questions
+
+* Rotating the family key after a stolen phone **without any membership change** is a later slice.
 
 ---
 
@@ -497,8 +503,8 @@ This design still does **not** stop:
 8. **Timing side channels in JavaScript noble** if we have not switched to libsodium.
 9. **Denial of service** — malicious server dropping wraps or notices; annoying, not a decrypt.
 10. **Physical coercion** of an admin or both contacts.
-11. **Paper code photographed or phished** — it is a bearer share; treat like a password on paper. It survives family-key rotation by design, so a leaked old printout still unlocks **recovery_key** until that key is rotated.
-12. **Admin device that holds recovery_key stolen while unlocked** — attacker can rotate family keys and re-seal under recovery_key until we revoke that device and rotate recovery_key.
+11. **Paper code photographed or phished** — it is a bearer share; treat like a password on paper. It survives family-key rotation by design, so a leaked old printout still unlocks **that member’s** recovery private key until they redo setup.
+12. **An approved, unlocked admin phone** — the attacker can rotate the family key and seal new epochs to remaining recovery public keys until that device is revoked. They cannot open another member’s recovery private key.
 13. **Android backup misconfiguration** if a future app.json backup rule overrides Expo’s SecureStore exclude. Implementation must keep `configureAndroidBackup` / the exclude XML.
 
 ---

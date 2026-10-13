@@ -84,7 +84,7 @@ flowchart TB
 
 **Priority:** P0 (new in FRD) | **Phase:** Phase 1 | **Users:** Founding parent, invited members | **Depends on:** None (entry point)
 
-**What it is.** The first ten minutes in Patria. A parent creates the family space, sets up family keys and recovery contacts, connects a photo library, and invites the rest of the family. The goal is a moment of joy (a first story or resurfaced memory) before any setup work is asked of anyone else.
+**What it is.** The first ten minutes in Patria. A parent creates the family space, Patria creates the family key on that phone, recovery helpers are set up later before the vault is first used, then the parent connects a photo library and invites the rest of the family. The goal is a moment of joy (a first story or resurfaced memory) before any setup work is asked of anyone else.
 
 **Why it matters.** Family apps fail when they feel like homework on day one. Patria earns trust by giving value first and asking for effort later.
 
@@ -97,7 +97,7 @@ flowchart TB
 **How it works**
 
 1. Parent downloads Patria, signs up with email or Apple or Google sign in, and names the family space (for example "The Rivera Family").
-2. Patria creates the family encryption keys on the device and asks for two recovery contacts (a spouse, a sibling or a trusted friend).
+2. Patria creates the family key on the founding parent’s phone; recovery helpers are set up later, before the vault is first used. Helpers are adult family members who hold the key (contacts outside the family come later).
 3. Parent is invited to connect their photo library. Analysis starts on the device in the background.
 4. Within minutes the home view shows a first Story and a "one year ago" memory.
 5. Parent invites members by link, QR code or phone number, choosing a role (section 11 of the PRD) and default circle for each.
@@ -107,7 +107,7 @@ flowchart TB
 ```mermaid
 flowchart TD
   A([Download Patria]) --> B[Create account and name the family space]
-  B --> C[Set family keys and recovery contacts]
+  B --> C[Create the family key on this phone]
   C --> D{Connect photo library?}
   D -- Yes --> E[On device scan starts in background]
   D -- Later --> F[Show sample story and reminder]
@@ -125,7 +125,7 @@ flowchart TD
 
 * A family space must have at least one Family admin. If the last admin leaves, ownership passes to the co admin or the named successor.
 * Children under 13 can only be added by an admin; they never create accounts on their own (COPPA).
-* Recovery contacts are mandatory before the Legacy Vault can be used.
+* Recovery helpers (adult family members who hold the key) are mandatory before the Legacy Vault can be used, not before Home.
 * Invitations expire after 14 days and can be revoked at any time.
 * A person can belong to more than one family space (for example two co parenting households or their own family and their parents’ family).
 
@@ -144,6 +144,10 @@ flowchart TD
 * [ ] An elder added by phone number receives a welcome SMS within 1 minute and can reply to post.
 * [ ] Every invited member sees a "what others can see about you" summary before accepting.
 * [ ] Family keys are created on the device; the server never receives an unencrypted family key.
+* [ ] No phone gets the family key without a person approving it.
+* [ ] Recovery cannot finish before the server wait, after cancel or expiry, or with fewer than two helpers.
+* [ ] No table stores the printed code, anything derived from it, a recovery private key, or a family-wide recovery secret.
+* [ ] After a key holder leaves they cannot open any new key version.
 
 **Data captured:** Family space name, members, roles, circles, recovery contacts, invite status, key metadata (never the key itself).
 
@@ -802,7 +806,7 @@ flowchart TD
 
 1. Author writes or records the letter and picks recipients.
 2. Author picks a trigger: date, recipient age, or life event (confirmed by a named family member).
-3. Patria encrypts the letter with a release key held in split form; a tamper evident hash proves it has not changed.
+3. Patria encrypts the letter with a release key held in split form by people the family chooses, never by Patria alone, following the CIR05 family key rules; a tamper evident hash proves it has not changed.
 4. The letter moves through the states shown below until it is released or withdrawn.
 5. On release, the recipient verifies identity and opens the letter with a short note from Patria about when and why it was written.
 
