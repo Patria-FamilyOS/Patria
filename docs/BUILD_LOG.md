@@ -1,8 +1,15 @@
 # Patria build log
 
+
 Dated record of what we implemented and **why** we chose each option. Short rules that other docs must follow live in `DECISIONS.md`. This file is the narrative.
 
 How to add an entry: newest at the top, date, slice or topic, what changed, options considered, why we picked one, and what we deliberately deferred.
+
+---
+
+## 2026-10-12 — Recover after losing every phone (KEYS.md 4d)
+
+A signed-in member starts recovery on a new phone. The server stamps a 48-hour wait (D23; KEYS asked as D20) and a 7-day expiry after `not_before`. Keys stay on the phone (D20; KEYS asked as D17). Contacts confirm in person, then after the wait rewrap a holder secret to the new device. Any two of contact A, contact B, and the printed code reconstruct `recovery_key` on that phone, which opens the current epoch’s family-key box. Complete records the new wrap and does not revoke old devices: the server cannot tell that the new phone really unwrapped the family key, so auto-revoke would let a password plus one colluding contact wipe the owner’s phones. After a local unwrap, the new phone offers “Remove your old phones” through the existing remove-device RPC, which notifies admins. Cancel is the requester’s devices or a family admin, never a contact; we record who cancelled. One open request per user per family. If the recovering member is a family admin, that phone also wraps the recovery key to itself so they can keep helping with recovery. Paper is typed only on the new phone and never stored. Human security review still required on the crypto files.
 
 ---
 

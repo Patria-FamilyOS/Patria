@@ -35,6 +35,14 @@ import {
 import { ensureDeviceIdentity } from '../../lib/crypto/deviceIdentity';
 import { ensureKeysForOpenFamily, type FamilyKeyStatus } from '../../lib/crypto/familyCeremony';
 import {
+  approveRecoveryAsContact,
+  cancelledCopyKind,
+  cancelRecoveryRequest,
+  requestCanFinish,
+  supabaseRecoverFlowGateway,
+  type RecoveryRequestRow,
+} from '../../lib/crypto/recoverFlow';
+import {
   fulfillAcceptedContacts,
   loadRecoverySnapshot,
   respondRecoveryInvite,
@@ -120,6 +128,18 @@ export function HomeScreen() {
     queryFn: () =>
       loadRecoverySnapshot(spaceId as string, userId as string, current?.role),
   });
+  const recoveryRequestsQuery = useQuery({
+    queryKey: ['recoveryRequests', spaceId],
+    enabled: Boolean(spaceId),
+    refetchOnMount: 'always',
+    queryFn: () => supabaseRecoverFlowGateway.listRequests(spaceId as string),
+  });
+  const removedNoticesQuery = useQuery({
+    queryKey: ['deviceRemovedNotices', spaceId],
+    enabled: Boolean(spaceId && admin),
+    refetchOnMount: 'always',
+    queryFn: () => supabaseRecoverFlowGateway.listRemovedNotices(spaceId as string),
+  });
   const adminCount = countAdmins((membersQuery.data ?? []).map((row) => row.role));
 
   const onRefresh = useCallback(() => {
@@ -133,6 +153,8 @@ export function HomeScreen() {
       void queryClient.invalidateQueries({ queryKey: ['familyKeyStatus'] });
       void queryClient.invalidateQueries({ queryKey: ['deviceApprovalNotices', spaceId] });
       void queryClient.invalidateQueries({ queryKey: ['recoverySnapshot', spaceId, userId] });
+      void queryClient.invalidateQueries({ queryKey: ['recoveryRequests', spaceId] });
+      void queryClient.invalidateQueries({ queryKey: ['deviceRemovedNotices', spaceId] });
     }
   }, [queryClient, userId, spaceId]);
 
@@ -158,7 +180,9 @@ export function HomeScreen() {
     childrenQuery.isRefetching ||
     invitesQuery.isRefetching ||
     noticesQuery.isRefetching ||
-    recoveryQuery.isRefetching;
+    recoveryQuery.isRefetching ||
+    recoveryRequestsQuery.isRefetching ||
+    removedNoticesQuery.isRefetching;
 
   const onSignOut = async () => {
     setSigningOut(true);
@@ -278,6 +302,51 @@ export function HomeScreen() {
       logFailedAction(caught);
     });
   }, [admin, spaceId, userId, keyStatusQuery.data, recoveryQuery.data?.accepted, membersQuery.data]);
+
+  const onCancelRecovery = async (requestId: string) => {
+    setNoticeError(null);
+    setBusyNoticeId(requestId);
+    try {
+      await cancelRecoveryRequest(requestId);
+      await queryClient.invalidateQueries({ queryKey: ['recoveryRequests', spaceId] });
+    } catch (caught) {
+      logFailedAction(caught);
+      setNoticeError(copy.home.recoveryCancelFailed);
+    } finally {
+      setBusyNoticeId(null);
+    }
+  };
+
+  const onApproveRecoveryHelp = async (request: RecoveryRequestRow) => {
+    if (!userId || !spaceId) {
+      return;
+    }
+    const slot = recoveryQuery.data?.contacts.find(
+      (row) => row.userId === userId && row.status === 'accepted',
+    )?.slot;
+    if (!slot) {
+      return;
+    }
+    setNoticeError(null);
+    setBusyNoticeId(request.id);
+    try {
+      const device = await ensureDeviceIdentity(userId);
+      await approveRecoveryAsContact({
+        spaceId,
+        request,
+        slot,
+        contactUserId: userId,
+        contactDeviceId: device.deviceId,
+        contactPrivateKey: device.privateKey,
+      });
+      await queryClient.invalidateQueries({ queryKey: ['recoveryRequests', spaceId] });
+    } catch (caught) {
+      logFailedAction(caught);
+      setNoticeError(copy.home.recoveryApproveFailed);
+    } finally {
+      setBusyNoticeId(null);
+    }
+  };
 
   const onRecoveryRespond = async (accept: boolean) => {
     if (!spaceId || !userId) {
@@ -428,6 +497,101 @@ export function HomeScreen() {
             />
           </View>
         ))}
+      {keyStatusQuery.data && keyStatusQuery.data !== 'ready' ? (
+        <Button
+          label={copy.home.lostPhone}
+          variant="secondary"
+          onPress={() => router.push(routes.recoverLostPhone)}
+        />
+      ) : null}
+      {(recoveryRequestsQuery.data ?? []).map((request) => {
+        const member = (membersQuery.data ?? []).find((row) => row.userId === request.userId);
+        const name = memberDisplayName(member?.displayName);
+        const when = formatDeviceWhen(request.newDeviceCreatedAt ?? request.startedAt);
+        const open = request.cancelledAt == null && request.completedAt == null;
+        const own = request.userId === userId;
+        if (own && request.cancelledAt) {
+          return (
+            <View key={request.id} style={styles.row}>
+              <AppText style={styles.rowTitle}>
+                {cancelledCopyKind(request.cancelledBy, userId) === 'you'
+                  ? copy.home.recoveryCancelledByYou
+                  : copy.home.recoveryCancelledByAdmin}
+              </AppText>
+            </View>
+          );
+        }
+        if (own && open) {
+          return (
+            <View key={request.id} style={styles.row}>
+              <AppText style={styles.rowTitle}>{copy.home.recoveryWaiting}</AppText>
+              <Muted>{when}</Muted>
+              <Button
+                label={copy.home.notMyPhone}
+                variant="secondary"
+                busy={busyNoticeId === request.id}
+                disabled={busyNoticeId !== null && busyNoticeId !== request.id}
+                onPress={() => void onCancelRecovery(request.id)}
+              />
+              <Button
+                label={copy.recovery.lostTitle}
+                variant="secondary"
+                onPress={() => router.push(routes.recoverLostPhone)}
+              />
+            </View>
+          );
+        }
+        if (open && !own) {
+          const myContact = recoveryQuery.data?.contacts.find(
+            (row) => row.userId === userId && row.status === 'accepted',
+          );
+          if (!admin && !myContact) {
+            return null;
+          }
+          return (
+            <View key={request.id} style={styles.row}>
+              <AppText style={styles.rowTitle}>
+                {admin
+                  ? copy.home.recoveryAdminNotice.replace('{name}', name)
+                  : copy.home.recoveryContactNotice.replace('{name}', name)}
+              </AppText>
+              {myContact ? (
+                <Muted>{copy.home.recoveryContactNotice.replace('{name}', name)}</Muted>
+              ) : null}
+              <Muted>{when}</Muted>
+              {myContact && requestCanFinish(request) ? (
+                <Button
+                  label={copy.home.recoveryApproveHelp}
+                  busy={busyNoticeId === request.id}
+                  disabled={busyNoticeId !== null && busyNoticeId !== request.id}
+                  onPress={() => void onApproveRecoveryHelp(request)}
+                />
+              ) : null}
+              {admin ? (
+                <Button
+                  label={copy.home.stopThisRecovery}
+                  variant="secondary"
+                  busy={busyNoticeId === request.id}
+                  disabled={busyNoticeId !== null && busyNoticeId !== request.id}
+                  onPress={() => void onCancelRecovery(request.id)}
+                />
+              ) : null}
+            </View>
+          );
+        }
+        return null;
+      })}
+      {(removedNoticesQuery.data ?? []).map((notice) => {
+        const member = (membersQuery.data ?? []).find((row) => row.userId === notice.userId);
+        const name = memberDisplayName(member?.displayName);
+        return (
+          <View key={notice.id} style={styles.row}>
+            <AppText style={styles.rowTitle}>
+              {copy.home.deviceRemovedNotice.replace('{name}', name)}
+            </AppText>
+          </View>
+        );
+      })}
       {noticeError ? <ErrorState message={noticeError} /> : null}
       {(noticesQuery.data ?? []).map((notice) => {
         const member = (membersQuery.data ?? []).find((row) => row.userId === notice.userId);

@@ -85,6 +85,14 @@ export default function SignedInLayout() {
         name="printed-code"
         options={{ ...pushedScreenHeader, title: screenTitles.printedCode }}
       />
+      <Stack.Screen
+        name="recover-lost-phone"
+        options={{ ...pushedScreenHeader, title: screenTitles.recoverLostPhone }}
+      />
+      <Stack.Screen
+        name="remove-old-phones"
+        options={{ ...pushedScreenHeader, title: screenTitles.removeOldPhones }}
+      />
     </Stack>
   );
 }

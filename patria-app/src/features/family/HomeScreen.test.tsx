@@ -66,6 +66,18 @@ jest.mock('../../lib/crypto/deviceAccess', () => ({
   rejectOwnExtraDevice: jest.fn(async () => undefined),
 }));
 
+jest.mock('../../lib/crypto/recoverFlow', () => ({
+  supabaseRecoverFlowGateway: {
+    listRequests: jest.fn(async () => []),
+    listRemovedNotices: jest.fn(async () => []),
+  },
+  cancelRecoveryRequest: jest.fn(async () => undefined),
+  approveRecoveryAsContact: jest.fn(async () => undefined),
+  cancelledCopyKind: (cancelledBy: string, userId: string) =>
+    cancelledBy === userId ? 'you' : 'admin',
+  requestCanFinish: () => false,
+}));
+
 jest.mock('../../lib/crypto/recoverySetup', () => ({
   loadRecoverySnapshot: jest.fn(async () => ({
     contacts: [],
@@ -177,6 +189,7 @@ describe('HomeScreen invite entry', () => {
     (ensureKeysForOpenFamily as jest.Mock).mockResolvedValue('needsRelink');
     const { findByText } = renderScreen(<HomeScreen />);
     expect(await findByText(copy.home.keysNeedRelink)).toBeTruthy();
+    expect(await findByText(copy.home.lostPhone)).toBeTruthy();
   });
 
   it('refetches first-device notices on pull to refresh', async () => {

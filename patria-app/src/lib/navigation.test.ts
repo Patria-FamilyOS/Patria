@@ -42,6 +42,8 @@ describe('navigation headers', () => {
     expect(routes.yourPhones).toBe('/(signed-in)/your-phones');
     expect(routes.recoverySetup).toBe('/(signed-in)/recovery-setup');
     expect(routes.printedCode).toBe('/(signed-in)/printed-code');
+    expect(routes.recoverLostPhone).toBe('/(signed-in)/recover-lost-phone');
+    expect(routes.removeOldPhones).toBe('/(signed-in)/remove-old-phones');
   });
 
   it('lets native back leave the invite screen', () => {

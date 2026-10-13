@@ -32,14 +32,13 @@ function wrapKeyFromShared(shared: Uint8Array, aadBytes: Uint8Array): Uint8Array
   return hkdfSha256(shared, aadBytes, WRAP_INFO, KEY_BYTES);
 }
 
-export function wrapKeyToDevice(
+export function wrapSecretWithAad(
   secret32: Uint8Array,
   recipientPublicKey: Uint8Array,
-  aad: MemberWrapAad,
+  aadBytes: Uint8Array,
 ): Uint8Array {
   requireLength(secret32, KEY_BYTES);
   requireLength(recipientPublicKey, KEY_BYTES);
-  const aadBytes = encodeMemberWrapAad(aad);
   const ephemeralPrivate = randomKey32();
   try {
     const ephemeralPublic = x25519PublicKey(ephemeralPrivate);
@@ -60,16 +59,15 @@ export function wrapKeyToDevice(
   }
 }
 
-export function unwrapKeyFromDevice(
+export function unwrapSecretWithAad(
   wrapped: Uint8Array,
   recipientPrivateKey: Uint8Array,
-  aad: MemberWrapAad,
+  aadBytes: Uint8Array,
 ): Uint8Array {
   requireLength(recipientPrivateKey, KEY_BYTES);
   if (wrapped.length <= EPHEMERAL_LEN) {
     throw new Error('unwrap failed');
   }
-  const aadBytes = encodeMemberWrapAad(aad);
   const ephemeralPublic = wrapped.subarray(0, EPHEMERAL_LEN);
   const sealed = wrapped.subarray(EPHEMERAL_LEN);
   const shared = x25519SharedSecret(recipientPrivateKey, ephemeralPublic);
@@ -83,4 +81,20 @@ export function unwrapKeyFromDevice(
       wipe(wrapKey);
     }
   }
+}
+
+export function wrapKeyToDevice(
+  secret32: Uint8Array,
+  recipientPublicKey: Uint8Array,
+  aad: MemberWrapAad,
+): Uint8Array {
+  return wrapSecretWithAad(secret32, recipientPublicKey, encodeMemberWrapAad(aad));
+}
+
+export function unwrapKeyFromDevice(
+  wrapped: Uint8Array,
+  recipientPrivateKey: Uint8Array,
+  aad: MemberWrapAad,
+): Uint8Array {
+  return unwrapSecretWithAad(wrapped, recipientPrivateKey, encodeMemberWrapAad(aad));
 }

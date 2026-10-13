@@ -37,6 +37,8 @@ export const screenTitles = {
   yourPhones: copy.phones.title,
   recoverySetup: copy.recovery.title,
   printedCode: copy.recovery.printedTitle,
+  recoverLostPhone: copy.recovery.lostTitle,
+  removeOldPhones: copy.recovery.removeOldTitle,
 } as const;
 
 export const routes = {
@@ -53,6 +55,8 @@ export const routes = {
   yourPhones: '/(signed-in)/your-phones',
   recoverySetup: '/(signed-in)/recovery-setup',
   printedCode: '/(signed-in)/printed-code',
+  recoverLostPhone: '/(signed-in)/recover-lost-phone',
+  removeOldPhones: '/(signed-in)/remove-old-phones',
 } as const;
 
 export function headerWhenPushed(canGoBack: boolean) {

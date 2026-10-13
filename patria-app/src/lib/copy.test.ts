@@ -23,6 +23,10 @@ describe('copy', () => {
     expect(copy.home.recoveryNotSetup).toBe('Recovery: not set up');
     expect(copy.home.recoveryCardTitle).toBe('Set up recovery');
     expect(copy.recovery.printedBody).toMatch(/cannot show them again/i);
+    expect(copy.home.lostPhone).toBe('I lost my phone');
+    expect(copy.home.stopThisRecovery).toBe('Stop this recovery');
+    expect(copy.home.recoveryCancelledByYou).toBe('Cancelled by you');
+    expect(copy.recovery.lostAdminRecoveryKey).toMatch(/recovery key/i);
     expect(copy.home.letIn).toBe('Let in');
     expect(copy.home.declineDevice).toBe('Decline');
     expect(copy.member.fallbackName).toBe('Family member');
