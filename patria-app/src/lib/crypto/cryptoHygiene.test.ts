@@ -43,6 +43,7 @@ describe('crypto hygiene', () => {
       const printed = generatePrintedCode();
       createRecoveryBoxes(secret, randomKey32(), randomKey32(), printed.secret, {
         familySpaceId: '11111111-1111-1111-1111-111111111111',
+        userId: '22222222-2222-2222-2222-222222222222',
         recoveryKeyEpoch: 0,
       });
       expect(log).not.toHaveBeenCalled();

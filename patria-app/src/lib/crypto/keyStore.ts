@@ -161,6 +161,23 @@ export async function obtainFamilyKey(input: {
   ) => Promise<{ wrappedKey: Uint8Array; keyEpoch: number } | null>;
 }): Promise<Uint8Array | null> {
   await migrateLegacyFamilySecrets(input.userId, input.spaceId);
+  if (input.privateKey && input.privateKey.length > 0) {
+    const own = await input.fetchOwnWrap(input.spaceId, input.userId, input.deviceId);
+    if (own) {
+      try {
+        const opened = unwrapKeyFromDevice(own.wrappedKey, input.privateKey, {
+          familySpaceId: input.spaceId,
+          keyEpoch: own.keyEpoch,
+          userId: input.userId,
+          deviceId: input.deviceId,
+        });
+        await cacheFamilySecrets(input.userId, input.spaceId, opened);
+        return opened;
+      } catch {
+        // Fall back to a cached copy from this phone.
+      }
+    }
+  }
   const slot = memorySlot(input.userId, input.spaceId);
   const mem = memoryFamilyKeys.get(slot);
   if (mem) {
@@ -171,23 +188,5 @@ export async function obtainFamilyKey(input: {
     memoryFamilyKeys.set(slot, cloneKey(cached));
     return cached;
   }
-  if (!input.privateKey || input.privateKey.length === 0) {
-    return null;
-  }
-  const own = await input.fetchOwnWrap(input.spaceId, input.userId, input.deviceId);
-  if (!own) {
-    return null;
-  }
-  try {
-    const opened = unwrapKeyFromDevice(own.wrappedKey, input.privateKey, {
-      familySpaceId: input.spaceId,
-      keyEpoch: own.keyEpoch,
-      userId: input.userId,
-      deviceId: input.deviceId,
-    });
-    await cacheFamilySecrets(input.userId, input.spaceId, opened);
-    return opened;
-  } catch {
-    return null;
-  }
+  return null;
 }

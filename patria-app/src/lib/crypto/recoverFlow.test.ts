@@ -16,11 +16,10 @@ import {
   type RecoverFlowGateway,
   type RecoveryRequestRow,
 } from './recoverFlow';
-import { sealXChaCha20Poly1305 } from './aead';
 import {
-  encodeEpochAad,
   unwrapKeyFromDevice,
   unwrapSecretWithAad,
+  wrapFamilyKeyToRecoveryPublic,
   wrapKeyToDevice,
   wrapSecretWithAad,
 } from './wrap';
@@ -31,7 +30,7 @@ import { getSecretBytes } from './secureKeys';
 const SPACE = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const USER = '11111111-1111-1111-1111-111111111111';
 const CONTACT = '44444444-4444-4444-4444-444444444444';
-const ctx = { familySpaceId: SPACE, recoveryKeyEpoch: 1 };
+const ctx = { familySpaceId: SPACE, userId: USER, recoveryKeyEpoch: 1 };
 
 function installMemoryStore(store: Map<string, string>): void {
   (SecureStore.getItemAsync as jest.Mock).mockImplementation(async (key: string) => {
@@ -116,15 +115,21 @@ describe('lost-phone recovery reconstruct', () => {
 });
 
 describe('lost-phone recovery finish', () => {
-  it('wraps the family key on the new phone and the recovery key when the member is an admin', async () => {
+  it('wraps the family key on the new phone and wipes the recovery private key', async () => {
     const store = new Map<string, string>();
     installMemoryStore(store);
-    const recoveryKey = randomKey32();
+    const recoveryPair = generateDeviceKeyPair();
     const familyKey = randomKey32();
     const secretA = randomKey32();
     const secretB = randomKey32();
     const printed = generatePrintedCode();
-    const boxes = createRecoveryBoxes(recoveryKey, secretA, secretB, printed.secret, ctx);
+    const boxes = createRecoveryBoxes(
+      recoveryPair.privateKey,
+      secretA,
+      secretB,
+      printed.secret,
+      ctx,
+    );
     const newDevice = generateDeviceKeyPair();
     const request = openRequest();
     const helperAad = encodeHelperRewrapAad({
@@ -134,7 +139,7 @@ describe('lost-phone recovery finish', () => {
       deviceId: request.newDeviceId,
     });
     const wrappedA = wrapSecretWithAad(secretA, newDevice.publicKey, helperAad);
-    const inserts: { family?: Uint8Array; recovery?: Uint8Array } = {};
+    const inserts: { family?: Uint8Array } = {};
     const gateway: RecoverFlowGateway = {
       startRequest: async () => request.id,
       listRequests: async () => [request],
@@ -147,15 +152,17 @@ describe('lost-phone recovery finish', () => {
       fetchSealedFamilyKeys: async () => [
         {
           keyEpoch: 1,
-          sealed: sealXChaCha20Poly1305(recoveryKey, familyKey, encodeEpochAad(SPACE, 1)),
+          sealed: wrapFamilyKeyToRecoveryPublic(familyKey, recoveryPair.publicKey, {
+            familySpaceId: SPACE,
+            keyEpoch: 1,
+            userId: USER,
+          }),
         },
       ],
       fetchMeta: async () => ({ keyEpoch: 1, recoveryKeyEpoch: 1 }),
+      fetchRecoveryEpoch: async () => 1,
       insertFamilyWrap: async (row) => {
         inserts.family = row.wrappedKey;
-      },
-      insertRecoveryWrap: async (row) => {
-        inserts.recovery = row.wrappedKey;
       },
       completeRequest: async () => undefined,
       listRemovedNotices: async () => [],
@@ -182,14 +189,12 @@ describe('lost-phone recovery finish', () => {
       deviceId: request.newDeviceId,
     });
     expect(secretsEqual(openedFamily, familyKey)).toBe(true);
-    expect(inserts.recovery).toBeDefined();
     const cachedFamily = await getSecretBytes(familyKeyStoreKey(USER, SPACE));
     const cachedRecovery = await getSecretBytes(recoveryKeyStoreKey(USER, SPACE));
     expect(cachedFamily && secretsEqual(cachedFamily, familyKey)).toBe(true);
-    expect(cachedRecovery && secretsEqual(cachedRecovery, recoveryKey)).toBe(true);
+    expect(cachedRecovery).toBeNull();
     wipe(openedFamily);
     wipe(familyKey);
-    wipe(recoveryKey);
   });
 
   it('clears typed paper words after a bad mnemonic without wrapping', async () => {
@@ -209,10 +214,8 @@ describe('lost-phone recovery finish', () => {
       }),
       fetchSealedFamilyKeys: async () => [],
       fetchMeta: async () => ({ keyEpoch: 1, recoveryKeyEpoch: 1 }),
+      fetchRecoveryEpoch: async () => 1,
       insertFamilyWrap: async () => {
-        throw new Error('must not wrap');
-      },
-      insertRecoveryWrap: async () => {
         throw new Error('must not wrap');
       },
       completeRequest: async () => {
@@ -270,8 +273,8 @@ describe('contact helper rewrap', () => {
       fetchPairBoxes: async () => null,
       fetchSealedFamilyKeys: async () => [],
       fetchMeta: async () => ({ keyEpoch: 1, recoveryKeyEpoch: 1 }),
+      fetchRecoveryEpoch: async () => 1,
       insertFamilyWrap: async () => undefined,
-      insertRecoveryWrap: async () => undefined,
       completeRequest: async () => undefined,
       listRemovedNotices: async () => [],
     };

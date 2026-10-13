@@ -151,7 +151,6 @@ export function RecoverLostPhoneScreen() {
     <Screen withHeader accessibilityLabel={copy.recovery.lostTitle}>
       <Title>{copy.recovery.lostTitle}</Title>
       <Body>{copy.recovery.lostBody}</Body>
-      <Muted>{copy.recovery.lostAdminRecoveryKey}</Muted>
       {error ? <ErrorState message={error} /> : null}
       {!mine || mine.completedAt ? (
         <Button label={copy.recovery.lostStart} busy={busy} onPress={() => void onStart()} />

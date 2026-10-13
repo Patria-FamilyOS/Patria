@@ -15,11 +15,13 @@ const JORDAN = '33333333-3333-3333-3333-333333333333';
 function memoryGateway(contacts: RecoveryContactRow[] = []): RecoveryAccessGateway {
   return {
     fetchMeta: async () => ({ keyEpoch: 1, recoveryKeyEpoch: 1 }),
+    fetchOwnRecoveryPublic: async () => null,
     listContacts: async () => contacts,
     inviteContact: async (input) => {
       contacts.push({
         id: `c-${contacts.length}`,
         spaceId: input.spaceId,
+        memberId: input.memberId,
         userId: input.userId,
         slot: input.slot,
         status: 'pending',
@@ -28,14 +30,13 @@ function memoryGateway(contacts: RecoveryContactRow[] = []): RecoveryAccessGatew
     setContactStatus: async () => undefined,
     deleteContact: async () => undefined,
     listApprovedDevices: async () => [],
-    fetchOwnRecoveryWrap: async () => null,
-    insertRecoveryWrap: async () => undefined,
     upsertFamilyKeyUnderRecovery: async () => undefined,
+    insertRecoveryPublicKey: async () => undefined,
     insertHolderSecret: async () => undefined,
     insertPairWrap: async () => undefined,
     listPairIds: async () => [],
+    fetchPairWraps: async () => [],
     purgeCiphertext: async () => undefined,
-    bumpRecoveryKeyEpoch: async () => 2,
   };
 }
 
@@ -78,8 +79,8 @@ describe('recovery key rotation', () => {
     const secretA = randomKey32();
     const secretB = randomKey32();
     const paper = generatePrintedCode();
-    const ctxOld = { familySpaceId: SPACE, recoveryKeyEpoch: 1 };
-    const ctxNew = { familySpaceId: SPACE, recoveryKeyEpoch: 2 };
+    const ctxOld = { familySpaceId: SPACE, userId: ELENA, recoveryKeyEpoch: 1 };
+    const ctxNew = { familySpaceId: SPACE, userId: ELENA, recoveryKeyEpoch: 2 };
     const oldBoxes = createRecoveryBoxes(oldKey, secretA, secretB, paper.secret, ctxOld);
     const newA = randomKey32();
     const newB = randomKey32();

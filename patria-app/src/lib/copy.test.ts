@@ -26,7 +26,7 @@ describe('copy', () => {
     expect(copy.home.lostPhone).toBe('I lost my phone');
     expect(copy.home.stopThisRecovery).toBe('Stop this recovery');
     expect(copy.home.recoveryCancelledByYou).toBe('Cancelled by you');
-    expect(copy.recovery.lostAdminRecoveryKey).toMatch(/recovery key/i);
+    expect(copy.home.recoveryNeedsAttention).toBe('Recovery needs attention');
     expect(copy.home.letIn).toBe('Let in');
     expect(copy.home.declineDevice).toBe('Decline');
     expect(copy.member.fallbackName).toBe('Family member');

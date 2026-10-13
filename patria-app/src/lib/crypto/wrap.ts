@@ -28,6 +28,18 @@ export function encodeEpochAad(familySpaceId: string, keyEpoch: number): Uint8Ar
   return concatBytes(encodeUtf8Prefixed(familySpaceId), u32be(keyEpoch));
 }
 
+export function encodeRecoverySealAad(input: {
+  familySpaceId: string;
+  keyEpoch: number;
+  userId: string;
+}): Uint8Array {
+  return concatBytes(
+    encodeUtf8Prefixed(input.familySpaceId),
+    u32be(input.keyEpoch),
+    encodeUtf8Prefixed(input.userId),
+  );
+}
+
 function wrapKeyFromShared(shared: Uint8Array, aadBytes: Uint8Array): Uint8Array {
   return hkdfSha256(shared, aadBytes, WRAP_INFO, KEY_BYTES);
 }
@@ -97,4 +109,20 @@ export function unwrapKeyFromDevice(
   aad: MemberWrapAad,
 ): Uint8Array {
   return unwrapSecretWithAad(wrapped, recipientPrivateKey, encodeMemberWrapAad(aad));
+}
+
+export function wrapFamilyKeyToRecoveryPublic(
+  familyKey: Uint8Array,
+  recoveryPublicKey: Uint8Array,
+  aad: { familySpaceId: string; keyEpoch: number; userId: string },
+): Uint8Array {
+  return wrapSecretWithAad(familyKey, recoveryPublicKey, encodeRecoverySealAad(aad));
+}
+
+export function unwrapFamilyKeyFromRecoveryPrivate(
+  wrapped: Uint8Array,
+  recoveryPrivateKey: Uint8Array,
+  aad: { familySpaceId: string; keyEpoch: number; userId: string },
+): Uint8Array {
+  return unwrapSecretWithAad(wrapped, recoveryPrivateKey, encodeRecoverySealAad(aad));
 }

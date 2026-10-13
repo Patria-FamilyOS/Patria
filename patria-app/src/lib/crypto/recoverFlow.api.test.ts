@@ -9,7 +9,6 @@ jest.mock('../supabase', () => ({
   },
 }));
 
-import { sealXChaCha20Poly1305 } from './aead';
 import { secretsEqual, wipe } from './bytes';
 import { fromPgBytea, toPgBytea } from './pgBytea';
 import { generatePrintedCode } from './printedCode';
@@ -21,7 +20,12 @@ import {
   type RecoverFlowGateway,
   type RecoveryRequestRow,
 } from './recoverFlow';
-import { encodeEpochAad, unwrapKeyFromDevice, wrapKeyToDevice, type MemberWrapAad } from './wrap';
+import {
+  unwrapKeyFromDevice,
+  wrapFamilyKeyToRecoveryPublic,
+  wrapKeyToDevice,
+  type MemberWrapAad,
+} from './wrap';
 import { generateDeviceKeyPair } from './x25519';
 
 const LOCAL_URL = 'http://127.0.0.1:54321';
@@ -147,11 +151,12 @@ function gatewayFor(client: SupabaseClient): RecoverFlowGateway {
         wrappedSecret: fromPgBytea(row.wrapped_secret),
       }));
     },
-    fetchPairBoxes: async (spaceId, recoveryKeyEpoch) => {
+    fetchPairBoxes: async (spaceId, userId, recoveryKeyEpoch) => {
       const { data, error } = await client
         .from('recovery_pair_wraps')
         .select('pair_id, wrapped_recovery_key')
         .eq('family_space_id', spaceId)
+        .eq('user_id', userId)
         .eq('recovery_key_epoch', recoveryKeyEpoch);
       if (error) {
         throw error;
@@ -169,11 +174,12 @@ function gatewayFor(client: SupabaseClient): RecoverFlowGateway {
         boxBp: fromPgBytea(bp.wrapped_recovery_key),
       };
     },
-    fetchSealedFamilyKeys: async (spaceId) => {
+    fetchSealedFamilyKeys: async (spaceId, userId) => {
       const { data, error } = await client
         .from('family_key_under_recovery')
         .select('key_epoch, wrapped_family_key')
-        .eq('family_space_id', spaceId);
+        .eq('family_space_id', spaceId)
+        .eq('user_id', userId);
       if (error) {
         throw error;
       }
@@ -199,6 +205,18 @@ function gatewayFor(client: SupabaseClient): RecoverFlowGateway {
         recoveryKeyEpoch: data.recovery_key_epoch as number,
       };
     },
+    fetchRecoveryEpoch: async (spaceId, userId) => {
+      const { data, error } = await client
+        .from('recovery_public_keys')
+        .select('recovery_key_epoch')
+        .eq('family_space_id', spaceId)
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (error) {
+        throw error;
+      }
+      return (data?.recovery_key_epoch as number | undefined) ?? null;
+    },
     insertFamilyWrap: async (input) => {
       const { error } = await client.from('family_key_wraps').insert({
         family_space_id: input.spaceId,
@@ -206,19 +224,6 @@ function gatewayFor(client: SupabaseClient): RecoverFlowGateway {
         device_id: input.deviceId,
         wrapped_key: toPgBytea(input.wrappedKey),
         key_epoch: input.keyEpoch,
-        approved_by: input.approvedBy,
-      });
-      if (error) {
-        throw error;
-      }
-    },
-    insertRecoveryWrap: async (input) => {
-      const { error } = await client.from('recovery_key_wraps').insert({
-        family_space_id: input.spaceId,
-        user_id: input.userId,
-        device_id: input.deviceId,
-        wrapped_key: toPgBytea(input.wrappedKey),
-        recovery_key_epoch: input.recoveryKeyEpoch,
         approved_by: input.approvedBy,
       });
       if (error) {
@@ -300,7 +305,7 @@ describe('lost-phone recovery local Supabase API', () => {
       const newDeviceId = globalThis.crypto.randomUUID();
       const elderDeviceId = globalThis.crypto.randomUUID();
       const familyKey = randomKey32();
-      const recoveryKey = randomKey32();
+      const recoveryPair = generateDeviceKeyPair();
       const aadAdmin: MemberWrapAad = {
         familySpaceId: spaceId,
         keyEpoch: 1,
@@ -313,12 +318,6 @@ describe('lost-phone recovery local Supabase API', () => {
         p_public_key: toPgBytea(oldDevice.publicKey),
         p_wrapped_family_key: toPgBytea(
           wrapKeyToDevice(familyKey, oldDevice.publicKey, aadAdmin),
-        ),
-        p_wrapped_recovery_key: toPgBytea(
-          wrapKeyToDevice(recoveryKey, oldDevice.publicKey, aadAdmin),
-        ),
-        p_family_key_under_recovery: toPgBytea(
-          sealXChaCha20Poly1305(recoveryKey, familyKey, encodeEpochAad(spaceId, 1)),
         ),
         p_key_epoch: 1,
       });
@@ -352,6 +351,7 @@ describe('lost-phone recovery local Supabase API', () => {
       }
       const invite = await admin.from('recovery_contacts').insert({
         family_space_id: spaceId,
+        member_id: adminId,
         user_id: elderId,
         slot: 'a',
         created_by: adminId,
@@ -372,6 +372,7 @@ describe('lost-phone recovery local Supabase API', () => {
       const paper = generatePrintedCode();
       const holder = await admin.from('recovery_contact_secrets').insert({
         family_space_id: spaceId,
+        member_id: adminId,
         user_id: elderId,
         device_id: elderDeviceId,
         wrapped_secret: toPgBytea(wrapKeyToDevice(secretA, elderDevice.publicKey, aadElder)),
@@ -380,10 +381,41 @@ describe('lost-phone recovery local Supabase API', () => {
       if (holder.error) {
         throw holder.error;
       }
-      const boxes = createRecoveryBoxes(recoveryKey, secretA, secretB, paper.secret, {
-        familySpaceId: spaceId,
-        recoveryKeyEpoch: 1,
+      const boxes = createRecoveryBoxes(
+        recoveryPair.privateKey,
+        secretA,
+        secretB,
+        paper.secret,
+        {
+          familySpaceId: spaceId,
+          userId: adminId,
+          recoveryKeyEpoch: 1,
+        },
+      );
+      const pub = await admin.from('recovery_public_keys').insert({
+        family_space_id: spaceId,
+        user_id: adminId,
+        public_key: toPgBytea(recoveryPair.publicKey),
+        recovery_key_epoch: 1,
       });
+      if (pub.error) {
+        throw pub.error;
+      }
+      const sealed = await admin.from('family_key_under_recovery').insert({
+        family_space_id: spaceId,
+        user_id: adminId,
+        key_epoch: 1,
+        wrapped_family_key: toPgBytea(
+          wrapFamilyKeyToRecoveryPublic(familyKey, recoveryPair.publicKey, {
+            familySpaceId: spaceId,
+            keyEpoch: 1,
+            userId: adminId,
+          }),
+        ),
+      });
+      if (sealed.error) {
+        throw sealed.error;
+      }
       for (const pair of [
         { pair_id: 'ab', wrapped: boxes.boxAb },
         { pair_id: 'ap', wrapped: boxes.boxAp },
@@ -391,6 +423,7 @@ describe('lost-phone recovery local Supabase API', () => {
       ] as const) {
         const inserted = await admin.from('recovery_pair_wraps').insert({
           family_space_id: spaceId,
+          user_id: adminId,
           recovery_key_epoch: 1,
           pair_id: pair.pair_id,
           wrapped_recovery_key: toPgBytea(pair.wrapped),
@@ -494,7 +527,7 @@ describe('lost-phone recovery local Supabase API', () => {
       wipe(stillOld);
       wipe(openedNew);
       wipe(familyKey);
-      wipe(recoveryKey);
+      wipe(recoveryPair.privateKey);
       wipe(secretA);
       wipe(secretB);
       await admin.auth.signOut();

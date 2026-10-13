@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -16,10 +15,8 @@ import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
 import { logFailedAction } from '../../lib/devLog';
-import { fetchMembers } from '../../lib/family';
 import { generatePrintedCode, pickPrintedCodeChecks } from '../../lib/crypto/printedCode';
 import { savePrintedCode } from '../../lib/crypto/recoverySetup';
-import { isSpaceAdmin } from '../../lib/roles';
 import { routes } from '../../lib/navigation';
 
 export function PrintedCodeScreen() {
@@ -38,23 +35,13 @@ export function PrintedCodeScreen() {
     void readCurrentFamilyId().then(setSpaceId);
   }, []);
 
-  const membersQuery = useQuery({
-    queryKey: ['members', spaceId],
-    enabled: Boolean(spaceId),
-    queryFn: () => fetchMembers(spaceId as string),
-  });
-
-  if (!spaceId || membersQuery.isLoading) {
+  if (!spaceId) {
     return (
       <Screen withHeader>
         <LoadingState message={copy.common.loading} />
       </Screen>
     );
   }
-
-  const adminUserIds = (membersQuery.data ?? [])
-    .filter((row) => isSpaceAdmin(row.role))
-    .map((row) => row.userId);
 
   const onSave = async () => {
     if (!userId) {
@@ -65,8 +52,7 @@ export function PrintedCodeScreen() {
     try {
       await savePrintedCode({
         spaceId,
-        adminUserId: userId,
-        adminUserIds,
+        memberUserId: userId,
         printed,
         answers: checks.map((item) => ({
           index: item.index,

@@ -98,6 +98,7 @@ export const copy = {
     rejectPhoneFailed: 'We couldn’t turn that phone down. Please try again.',
     yourPhones: 'Your phones',
     recoveryNotSetup: 'Recovery: not set up',
+    recoveryNeedsAttention: 'Recovery needs attention',
     recoveryOneOfTwo: 'Recovery: 1 of 2 contacts',
     recoverySetup: 'Recovery: set up',
     recoveryYouAreContact: 'You are a recovery contact for {family}',
@@ -156,8 +157,7 @@ export const copy = {
     lostPaperLabel: 'Printed code (24 words)',
     lostPaperHint: 'Type the 24 words only on this phone. They never leave the device.',
     lostHelpers: '{n} of 2 contact helpers recorded',
-    lostAdminRecoveryKey:
-      'If you are a family admin, this phone also wraps the recovery key to itself so you can keep helping with recovery.',
+    redoSetup: 'Set up recovery again',
     removeOldTitle: 'Remove your old phones',
     removeOldBody:
       'These phones still have family keys. One tap removes the ones listed. Admins are told when a phone is removed.',

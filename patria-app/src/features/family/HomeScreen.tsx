@@ -51,7 +51,7 @@ import { ApproveMyDeviceCard, formatDeviceWhen } from '../keys/ApproveMyDeviceSc
 import { memberDisplayName } from '../../lib/displayName';
 import { describeCaughtError, logFailedAction, logKeyStep } from '../../lib/devLog';
 import { routes } from '../../lib/navigation';
-import { countAdmins, isSpaceAdmin } from '../../lib/roles';
+import { countAdmins, isKeyEligibleRole, isSpaceAdmin } from '../../lib/roles';
 import { supabase } from '../../lib/supabase';
 import { colors, spacing, type } from '../../theme';
 
@@ -104,6 +104,7 @@ export function HomeScreen() {
 
   const current = membershipsQuery.data?.find((item) => item.space.id === spaceId);
   const admin = isSpaceAdmin(current?.role);
+  const keyHolder = isKeyEligibleRole(current?.role);
 
   const keyStatusQuery = useQuery({
     queryKey: ['familyKeyStatus', spaceId, userId, current?.role],
@@ -285,23 +286,19 @@ export function HomeScreen() {
   };
 
   useEffect(() => {
-    if (!admin || !spaceId || !userId || keyStatusQuery.data !== 'ready') {
+    if (!keyHolder || !spaceId || !userId || keyStatusQuery.data !== 'ready') {
       return;
     }
     if ((recoveryQuery.data?.accepted ?? 0) === 0) {
       return;
     }
-    const adminUserIds = (membersQuery.data ?? [])
-      .filter((row) => isSpaceAdmin(row.role))
-      .map((row) => row.userId);
     void fulfillAcceptedContacts({
       spaceId,
-      adminUserId: userId,
-      adminUserIds,
+      memberUserId: userId,
     }).catch((caught: unknown) => {
       logFailedAction(caught);
     });
-  }, [admin, spaceId, userId, keyStatusQuery.data, recoveryQuery.data?.accepted, membersQuery.data]);
+  }, [keyHolder, spaceId, userId, keyStatusQuery.data, recoveryQuery.data?.accepted]);
 
   const onCancelRecovery = async (requestId: string) => {
     setNoticeError(null);
@@ -446,13 +443,16 @@ export function HomeScreen() {
       <Title>{current.space.name}</Title>
       <Muted>{copy.home.todoMemories}</Muted>
       {keyStatusQuery.data ? <Muted>{keyStatusCopy(keyStatusQuery.data)}</Muted> : null}
-      {admin && recoveryQuery.data?.status === 'not_setup' ? (
+      {keyHolder && recoveryQuery.data?.status === 'not_setup' ? (
         <Muted>{copy.home.recoveryNotSetup}</Muted>
       ) : null}
-      {admin && recoveryQuery.data?.status === 'one_of_two' ? (
+      {keyHolder && recoveryQuery.data?.status === 'one_of_two' ? (
         <Muted>{copy.home.recoveryOneOfTwo}</Muted>
       ) : null}
-      {admin && recoveryQuery.data?.status === 'setup' ? (
+      {keyHolder && recoveryQuery.data?.status === 'needs_attention' ? (
+        <Muted>{copy.home.recoveryNeedsAttention}</Muted>
+      ) : null}
+      {keyHolder && recoveryQuery.data?.status === 'setup' ? (
         <Muted>{copy.home.recoverySetup}</Muted>
       ) : null}
       {!admin && recoveryQuery.data?.status === 'contact' ? (
@@ -460,7 +460,7 @@ export function HomeScreen() {
           {copy.home.recoveryYouAreContact.replace('{family}', current.space.name)}
         </Muted>
       ) : null}
-      {admin && keyStatusQuery.data === 'ready' && (recoveryQuery.data?.accepted ?? 0) < 2 ? (
+      {keyHolder && keyStatusQuery.data === 'ready' && (recoveryQuery.data?.accepted ?? 0) < 2 ? (
         <View style={styles.row}>
           <AppText style={styles.rowTitle}>{copy.home.recoveryCardTitle}</AppText>
           <Muted>{copy.home.recoveryCardBody}</Muted>
@@ -470,7 +470,7 @@ export function HomeScreen() {
           />
         </View>
       ) : null}
-      {admin &&
+      {keyHolder &&
       recoveryQuery.data &&
       recoveryQuery.data.accepted >= 2 &&
       !recoveryQuery.data.hasPaper ? (

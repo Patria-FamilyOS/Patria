@@ -12,7 +12,11 @@ import { confirmPrintedCodeLocally } from './recoverySetup';
 import { randomKey32 } from './random';
 import { createRecoveryBoxes, openWithHolders } from './recovery';
 
-const ctx = { familySpaceId: '11111111-1111-1111-1111-111111111111', recoveryKeyEpoch: 0 };
+const ctx = {
+  familySpaceId: '11111111-1111-1111-1111-111111111111',
+  userId: '11111111-1111-1111-1111-111111111111',
+  recoveryKeyEpoch: 0,
+};
 
 describe('printed recovery code', () => {
   it('round-trips 24 words with at least 128 bits of entropy', () => {

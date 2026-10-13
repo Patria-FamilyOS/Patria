@@ -1,10 +1,10 @@
 // SECURITY REVIEW REQUIRED
 import { logKeyStep } from '../devLog';
-import { isKeyEligibleRole, isSpaceAdmin } from '../roles';
+import { isKeyEligibleRole } from '../roles';
 import { supabase } from '../supabase';
 import { wipe } from './bytes';
 import type { DeviceIdentity } from './deviceIdentity';
-import { loadCachedRecoveryKey, obtainFamilyKey } from './keyStore';
+import { obtainFamilyKey } from './keyStore';
 import { fromPgBytea, requireX25519PublicKey, toPgBytea } from './pgBytea';
 import { wrapKeyToDevice, type MemberWrapAad } from './wrap';
 
@@ -122,7 +122,7 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
       logKeyStep('count_own_wraps', error.code ?? 'unknown');
       throw error;
     }
-    return (data ?? []).length;
+    return new Set((data ?? []).map((row) => row.device_id as string)).size;
   },
 
   async insertNotice(spaceId, userId, deviceId) {
@@ -189,6 +189,8 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
       .eq('family_space_id', spaceId)
       .eq('user_id', userId)
       .eq('device_id', deviceId)
+      .order('key_epoch', { ascending: false })
+      .limit(1)
       .maybeSingle();
     if (error) {
       logKeyStep('fetch_own_wrap', error.code ?? 'unknown');
@@ -218,19 +220,14 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
     }
   },
 
-  async insertRecoveryWrap(input) {
-    const { error } = await supabase.from('recovery_key_wraps').insert({
-      family_space_id: input.spaceId,
-      user_id: input.userId,
-      device_id: input.deviceId,
-      wrapped_key: toPgBytea(input.wrappedKey),
-      recovery_key_epoch: 1,
-      approved_by: input.approvedBy,
-    });
-    if (error) {
-      logKeyStep('insert_recovery_wrap', error.code ?? 'unknown');
-      throw error;
-    }
+  async insertRecoveryWrap(_input: {
+    spaceId: string;
+    userId: string;
+    deviceId: string;
+    wrappedKey: Uint8Array;
+    approvedBy: string;
+  }) {
+    return;
   },
 
   async deleteNotice(noticeId) {
@@ -343,11 +340,6 @@ export async function approveFirstDevice(
     throw new Error('first-device wrap only');
   }
   const recipientPublicKey = requireX25519PublicKey(fromPgBytea(input.notice.publicKey));
-  const aad = firstDeviceWrapAad({
-    spaceId: input.spaceId,
-    userId: input.notice.userId,
-    deviceId: input.notice.deviceId,
-  });
   const familyKey = await obtainFamilyKey({
     userId: input.adminUserId,
     spaceId: input.spaceId,
@@ -359,6 +351,17 @@ export async function approveFirstDevice(
     throw new Error('missing family key');
   }
   try {
+    const ownWrap = await gateway.fetchOwnWrap(
+      input.spaceId,
+      input.adminUserId,
+      input.adminDeviceId,
+    );
+    const aad = firstDeviceWrapAad({
+      spaceId: input.spaceId,
+      userId: input.notice.userId,
+      deviceId: input.notice.deviceId,
+      keyEpoch: ownWrap?.keyEpoch ?? 1,
+    });
     const wrapped = wrapFamilyKeyForFirstDevice(familyKey, recipientPublicKey, aad);
     await gateway.insertFamilyWrap({
       spaceId: input.spaceId,
@@ -368,23 +371,6 @@ export async function approveFirstDevice(
       keyEpoch: aad.keyEpoch,
       approvedBy: input.adminUserId,
     });
-    if (isSpaceAdmin(input.memberRole)) {
-      const recoveryKey = await loadCachedRecoveryKey(input.adminUserId, input.spaceId);
-      if (recoveryKey) {
-        try {
-          const wrappedRecovery = wrapKeyToDevice(recoveryKey, recipientPublicKey, aad);
-          await gateway.insertRecoveryWrap({
-            spaceId: input.spaceId,
-            userId: input.notice.userId,
-            deviceId: input.notice.deviceId,
-            wrappedKey: wrappedRecovery,
-            approvedBy: input.adminUserId,
-          });
-        } finally {
-          wipe(recoveryKey);
-        }
-      }
-    }
     await gateway.deleteNotice(input.notice.id);
     logKeyStep('approve_first_device', `${input.spaceId} ${input.notice.deviceId}`);
   } finally {
@@ -408,11 +394,6 @@ export async function approveOwnExtraDevice(
     throw new Error('extra-device wrap only');
   }
   const recipientPublicKey = requireX25519PublicKey(fromPgBytea(input.notice.publicKey));
-  const aad = extraDeviceWrapAad({
-    spaceId: input.spaceId,
-    userId: input.notice.userId,
-    deviceId: input.notice.deviceId,
-  });
   const familyKey = await obtainFamilyKey({
     userId: input.userId,
     spaceId: input.spaceId,
@@ -424,6 +405,17 @@ export async function approveOwnExtraDevice(
     throw new Error('missing family key');
   }
   try {
+    const ownWrap = await gateway.fetchOwnWrap(
+      input.spaceId,
+      input.userId,
+      input.approverDeviceId,
+    );
+    const aad = extraDeviceWrapAad({
+      spaceId: input.spaceId,
+      userId: input.notice.userId,
+      deviceId: input.notice.deviceId,
+      keyEpoch: ownWrap?.keyEpoch ?? 1,
+    });
     const wrapped = wrapFamilyKeyForFirstDevice(familyKey, recipientPublicKey, aad);
     await gateway.insertFamilyWrap({
       spaceId: input.spaceId,
@@ -433,23 +425,6 @@ export async function approveOwnExtraDevice(
       keyEpoch: aad.keyEpoch,
       approvedBy: input.userId,
     });
-    if (isSpaceAdmin(input.role)) {
-      const recoveryKey = await loadCachedRecoveryKey(input.userId, input.spaceId);
-      if (recoveryKey) {
-        try {
-          const wrappedRecovery = wrapKeyToDevice(recoveryKey, recipientPublicKey, aad);
-          await gateway.insertRecoveryWrap({
-            spaceId: input.spaceId,
-            userId: input.notice.userId,
-            deviceId: input.notice.deviceId,
-            wrappedKey: wrappedRecovery,
-            approvedBy: input.userId,
-          });
-        } finally {
-          wipe(recoveryKey);
-        }
-      }
-    }
     await gateway.deleteNotice(input.notice.id);
     logKeyStep('approve_own_extra_device', `${input.spaceId} ${input.notice.deviceId}`);
   } finally {

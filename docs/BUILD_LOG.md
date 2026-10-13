@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-13 — Rotate the family key when a key holder leaves (CIR05 Step 8)
+
+When an admin, co-admin, teen, or elder leaves or is moved off a key-holding role, remaining approved phones get a new family-key epoch. The rotating admin seals that key to remaining members’ recovery public keys with the existing wrap module (D27). A removed recovery contact cannot approve; the people who named them keep remaining contact plus paper until they redo, which deletes the old recovery public key and its sealed boxes. Caregivers, extended relatives, successors, and children do not trigger rotation. Home is never blocked. Human security review still required on the crypto files.
+
+---
+
 ## 2026-10-13 — Per-member recovery key pairs (D27)
 
 One family-wide recovery secret would let a removed admin, anyone who had recovered, or two contacts of any member open every future sealed family-key box. D27 gives each key-holding member an X25519 recovery pair: public half on the server, private half only in that member’s 2-of-3 boxes, wiped after use. Docs (PRD, FEATURES CIR05 and Letters to the Future, KEYS 4d/4e) now match. Stolen-phone rotation with no membership change stays an open question.

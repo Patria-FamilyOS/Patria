@@ -25,8 +25,13 @@ import {
   legacyRecoveryKeyStoreKey,
   resetFamilyKeyMemory,
 } from './keyStore';
+import { randomKey32 } from './random';
 import { getSecretBytes } from './secureKeys';
 import { wrapKeyToDevice } from './wrap';
+
+jest.mock('./rotateFamilyKey', () => ({
+  rotateFamilyKeyIfNeeded: jest.fn(async () => false),
+}));
 
 const USER = '22222222-2222-2222-2222-222222222222';
 const TEEN = '33333333-3333-3333-3333-333333333333';
@@ -90,12 +95,10 @@ describe('founding family key ceremony', () => {
 
     expect(material.payload.wrappedFamilyKey.length).toBeGreaterThan(32);
     expect(payloadContainsPlaintextKey(material.payload, material.familyKey)).toBe(false);
-    expect(payloadContainsPlaintextKey(material.payload, material.recoveryKey)).toBe(false);
 
     const opened = unwrapFoundingFamilyKey(material.payload, device.privateKey, USER);
     expect(secretsEqual(opened, material.familyKey)).toBe(true);
     wipe(material.familyKey);
-    wipe(material.recoveryKey);
   });
 
   it('caches keys after a successful create-family commit', async () => {
@@ -105,7 +108,7 @@ describe('founding family key ceremony', () => {
     const status = await runFoundingCeremony({ spaceId: SPACE, userId: USER }, memoryGateway());
     expect(status).toBe('ready');
     expect(await getSecretBytes(familyKeyStoreKey(USER, SPACE))).not.toBeNull();
-    expect(await getSecretBytes(recoveryKeyStoreKey(USER, SPACE))).not.toBeNull();
+    expect(await getSecretBytes(recoveryKeyStoreKey(USER, SPACE))).toBeNull();
   });
 
   it('runs lazy creation when an admin opens a family with no meta', async () => {
@@ -208,7 +211,6 @@ describe('founding family key ceremony', () => {
     expect(insertNotice).not.toHaveBeenCalled();
     expect(await getSecretBytes(familyKeyStoreKey(USER, SPACE))).not.toBeNull();
     wipe(material.familyKey);
-    wipe(material.recoveryKey);
   });
 
   it('moves pre Step 4 SecureStore names to the signed-in user', async () => {
@@ -224,7 +226,7 @@ describe('founding family key ceremony', () => {
     stored.set(LEGACY_DEVICE_ID_STORE_KEY, device.deviceId);
     stored.set(LEGACY_DEVICE_PRIVATE_STORE_KEY, bytesToHex(device.privateKey));
     stored.set(legacyFamilyKeyStoreKey(SPACE), bytesToHex(material.familyKey));
-    stored.set(legacyRecoveryKeyStoreKey(SPACE), bytesToHex(material.recoveryKey));
+    stored.set(legacyRecoveryKeyStoreKey(SPACE), bytesToHex(randomKey32()));
     stored.delete(deviceIdStoreKey(USER));
     stored.delete(devicePrivateStoreKey(USER));
     stored.delete(familyKeyStoreKey(USER, SPACE));
@@ -243,7 +245,6 @@ describe('founding family key ceremony', () => {
     expect(stored.has(LEGACY_DEVICE_ID_STORE_KEY)).toBe(false);
     expect(stored.has(legacyFamilyKeyStoreKey(SPACE))).toBe(false);
     wipe(material.familyKey);
-    wipe(material.recoveryKey);
   });
 
   it('asks to be let in again when this device has no private key', async () => {
@@ -277,7 +278,6 @@ describe('founding family key ceremony', () => {
     expect(status).toBe('waitingOwnPhone');
     expect(insertNotice).toHaveBeenCalled();
     wipe(material.familyKey);
-    wipe(material.recoveryKey);
   });
 
   it('waits for another of this member’s phones when this device has no wrap', async () => {
@@ -311,7 +311,6 @@ describe('founding family key ceremony', () => {
     expect(status).toBe('waitingOwnPhone');
     expect(insertNotice).toHaveBeenCalled();
     wipe(material.familyKey);
-    wipe(material.recoveryKey);
   });
 
   it('does not put the family key hex in the postgres payload', async () => {
@@ -324,6 +323,5 @@ describe('founding family key ceremony', () => {
     });
     const familyHex = bytesToHex(material.familyKey);
     expect(bytesToHex(material.payload.wrappedFamilyKey).includes(familyHex)).toBe(false);
-    expect(bytesToHex(material.payload.familyKeyUnderRecovery).includes(familyHex)).toBe(false);
   });
 });

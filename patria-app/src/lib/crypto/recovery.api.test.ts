@@ -132,12 +132,6 @@ describe('recovery setup local Supabase API', () => {
         p_wrapped_family_key: toPgBytea(
           wrapKeyToDevice(familyKey, adminDevice.publicKey, aadAdmin),
         ),
-        p_wrapped_recovery_key: toPgBytea(
-          wrapKeyToDevice(recoveryKey, adminDevice.publicKey, aadAdmin),
-        ),
-        p_family_key_under_recovery: toPgBytea(
-          wrapKeyToDevice(familyKey, adminDevice.publicKey, aadAdmin),
-        ),
         p_key_epoch: 1,
       });
       if (ceremony.error) {
@@ -189,12 +183,14 @@ describe('recovery setup local Supabase API', () => {
       }
       const inviteElder = await admin.from('recovery_contacts').insert({
         family_space_id: spaceId,
+        member_id: adminId,
         user_id: elderId,
         slot: 'a',
         created_by: adminId,
       });
       const inviteCo = await admin.from('recovery_contacts').insert({
         family_space_id: spaceId,
+        member_id: adminId,
         user_id: coId,
         slot: 'b',
         created_by: adminId,
@@ -220,6 +216,7 @@ describe('recovery setup local Supabase API', () => {
       const paper = generatePrintedCode();
       const wrapA = await admin.from('recovery_contact_secrets').insert({
         family_space_id: spaceId,
+        member_id: adminId,
         user_id: elderId,
         device_id: elderDeviceId,
         wrapped_secret: toPgBytea(wrapKeyToDevice(secretA, elderDevice.publicKey, aadElder)),
@@ -227,6 +224,7 @@ describe('recovery setup local Supabase API', () => {
       });
       const wrapB = await admin.from('recovery_contact_secrets').insert({
         family_space_id: spaceId,
+        member_id: adminId,
         user_id: coId,
         device_id: coDeviceId,
         wrapped_secret: toPgBytea(wrapKeyToDevice(secretB, coDevice.publicKey, aadCo)),
@@ -237,10 +235,12 @@ describe('recovery setup local Supabase API', () => {
       }
       const boxes = createRecoveryBoxes(recoveryKey, secretA, secretB, paper.secret, {
         familySpaceId: spaceId,
+        userId: adminId,
         recoveryKeyEpoch: 1,
       });
       const ab = await admin.from('recovery_pair_wraps').insert({
         family_space_id: spaceId,
+        user_id: adminId,
         recovery_key_epoch: 1,
         pair_id: 'ab',
         wrapped_recovery_key: toPgBytea(boxes.boxAb),
@@ -262,7 +262,7 @@ describe('recovery setup local Supabase API', () => {
         boxes,
         { id: 'a', secret: secretA },
         { id: 'b', secret: secretB },
-        { familySpaceId: spaceId, recoveryKeyEpoch: 1 },
+        { familySpaceId: spaceId, userId: adminId, recoveryKeyEpoch: 1 },
       );
       expect(secretsEqual(opened, recoveryKey)).toBe(true);
       wipe(opened);

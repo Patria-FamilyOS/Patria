@@ -107,12 +107,6 @@ describe('pgBytea local Supabase API', () => {
         p_wrapped_family_key: toPgBytea(
           wrapKeyToDevice(familyKey, adminDevice.publicKey, aadAdmin),
         ),
-        p_wrapped_recovery_key: toPgBytea(
-          wrapKeyToDevice(familyKey, adminDevice.publicKey, aadAdmin),
-        ),
-        p_family_key_under_recovery: toPgBytea(
-          wrapKeyToDevice(familyKey, adminDevice.publicKey, aadAdmin),
-        ),
         p_key_epoch: 1,
       });
       if (ceremony.error) {

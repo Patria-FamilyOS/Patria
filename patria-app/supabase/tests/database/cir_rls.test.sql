@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(271);
+SELECT plan(284);
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -1178,7 +1178,8 @@ GRANT EXECUTE ON FUNCTION tests_dummy_pub(text) TO authenticated;
 SELECT has_table('public'::name, 'device_keys'::name);
 SELECT has_table('public'::name, 'family_key_meta'::name);
 SELECT has_table('public'::name, 'family_key_wraps'::name);
-SELECT has_table('public'::name, 'recovery_key_wraps'::name);
+SELECT hasnt_table('public'::name, 'recovery_key_wraps'::name);
+SELECT has_table('public'::name, 'recovery_public_keys'::name);
 SELECT has_table('public'::name, 'family_key_under_recovery'::name);
 SELECT has_table('public'::name, 'device_approval_notices'::name);
 SELECT has_table('public'::name, 'recovery_contacts'::name);
@@ -1189,7 +1190,7 @@ SELECT has_table('public'::name, 'patria_key_settings'::name);
 
 SELECT col_type_is('public'::name, 'device_keys'::name, 'public_key'::name, 'bytea'::name);
 SELECT col_type_is('public'::name, 'family_key_wraps'::name, 'wrapped_key'::name, 'bytea'::name);
-SELECT col_type_is('public'::name, 'recovery_key_wraps'::name, 'wrapped_key'::name, 'bytea'::name);
+SELECT col_type_is('public'::name, 'recovery_public_keys'::name, 'public_key'::name, 'bytea'::name);
 SELECT col_type_is('public'::name, 'family_key_under_recovery'::name, 'wrapped_family_key'::name, 'bytea'::name);
 SELECT col_type_is('public'::name, 'recovery_pair_wraps'::name, 'wrapped_recovery_key'::name, 'bytea'::name);
 SELECT col_type_is('public'::name, 'recovery_contact_secrets'::name, 'wrapped_secret'::name, 'bytea'::name);
@@ -1207,7 +1208,7 @@ SELECT hasnt_column('public'::name, 'recovery_requests'::name, 'printed_code_has
 SELECT hasnt_column('public'::name, 'recovery_pair_wraps'::name, 'printed_code_hash'::name);
 SELECT hasnt_column('public'::name, 'recovery_pair_wraps'::name, 'mnemonic'::name);
 SELECT hasnt_column('public'::name, 'family_key_wraps'::name, 'family_key'::name);
-SELECT hasnt_column('public'::name, 'recovery_key_wraps'::name, 'recovery_key'::name);
+SELECT hasnt_column('public'::name, 'recovery_public_keys'::name, 'private_key'::name);
 SELECT is(
   (
     SELECT count(*)::integer
@@ -1310,18 +1311,18 @@ SELECT lives_ok(
   'founding admin can wrap their own first device'
 );
 SELECT lives_ok(
-  $sql$INSERT INTO public.recovery_key_wraps (
-         family_space_id, user_id, device_id, wrapped_key, recovery_key_epoch, approved_by
+  $sql$INSERT INTO public.recovery_public_keys (
+         family_space_id, user_id, public_key, recovery_key_epoch
        ) SELECT rivera, '11111111-1111-1111-1111-111111111111',
-                'd1111111-1111-1111-1111-111111111111',
-                tests_dummy_box(), 1, '11111111-1111-1111-1111-111111111111'
+                tests_dummy_pub('elena-rk'), 1
        FROM fx$sql$,
-  'founding admin can wrap the recovery key to their device'
+  'founding admin can store their recovery public key'
 );
 SELECT lives_ok(
-  $sql$INSERT INTO public.family_key_under_recovery (family_space_id, key_epoch, wrapped_family_key)
-       SELECT rivera, 1, tests_dummy_box() FROM fx$sql$,
-  'admin can store family key sealed under recovery_key'
+  $sql$INSERT INTO public.family_key_under_recovery (
+         family_space_id, user_id, key_epoch, wrapped_family_key
+       ) SELECT rivera, '11111111-1111-1111-1111-111111111111', 1, tests_dummy_box() FROM fx$sql$,
+  'admin can store family key sealed to their recovery public key'
 );
 SELECT lives_ok(
   $sql$INSERT INTO public.family_key_wraps (
@@ -1425,21 +1426,20 @@ SELECT table_privs_are(
 );
 SELECT table_privs_are(
   'public'::name,
-  'recovery_key_wraps'::name,
+  'recovery_public_keys'::name,
   'authenticated'::name,
-  ARRAY['INSERT', 'SELECT']::text[],
-  'recovery key wraps are insert and select only for authenticated'
+  ARRAY['DELETE', 'INSERT', 'SELECT']::text[],
+  'recovery public keys are insert select and delete for authenticated'
 );
 SELECT throws_ok(
-  $sql$INSERT INTO public.recovery_key_wraps (
-         family_space_id, user_id, device_id, wrapped_key, recovery_key_epoch, approved_by
+  $sql$INSERT INTO public.recovery_public_keys (
+         family_space_id, user_id, public_key, recovery_key_epoch
        ) SELECT rivera, '33333333-3333-3333-3333-333333333333',
-                'd3333333-3333-3333-3333-333333333331',
-                tests_dummy_box(), 1, '11111111-1111-1111-1111-111111111111'
+                tests_dummy_pub('jordan-rk'), 1
        FROM fx$sql$,
   '42501',
   NULL,
-  'recovery key wraps are not issued to teens'
+  'cannot store another member recovery public key'
 );
 SELECT is(
   (SELECT count(*)::integer FROM public.family_key_wraps
@@ -1665,8 +1665,6 @@ SELECT lives_ok(
          'daaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
          tests_dummy_pub('other-1'),
          tests_dummy_box(),
-         tests_dummy_box(),
-         tests_dummy_box(),
          1
        )$sql$,
   'admin of that space can commit founding keys atomically'
@@ -1676,8 +1674,6 @@ SELECT throws_ok(
          (SELECT other FROM fx),
          'daaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
          tests_dummy_pub('other-1'),
-         tests_dummy_box(),
-         tests_dummy_box(),
          tests_dummy_box(),
          1
        )$sql$,
@@ -1695,8 +1691,6 @@ SELECT throws_ok(
          'd1111111-1111-1111-1111-111111111111',
          tests_dummy_pub('elena-1'),
          tests_dummy_box(),
-         tests_dummy_box(),
-         tests_dummy_box(),
          1
        )$sql$,
   '42501',
@@ -1708,8 +1702,6 @@ SELECT throws_ok(
          (SELECT rivera FROM fx),
          'd1111111-1111-1111-1111-111111111111',
          tests_dummy_pub('elena-1'),
-         tests_dummy_box(),
-         tests_dummy_box(),
          tests_dummy_box(),
          1
        )$sql$,
@@ -1726,8 +1718,6 @@ SELECT throws_ok(
          (SELECT rivera FROM fx),
          'd3333333-3333-3333-3333-333333333331',
          tests_dummy_pub('jordan-1'),
-         tests_dummy_box(),
-         tests_dummy_box(),
          tests_dummy_box(),
          1
        )$sql$,
@@ -2070,17 +2060,18 @@ SELECT has_column(
   'recovery contacts have an accept status'
 );
 
-SELECT tests_jwt('33333333-3333-3333-3333-333333333333');
+SELECT tests_jwt('77777777-7777-7777-7777-777777777777');
 SET LOCAL ROLE authenticated;
 SELECT throws_ok(
   $sql$INSERT INTO public.recovery_contacts (
-         family_space_id, user_id, slot, created_by
-       ) SELECT rivera, '44444444-4444-4444-4444-444444444444',
-                'a', '33333333-3333-3333-3333-333333333333'
+         family_space_id, member_id, user_id, slot, created_by
+       ) SELECT rivera, '77777777-7777-7777-7777-777777777777',
+                '44444444-4444-4444-4444-444444444444',
+                'a', '77777777-7777-7777-7777-777777777777'
        FROM fx$sql$,
   '42501',
   NULL,
-  'only admins create recovery contacts'
+  'caregivers cannot create recovery contacts'
 );
 RESET ROLE;
 
@@ -2088,8 +2079,9 @@ SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
 SET LOCAL ROLE authenticated;
 SELECT throws_ok(
   $sql$INSERT INTO public.recovery_contacts (
-         family_space_id, user_id, slot, created_by
-       ) SELECT rivera, '33333333-3333-3333-3333-333333333333',
+         family_space_id, member_id, user_id, slot, created_by
+       ) SELECT rivera, '11111111-1111-1111-1111-111111111111',
+                '33333333-3333-3333-3333-333333333333',
                 'a', '11111111-1111-1111-1111-111111111111'
        FROM fx$sql$,
   '42501',
@@ -2098,16 +2090,18 @@ SELECT throws_ok(
 );
 SELECT lives_ok(
   $sql$INSERT INTO public.recovery_contacts (
-         family_space_id, user_id, slot, created_by
-       ) SELECT rivera, '22222222-2222-2222-2222-222222222222',
+         family_space_id, member_id, user_id, slot, created_by
+       ) SELECT rivera, '11111111-1111-1111-1111-111111111111',
+                '22222222-2222-2222-2222-222222222222',
                 'a', '11111111-1111-1111-1111-111111111111'
        FROM fx$sql$,
   'admin can invite an eligible co admin as a recovery contact'
 );
 SELECT lives_ok(
   $sql$INSERT INTO public.recovery_contacts (
-         family_space_id, user_id, slot, created_by
-       ) SELECT rivera, '44444444-4444-4444-4444-444444444444',
+         family_space_id, member_id, user_id, slot, created_by
+       ) SELECT rivera, '11111111-1111-1111-1111-111111111111',
+                '44444444-4444-4444-4444-444444444444',
                 'b', '11111111-1111-1111-1111-111111111111'
        FROM fx$sql$,
   'admin can invite an eligible elder as a recovery contact'
@@ -2127,8 +2121,9 @@ SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
 SET LOCAL ROLE authenticated;
 SELECT lives_ok(
   $sql$INSERT INTO public.recovery_contact_secrets (
-         family_space_id, user_id, device_id, wrapped_secret, recovery_key_epoch
-       ) SELECT rivera, '22222222-2222-2222-2222-222222222222',
+         family_space_id, member_id, user_id, device_id, wrapped_secret, recovery_key_epoch
+       ) SELECT rivera, '11111111-1111-1111-1111-111111111111',
+                '22222222-2222-2222-2222-222222222222',
                 'd2222222-2222-2222-2222-222222222221',
                 tests_dummy_box(), 1
        FROM fx$sql$,
@@ -2442,6 +2437,98 @@ SET LOCAL ROLE authenticated;
 SELECT is_empty(
   $sql$SELECT 1 FROM public.device_removed_notices$sql$,
   'other family cannot read device-removed notices'
+);
+RESET ROLE;
+
+UPDATE public.family_spaces
+SET rotation_needed = false
+WHERE id = (SELECT rivera FROM fx);
+SELECT is(
+  (SELECT rotation_needed FROM public.family_spaces WHERE id = (SELECT rivera FROM fx)),
+  false,
+  'rotation is not needed before a key holder leaves'
+);
+SELECT lives_ok(
+  $sql$DELETE FROM public.space_members
+       WHERE family_space_id = (SELECT rivera FROM fx)
+         AND user_id = '55555555-5555-5555-5555-555555555555'$sql$,
+  'extended relative can be removed without key rotation'
+);
+SELECT is(
+  (SELECT rotation_needed FROM public.family_spaces WHERE id = (SELECT rivera FROM fx)),
+  false,
+  'removing a non key holder does not flag rotation'
+);
+SELECT lives_ok(
+  $sql$DELETE FROM public.space_members
+       WHERE family_space_id = (SELECT rivera FROM fx)
+         AND user_id = '22222222-2222-2222-2222-222222222222'$sql$,
+  'admin can remove a key holder'
+);
+SELECT is(
+  (SELECT rotation_needed FROM public.family_spaces WHERE id = (SELECT rivera FROM fx)),
+  true,
+  'removing a key holder flags rotation'
+);
+SELECT is_empty(
+  $sql$SELECT 1 FROM public.family_key_wraps
+       WHERE user_id = '22222222-2222-2222-2222-222222222222'$sql$,
+  'removed key holder wraps are deleted'
+);
+SELECT is_empty(
+  $sql$SELECT 1 FROM public.recovery_contacts
+       WHERE user_id = '22222222-2222-2222-2222-222222222222'
+          OR member_id = '22222222-2222-2222-2222-222222222222'$sql$,
+  'removed person is dropped as a recovery contact'
+);
+SELECT isnt_empty(
+  $sql$SELECT 1 FROM public.recovery_public_keys
+       WHERE user_id = '11111111-1111-1111-1111-111111111111'$sql$,
+  'remaining member recovery public key stays until they redo'
+);
+SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $sql$SELECT public.rotate_family_key(
+         (SELECT rivera FROM fx),
+         (SELECT key_epoch FROM public.family_key_meta WHERE family_space_id = (SELECT rivera FROM fx)),
+         COALESCE(ARRAY_AGG(t.user_id ORDER BY t.user_id, t.device_id), ARRAY[]::uuid[]),
+         COALESCE(ARRAY_AGG(t.device_id ORDER BY t.user_id, t.device_id), ARRAY[]::uuid[]),
+         COALESCE(ARRAY_AGG(tests_dummy_box() ORDER BY t.user_id, t.device_id), ARRAY[]::bytea[]),
+         COALESCE(
+           (SELECT ARRAY_AGG(r.user_id ORDER BY r.user_id)
+            FROM public.recovery_public_keys AS r
+            WHERE r.family_space_id = (SELECT rivera FROM fx)),
+           ARRAY[]::uuid[]
+         ),
+         COALESCE(
+           (SELECT ARRAY_AGG(tests_dummy_box() ORDER BY r.user_id)
+            FROM public.recovery_public_keys AS r
+            WHERE r.family_space_id = (SELECT rivera FROM fx)),
+           ARRAY[]::bytea[]
+         )
+       )
+       FROM public.rotation_wrap_targets((SELECT rivera FROM fx)) AS t$sql$,
+  'admin can rotate remaining wraps and sealed boxes'
+);
+RESET ROLE;
+SELECT is(
+  (SELECT key_epoch FROM public.family_key_meta WHERE family_space_id = (SELECT rivera FROM fx)),
+  2,
+  'rotation advances the family key epoch'
+);
+SELECT is(
+  (SELECT rotation_needed FROM public.family_spaces WHERE id = (SELECT rivera FROM fx)),
+  false,
+  'successful rotation clears the flag'
+);
+INSERT INTO public.space_members (family_space_id, user_id, role, relationship_label)
+SELECT rivera, '22222222-2222-2222-2222-222222222222', 'co_admin', 'Dad' FROM fx;
+SELECT tests_jwt('22222222-2222-2222-2222-222222222222');
+SET LOCAL ROLE authenticated;
+SELECT is_empty(
+  $sql$SELECT 1 FROM public.family_key_wraps WHERE key_epoch = 2$sql$,
+  'removed then restored member cannot read the new epoch wrap'
 );
 RESET ROLE;
 

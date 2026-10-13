@@ -14,6 +14,7 @@ export type RecoveryBoxes = {
 
 export type RecoveryContext = {
   familySpaceId: string;
+  userId: string;
   recoveryKeyEpoch: number;
 };
 
@@ -22,6 +23,7 @@ const PAIR_INFO = utf8ToBytes('patria-rk-pair-v1');
 function pairAad(ctx: RecoveryContext, pair: RecoveryPairId): Uint8Array {
   return concatBytes(
     encodeUtf8Prefixed(ctx.familySpaceId),
+    encodeUtf8Prefixed(ctx.userId),
     u32be(ctx.recoveryKeyEpoch),
     utf8ToBytes(pair),
   );
@@ -34,6 +36,7 @@ function pairWrapKey(secretX: Uint8Array, secretY: Uint8Array, ctx: RecoveryCont
   const info = concatBytes(
     PAIR_INFO,
     encodeUtf8Prefixed(ctx.familySpaceId),
+    encodeUtf8Prefixed(ctx.userId),
     u32be(ctx.recoveryKeyEpoch),
   );
   return hkdfSha256(ordered[0], ordered[1], info, KEY_BYTES);

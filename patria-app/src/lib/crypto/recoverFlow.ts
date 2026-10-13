@@ -1,8 +1,6 @@
 // SECURITY REVIEW REQUIRED
 import { logKeyStep } from '../devLog';
-import { isSpaceAdmin } from '../roles';
 import { supabase } from '../supabase';
-import { openXChaCha20Poly1305 } from './aead';
 import { concatBytes, encodeUtf8Prefixed, wipe } from './bytes';
 import { cacheFamilySecrets } from './keyStore';
 import { fromPgBytea, requireX25519PublicKey, toPgBytea } from './pgBytea';
@@ -13,7 +11,7 @@ import {
   type RecoveryContext,
 } from './recovery';
 import {
-  encodeEpochAad,
+  unwrapFamilyKeyFromRecoveryPrivate,
   unwrapKeyFromDevice,
   unwrapSecretWithAad,
   wrapKeyToDevice,
@@ -54,25 +52,25 @@ export type RecoverFlowGateway = {
   ): Promise<HolderSecretRow | null>;
   approveHelper(requestId: string, slot: HelperSlot, wrappedSecret: Uint8Array): Promise<void>;
   listHelpers(requestId: string): Promise<{ slot: HelperSlot; wrappedSecret: Uint8Array }[]>;
-  fetchPairBoxes(spaceId: string, recoveryKeyEpoch: number): Promise<RecoveryBoxes | null>;
-  fetchSealedFamilyKeys(spaceId: string): Promise<{ keyEpoch: number; sealed: Uint8Array }[]>;
+  fetchPairBoxes(
+    spaceId: string,
+    userId: string,
+    recoveryKeyEpoch: number,
+  ): Promise<RecoveryBoxes | null>;
+  fetchSealedFamilyKeys(
+    spaceId: string,
+    userId: string,
+  ): Promise<{ keyEpoch: number; sealed: Uint8Array }[]>;
   fetchMeta(
     spaceId: string,
   ): Promise<{ keyEpoch: number; recoveryKeyEpoch: number } | null>;
+  fetchRecoveryEpoch(spaceId: string, userId: string): Promise<number | null>;
   insertFamilyWrap(input: {
     spaceId: string;
     userId: string;
     deviceId: string;
     wrappedKey: Uint8Array;
     keyEpoch: number;
-    approvedBy: string;
-  }): Promise<void>;
-  insertRecoveryWrap(input: {
-    spaceId: string;
-    userId: string;
-    deviceId: string;
-    wrappedKey: Uint8Array;
-    recoveryKeyEpoch: number;
     approvedBy: string;
   }): Promise<void>;
   completeRequest(requestId: string): Promise<void>;
@@ -300,11 +298,12 @@ export const supabaseRecoverFlowGateway: RecoverFlowGateway = {
     }));
   },
 
-  async fetchPairBoxes(spaceId, recoveryKeyEpoch) {
+  async fetchPairBoxes(spaceId, userId, recoveryKeyEpoch) {
     const { data, error } = await supabase
       .from('recovery_pair_wraps')
       .select('pair_id, wrapped_recovery_key')
       .eq('family_space_id', spaceId)
+      .eq('user_id', userId)
       .eq('recovery_key_epoch', recoveryKeyEpoch);
     if (error) {
       logKeyStep('fetch_pair_boxes', error.code ?? 'unknown');
@@ -324,11 +323,12 @@ export const supabaseRecoverFlowGateway: RecoverFlowGateway = {
     };
   },
 
-  async fetchSealedFamilyKeys(spaceId) {
+  async fetchSealedFamilyKeys(spaceId, userId) {
     const { data, error } = await supabase
       .from('family_key_under_recovery')
       .select('key_epoch, wrapped_family_key')
       .eq('family_space_id', spaceId)
+      .eq('user_id', userId)
       .order('key_epoch', { ascending: false });
     if (error) {
       logKeyStep('fetch_sealed_family_keys', error.code ?? 'unknown');
@@ -359,6 +359,23 @@ export const supabaseRecoverFlowGateway: RecoverFlowGateway = {
     };
   },
 
+  async fetchRecoveryEpoch(spaceId, userId) {
+    const { data, error } = await supabase
+      .from('recovery_public_keys')
+      .select('recovery_key_epoch')
+      .eq('family_space_id', spaceId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) {
+      logKeyStep('fetch_recovery_epoch', error.code ?? 'unknown');
+      throw error;
+    }
+    if (!data) {
+      return null;
+    }
+    return data.recovery_key_epoch as number;
+  },
+
   async insertFamilyWrap(input) {
     const { error } = await supabase.from('family_key_wraps').insert({
       family_space_id: input.spaceId,
@@ -370,21 +387,6 @@ export const supabaseRecoverFlowGateway: RecoverFlowGateway = {
     });
     if (error) {
       logKeyStep('insert_recovered_family_wrap', error.code ?? 'unknown');
-      throw error;
-    }
-  },
-
-  async insertRecoveryWrap(input) {
-    const { error } = await supabase.from('recovery_key_wraps').insert({
-      family_space_id: input.spaceId,
-      user_id: input.userId,
-      device_id: input.deviceId,
-      wrapped_key: toPgBytea(input.wrappedKey),
-      recovery_key_epoch: input.recoveryKeyEpoch,
-      approved_by: input.approvedBy,
-    });
-    if (error) {
-      logKeyStep('insert_recovered_recovery_wrap', error.code ?? 'unknown');
       throw error;
     }
   },
@@ -497,7 +499,9 @@ export async function finishLostPhoneRecovery(
   if (!meta) {
     throw new Error('unwrap failed');
   }
-  const boxes = await gateway.fetchPairBoxes(input.spaceId, meta.recoveryKeyEpoch);
+  const recoveryKeyEpoch =
+    (await gateway.fetchRecoveryEpoch(input.spaceId, input.userId)) ?? meta.recoveryKeyEpoch;
+  const boxes = await gateway.fetchPairBoxes(input.spaceId, input.userId, recoveryKeyEpoch);
   if (!boxes) {
     throw new Error('unwrap failed');
   }
@@ -521,21 +525,22 @@ export async function finishLostPhoneRecovery(
       opened.push(secret);
       holders[helper.slot] = secret;
     }
-    const recoveryKey = reconstructRecoveryKey(boxes, holders, {
+    const recoveryPrivate = reconstructRecoveryKey(boxes, holders, {
       familySpaceId: input.spaceId,
-      recoveryKeyEpoch: meta.recoveryKeyEpoch,
+      userId: input.userId,
+      recoveryKeyEpoch,
     });
-    opened.push(recoveryKey);
-    const sealed = await gateway.fetchSealedFamilyKeys(input.spaceId);
+    opened.push(recoveryPrivate);
+    const sealed = await gateway.fetchSealedFamilyKeys(input.spaceId, input.userId);
     let familyKey: Uint8Array | undefined;
     let keyEpoch = meta.keyEpoch;
     for (const row of sealed) {
       try {
-        familyKey = openXChaCha20Poly1305(
-          recoveryKey,
-          row.sealed,
-          encodeEpochAad(input.spaceId, row.keyEpoch),
-        );
+        familyKey = unwrapFamilyKeyFromRecoveryPrivate(row.sealed, recoveryPrivate, {
+          familySpaceId: input.spaceId,
+          keyEpoch: row.keyEpoch,
+          userId: input.userId,
+        });
         keyEpoch = row.keyEpoch;
         break;
       } catch {
@@ -560,22 +565,7 @@ export async function finishLostPhoneRecovery(
       keyEpoch,
       approvedBy: input.userId,
     });
-    if (isSpaceAdmin(input.role)) {
-      await gateway.insertRecoveryWrap({
-        spaceId: input.spaceId,
-        userId: input.userId,
-        deviceId: input.deviceId,
-        wrappedKey: wrapKeyToDevice(recoveryKey, input.publicKey, {
-          ...memberAad,
-          keyEpoch: meta.recoveryKeyEpoch,
-        }),
-        recoveryKeyEpoch: meta.recoveryKeyEpoch,
-        approvedBy: input.userId,
-      });
-      await cacheFamilySecrets(input.userId, input.spaceId, familyKey, recoveryKey);
-    } else {
-      await cacheFamilySecrets(input.userId, input.spaceId, familyKey);
-    }
+    await cacheFamilySecrets(input.userId, input.spaceId, familyKey);
     await gateway.completeRequest(input.request.id);
   } finally {
     for (const secret of opened) {

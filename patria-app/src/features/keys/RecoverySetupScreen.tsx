@@ -18,11 +18,12 @@ import { copy } from '../../lib/copy';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
 import { logFailedAction } from '../../lib/devLog';
 import { fetchMembers } from '../../lib/family';
-import { isSpaceAdmin } from '../../lib/roles';
+import { isKeyEligibleRole } from '../../lib/roles';
 import {
   approvedMemberIds,
   inviteRecoveryContacts,
   loadRecoverySnapshot,
+  removeRecoveryContact,
   rotateRecoveryKey,
   selectableRecoveryContacts,
 } from '../../lib/crypto/recoverySetup';
@@ -73,7 +74,7 @@ export function RecoverySetupScreen() {
       </Screen>
     );
   }
-  if (!isSpaceAdmin(myRole) || !userId) {
+  if (!isKeyEligibleRole(myRole) || !userId) {
     return (
       <Screen withHeader>
         <ErrorState message={copy.common.error} />
@@ -89,14 +90,11 @@ export function RecoverySetupScreen() {
     userId,
   ).filter(
     (row) =>
-      !(snapshot?.contacts ?? []).some(
+      !(snapshot?.ownContacts ?? []).some(
         (contact) => contact.userId === row.userId && contact.status !== 'declined',
       ),
   );
-  const openSlots = 2 - (snapshot?.contacts.filter((row) => row.status !== 'declined').length ?? 0);
-  const adminUserIds = (membersQuery.data ?? [])
-    .filter((row) => isSpaceAdmin(row.role))
-    .map((row) => row.userId);
+  const openSlots = 2 - (snapshot?.ownContacts.filter((row) => row.status !== 'declined').length ?? 0);
 
   const toggle = (id: string) => {
     setPicked((current) => {
@@ -139,11 +137,9 @@ export function RecoverySetupScreen() {
     setError(null);
     setBusy(true);
     try {
-      await rotateRecoveryKey({
+      await removeRecoveryContact({
         spaceId,
-        adminUserId: userId,
-        adminUserIds,
-        removeUserId: contactUserId,
+        contactUserId,
       });
       await queryClient.invalidateQueries({ queryKey: ['recoverySnapshot'] });
     } catch (caught) {
@@ -160,8 +156,7 @@ export function RecoverySetupScreen() {
     try {
       await rotateRecoveryKey({
         spaceId,
-        adminUserId: userId,
-        adminUserIds,
+        memberUserId: userId,
       });
       await queryClient.invalidateQueries({ queryKey: ['recoverySnapshot'] });
       router.push(routes.printedCode);
@@ -178,7 +173,7 @@ export function RecoverySetupScreen() {
       <Title>{copy.recovery.title}</Title>
       <Body>{copy.recovery.pickBody}</Body>
       {error ? <ErrorState message={error} /> : null}
-      {(snapshot?.contacts ?? [])
+      {(snapshot?.ownContacts ?? [])
         .filter((row) => row.status !== 'declined')
         .map((contact) => {
           const member = membersQuery.data?.find((row) => row.userId === contact.userId);
@@ -237,6 +232,14 @@ export function RecoverySetupScreen() {
       {snapshot?.hasPaper ? (
         <Button
           label={copy.recovery.paperLost}
+          variant="secondary"
+          busy={busy}
+          onPress={() => void onPaperLost()}
+        />
+      ) : null}
+      {snapshot?.hasRecoveryPublic && snapshot.accepted < 2 ? (
+        <Button
+          label={copy.recovery.redoSetup}
           variant="secondary"
           busy={busy}
           onPress={() => void onPaperLost()}

@@ -81,6 +81,7 @@ jest.mock('../../lib/crypto/recoverFlow', () => ({
 jest.mock('../../lib/crypto/recoverySetup', () => ({
   loadRecoverySnapshot: jest.fn(async () => ({
     contacts: [],
+    ownContacts: [],
     accepted: 0,
     pending: [],
     hasPaper: false,

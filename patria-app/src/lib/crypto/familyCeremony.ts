@@ -3,7 +3,6 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 import { logKeyStep } from '../devLog';
 import { isSpaceAdmin } from '../roles';
 import { supabase } from '../supabase';
-import { sealXChaCha20Poly1305 } from './aead';
 import { wipe } from './bytes';
 import { ensureDeviceIdentity } from './deviceIdentity';
 import {
@@ -19,7 +18,8 @@ import {
 } from './keyStore';
 import { fromPgBytea, toPgBytea } from './pgBytea';
 import { randomKey32 } from './random';
-import { encodeEpochAad, unwrapKeyFromDevice, wrapKeyToDevice } from './wrap';
+import { rotateFamilyKeyIfNeeded } from './rotateFamilyKey';
+import { unwrapKeyFromDevice, wrapKeyToDevice } from './wrap';
 
 export {
   cacheFamilySecrets,
@@ -41,8 +41,6 @@ export type CeremonyPayload = {
   deviceId: string;
   publicKey: Uint8Array;
   wrappedFamilyKey: Uint8Array;
-  wrappedRecoveryKey: Uint8Array;
-  familyKeyUnderRecovery: Uint8Array;
   keyEpoch: number;
 };
 
@@ -63,11 +61,9 @@ export function createFoundingMaterial(input: {
   publicKey: Uint8Array;
 }): {
   familyKey: Uint8Array;
-  recoveryKey: Uint8Array;
   payload: CeremonyPayload;
 } {
   const familyKey = randomKey32();
-  const recoveryKey = randomKey32();
   const aad = {
     familySpaceId: input.spaceId,
     keyEpoch: KEY_EPOCH,
@@ -75,22 +71,13 @@ export function createFoundingMaterial(input: {
     deviceId: input.deviceId,
   };
   const wrappedFamilyKey = wrapKeyToDevice(familyKey, input.publicKey, aad);
-  const wrappedRecoveryKey = wrapKeyToDevice(recoveryKey, input.publicKey, aad);
-  const familyKeyUnderRecovery = sealXChaCha20Poly1305(
-    recoveryKey,
-    familyKey,
-    encodeEpochAad(input.spaceId, KEY_EPOCH),
-  );
   return {
     familyKey,
-    recoveryKey,
     payload: {
       spaceId: input.spaceId,
       deviceId: input.deviceId,
       publicKey: input.publicKey,
       wrappedFamilyKey,
-      wrappedRecoveryKey,
-      familyKeyUnderRecovery,
       keyEpoch: KEY_EPOCH,
     },
   };
@@ -102,10 +89,7 @@ export function payloadContainsPlaintextKey(
 ): boolean {
   const needle = bytesToHex(secret);
   return (
-    bytesToHex(payload.publicKey) === needle ||
-    bytesToHex(payload.wrappedFamilyKey) === needle ||
-    bytesToHex(payload.wrappedRecoveryKey) === needle ||
-    bytesToHex(payload.familyKeyUnderRecovery) === needle
+    bytesToHex(payload.publicKey) === needle || bytesToHex(payload.wrappedFamilyKey) === needle
   );
 }
 
@@ -149,8 +133,6 @@ export const supabaseFamilyKeyGateway: FamilyKeyGateway = {
       p_device_id: payload.deviceId,
       p_public_key: toPgBytea(payload.publicKey),
       p_wrapped_family_key: toPgBytea(payload.wrappedFamilyKey),
-      p_wrapped_recovery_key: toPgBytea(payload.wrappedRecoveryKey),
-      p_family_key_under_recovery: toPgBytea(payload.familyKeyUnderRecovery),
       p_key_epoch: payload.keyEpoch,
     });
     if (!error) {
@@ -174,12 +156,7 @@ export async function runFoundingCeremony(
   try {
     const result = await gateway.commitCeremony(material.payload);
     if (result.ok) {
-      await cacheFamilySecrets(
-        input.userId,
-        input.spaceId,
-        material.familyKey,
-        material.recoveryKey,
-      );
+      await cacheFamilySecrets(input.userId, input.spaceId, material.familyKey);
       return 'ready';
     }
     logKeyStep('commit_family_key_ceremony');
@@ -191,7 +168,6 @@ export async function runFoundingCeremony(
     return 'waiting';
   } finally {
     wipe(material.familyKey);
-    wipe(material.recoveryKey);
   }
 }
 
@@ -229,6 +205,11 @@ export async function ensureKeysForOpenFamily(
   });
   if (familyKey) {
     wipe(familyKey);
+    await rotateFamilyKeyIfNeeded({
+      spaceId: input.spaceId,
+      userId: input.userId,
+      role: input.role,
+    });
     return 'ready';
   }
 

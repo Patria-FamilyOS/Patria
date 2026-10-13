@@ -10,6 +10,7 @@ export type RecoverySlot = 'a' | 'b';
 export type RecoveryContactRow = {
   id: string;
   spaceId: string;
+  memberId: string;
   userId: string;
   slot: RecoverySlot;
   status: RecoveryContactStatus;
@@ -24,9 +25,14 @@ export type RecoveryAccessGateway = {
   fetchMeta(
     spaceId: string,
   ): Promise<{ keyEpoch: number; recoveryKeyEpoch: number } | null>;
+  fetchOwnRecoveryPublic(
+    spaceId: string,
+    userId: string,
+  ): Promise<{ publicKey: Uint8Array; recoveryKeyEpoch: number } | null>;
   listContacts(spaceId: string): Promise<RecoveryContactRow[]>;
   inviteContact(input: {
     spaceId: string;
+    memberId: string;
     userId: string;
     slot: RecoverySlot;
     createdBy: string;
@@ -38,26 +44,21 @@ export type RecoveryAccessGateway = {
   ): Promise<void>;
   deleteContact(spaceId: string, userId: string): Promise<void>;
   listApprovedDevices(spaceId: string, userId: string): Promise<ApprovedDevice[]>;
-  fetchOwnRecoveryWrap(
-    spaceId: string,
-    userId: string,
-    deviceId: string,
-  ): Promise<{ wrappedKey: Uint8Array; keyEpoch: number } | null>;
-  insertRecoveryWrap(input: {
-    spaceId: string;
-    userId: string;
-    deviceId: string;
-    wrappedKey: Uint8Array;
-    recoveryKeyEpoch: number;
-    approvedBy: string;
-  }): Promise<void>;
   upsertFamilyKeyUnderRecovery(input: {
     spaceId: string;
+    userId: string;
     keyEpoch: number;
     wrappedFamilyKey: Uint8Array;
   }): Promise<void>;
+  insertRecoveryPublicKey(input: {
+    spaceId: string;
+    userId: string;
+    publicKey: Uint8Array;
+    recoveryKeyEpoch: number;
+  }): Promise<void>;
   insertHolderSecret(input: {
     spaceId: string;
+    memberId: string;
     userId: string;
     deviceId: string;
     wrappedSecret: Uint8Array;
@@ -65,13 +66,18 @@ export type RecoveryAccessGateway = {
   }): Promise<void>;
   insertPairWrap(input: {
     spaceId: string;
+    userId: string;
     recoveryKeyEpoch: number;
     pairId: 'ab' | 'ap' | 'bp';
     wrappedRecoveryKey: Uint8Array;
   }): Promise<void>;
-  listPairIds(spaceId: string, recoveryKeyEpoch: number): Promise<string[]>;
+  listPairIds(spaceId: string, userId: string, recoveryKeyEpoch: number): Promise<string[]>;
+  fetchPairWraps(
+    spaceId: string,
+    userId: string,
+    recoveryKeyEpoch: number,
+  ): Promise<{ pairId: string; wrappedRecoveryKey: Uint8Array }[]>;
   purgeCiphertext(spaceId: string): Promise<void>;
-  bumpRecoveryKeyEpoch(spaceId: string): Promise<number>;
 };
 
 function parseSlot(value: unknown): RecoverySlot {
@@ -118,10 +124,30 @@ export const supabaseRecoveryAccessGateway: RecoveryAccessGateway = {
     };
   },
 
+  async fetchOwnRecoveryPublic(spaceId, userId) {
+    const { data, error } = await supabase
+      .from('recovery_public_keys')
+      .select('public_key, recovery_key_epoch')
+      .eq('family_space_id', spaceId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) {
+      logKeyStep('fetch_recovery_public', error.code ?? 'unknown');
+      throw error;
+    }
+    if (!data) {
+      return null;
+    }
+    return {
+      publicKey: requireX25519PublicKey(fromPgBytea(data.public_key)),
+      recoveryKeyEpoch: data.recovery_key_epoch as number,
+    };
+  },
+
   async listContacts(spaceId) {
     const { data, error } = await supabase
       .from('recovery_contacts')
-      .select('id, user_id, slot, status')
+      .select('id, member_id, user_id, slot, status')
       .eq('family_space_id', spaceId);
     if (error) {
       logKeyStep('list_recovery_contacts', error.code ?? 'unknown');
@@ -130,6 +156,7 @@ export const supabaseRecoveryAccessGateway: RecoveryAccessGateway = {
     return (data ?? []).map((row) => ({
       id: row.id as string,
       spaceId,
+      memberId: row.member_id as string,
       userId: row.user_id as string,
       slot: parseSlot(row.slot),
       status: parseStatus(row.status),
@@ -139,6 +166,7 @@ export const supabaseRecoveryAccessGateway: RecoveryAccessGateway = {
   async inviteContact(input) {
     const { error } = await supabase.from('recovery_contacts').insert({
       family_space_id: input.spaceId,
+      member_id: input.memberId,
       user_id: input.userId,
       slot: input.slot,
       created_by: input.createdBy,
@@ -191,44 +219,10 @@ export const supabaseRecoveryAccessGateway: RecoveryAccessGateway = {
     }));
   },
 
-  async fetchOwnRecoveryWrap(spaceId, userId, deviceId) {
-    const { data, error } = await supabase
-      .from('recovery_key_wraps')
-      .select('wrapped_key, recovery_key_epoch')
-      .eq('family_space_id', spaceId)
-      .eq('user_id', userId)
-      .eq('device_id', deviceId)
-      .maybeSingle();
-    if (error) {
-      logKeyStep('fetch_own_recovery_wrap', error.code ?? 'unknown');
-      throw error;
-    }
-    if (!data) {
-      return null;
-    }
-    return {
-      wrappedKey: fromPgBytea(data.wrapped_key),
-      keyEpoch: data.recovery_key_epoch as number,
-    };
-  },
-
-  async insertRecoveryWrap(input) {
-    const { error } = await supabase.rpc('insert_recovery_key_wrap_setup', {
-      p_space_id: input.spaceId,
-      p_user_id: input.userId,
-      p_device_id: input.deviceId,
-      p_wrapped_key: toPgBytea(input.wrappedKey),
-      p_recovery_key_epoch: input.recoveryKeyEpoch,
-    });
-    if (error) {
-      logKeyStep('insert_recovery_key_wrap', error.code ?? 'unknown');
-      throw error;
-    }
-  },
-
   async upsertFamilyKeyUnderRecovery(input) {
     const { error } = await supabase.rpc('upsert_family_key_under_recovery', {
       p_space_id: input.spaceId,
+      p_user_id: input.userId,
       p_key_epoch: input.keyEpoch,
       p_wrapped_family_key: toPgBytea(input.wrappedFamilyKey),
     });
@@ -238,9 +232,23 @@ export const supabaseRecoveryAccessGateway: RecoveryAccessGateway = {
     }
   },
 
+  async insertRecoveryPublicKey(input) {
+    const { error } = await supabase.from('recovery_public_keys').insert({
+      family_space_id: input.spaceId,
+      user_id: input.userId,
+      public_key: toPgBytea(input.publicKey),
+      recovery_key_epoch: input.recoveryKeyEpoch,
+    });
+    if (error) {
+      logKeyStep('insert_recovery_public_key', error.code ?? 'unknown');
+      throw error;
+    }
+  },
+
   async insertHolderSecret(input) {
     const { error } = await supabase.from('recovery_contact_secrets').insert({
       family_space_id: input.spaceId,
+      member_id: input.memberId,
       user_id: input.userId,
       device_id: input.deviceId,
       wrapped_secret: toPgBytea(input.wrappedSecret),
@@ -255,6 +263,7 @@ export const supabaseRecoveryAccessGateway: RecoveryAccessGateway = {
   async insertPairWrap(input) {
     const { error } = await supabase.from('recovery_pair_wraps').insert({
       family_space_id: input.spaceId,
+      user_id: input.userId,
       recovery_key_epoch: input.recoveryKeyEpoch,
       pair_id: input.pairId,
       wrapped_recovery_key: toPgBytea(input.wrappedRecoveryKey),
@@ -265,37 +274,35 @@ export const supabaseRecoveryAccessGateway: RecoveryAccessGateway = {
     }
   },
 
-  async listPairIds(spaceId, recoveryKeyEpoch) {
+  async listPairIds(spaceId, userId, recoveryKeyEpoch) {
+    const rows = await this.fetchPairWraps(spaceId, userId, recoveryKeyEpoch);
+    return rows.map((row) => row.pairId);
+  },
+
+  async fetchPairWraps(spaceId, userId, recoveryKeyEpoch) {
     const { data, error } = await supabase
       .from('recovery_pair_wraps')
-      .select('pair_id')
+      .select('pair_id, wrapped_recovery_key')
       .eq('family_space_id', spaceId)
+      .eq('user_id', userId)
       .eq('recovery_key_epoch', recoveryKeyEpoch);
     if (error) {
       logKeyStep('list_pair_ids', error.code ?? 'unknown');
       throw error;
     }
-    return (data ?? []).map((row) => row.pair_id as string);
+    return (data ?? []).map((row) => ({
+      pairId: row.pair_id as string,
+      wrappedRecoveryKey: fromPgBytea(row.wrapped_recovery_key),
+    }));
   },
 
   async purgeCiphertext(spaceId) {
-    const { error } = await supabase.rpc('purge_recovery_ciphertext', {
+    const { error } = await supabase.rpc('purge_member_recovery', {
       p_space_id: spaceId,
     });
     if (error) {
-      logKeyStep('purge_recovery_ciphertext', error.code ?? 'unknown');
+      logKeyStep('purge_member_recovery', error.code ?? 'unknown');
       throw error;
     }
-  },
-
-  async bumpRecoveryKeyEpoch(spaceId) {
-    const { data, error } = await supabase.rpc('bump_recovery_key_epoch', {
-      p_space_id: spaceId,
-    });
-    if (error) {
-      logKeyStep('bump_recovery_key_epoch', error.code ?? 'unknown');
-      throw error;
-    }
-    return data as number;
   },
 };

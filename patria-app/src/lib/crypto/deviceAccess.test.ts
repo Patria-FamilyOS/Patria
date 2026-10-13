@@ -166,7 +166,7 @@ async function foundOnInstall(
     deviceId: device.deviceId,
     publicKey: device.publicKey,
   });
-  await cacheFamilySecrets(userId, SPACE, material.familyKey, material.recoveryKey);
+  await cacheFamilySecrets(userId, SPACE, material.familyKey);
   return {
     deviceId: device.deviceId,
     privateKey: device.privateKey,

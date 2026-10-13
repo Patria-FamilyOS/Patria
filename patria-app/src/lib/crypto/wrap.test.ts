@@ -1,7 +1,13 @@
 import { secretsEqual } from './bytes';
 import { generateDeviceKeyPair } from './x25519';
 import { randomKey32 } from './random';
-import { unwrapKeyFromDevice, wrapKeyToDevice, type MemberWrapAad } from './wrap';
+import {
+  unwrapFamilyKeyFromRecoveryPrivate,
+  unwrapKeyFromDevice,
+  wrapFamilyKeyToRecoveryPublic,
+  wrapKeyToDevice,
+  type MemberWrapAad,
+} from './wrap';
 
 const baseAad: MemberWrapAad = {
   familySpaceId: '11111111-1111-1111-1111-111111111111',
@@ -51,5 +57,21 @@ describe('device wrap', () => {
     expect(() => unwrapKeyFromDevice(tampered, device.privateKey, baseAad)).toThrow(
       'unwrap failed',
     );
+  });
+
+  it('seals a family key to a recovery public key with space, epoch and user AAD', () => {
+    const pair = generateDeviceKeyPair();
+    const familyKey = randomKey32();
+    const aad = {
+      familySpaceId: baseAad.familySpaceId,
+      keyEpoch: 1,
+      userId: baseAad.userId,
+    };
+    const wrapped = wrapFamilyKeyToRecoveryPublic(familyKey, pair.publicKey, aad);
+    const opened = unwrapFamilyKeyFromRecoveryPrivate(wrapped, pair.privateKey, aad);
+    expect(secretsEqual(opened, familyKey)).toBe(true);
+    expect(() =>
+      unwrapFamilyKeyFromRecoveryPrivate(wrapped, pair.privateKey, { ...aad, keyEpoch: 2 }),
+    ).toThrow('unwrap failed');
   });
 });
