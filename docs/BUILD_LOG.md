@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-13 — Metro must not bundle env files
+
+`.env.e2e.local` is not JavaScript. Metro was parsing its `#` comment as source. Nothing in `app/` or `src/` imports env files; `e2e:build` now parses the file itself, passes only `EXPO_PUBLIC_` values, sets `EXPO_NO_DOTENV=1`, and refuses to build if an env file shows up in the app import graph. Metro also block-lists `.env*`. `npx expo start` still uses `.env` and the hosted test project.
+
+---
+
 ## 2026-10-13 — Leave family, create another family, rotation status
 
 Leave family lives on your own member row with Cancel as the default and a destructive confirm. Leaving deletes this phone’s cached family key for that space and keeps the device key pair. Create another family sits next to Join another family and reuses the existing create screen. Admin phones show Updating the family key, then a short confirmation; a lost rotation race is treated as already up to date. Self-leave cleanup matches admin removal in pgTAP.

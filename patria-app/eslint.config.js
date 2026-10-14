@@ -4,6 +4,14 @@ const expoConfig = require('eslint-config-expo/flat');
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ['dist/**', '.expo/**', 'supabase/**', 'node_modules/**', 'scripts/**', '.maestro/**'],
+    ignores: [
+      'dist/**',
+      '.expo/**',
+      'supabase/**',
+      'node_modules/**',
+      'scripts/**',
+      '.maestro/**',
+      'metro.config.js',
+    ],
   },
 ]);

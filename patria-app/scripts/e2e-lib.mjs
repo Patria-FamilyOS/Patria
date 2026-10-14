@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const APP_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -41,6 +41,61 @@ export function loadLocalFiles() {
   const e2eEnv = parseEnvFile(join(APP_ROOT, '.env.e2e.local'));
   const secrets = parseEnvFile(join(APP_ROOT, '.e2e-secrets'));
   return { e2eEnv, secrets };
+}
+
+export function publicExpoEnv(env) {
+  const out = {};
+  for (const [key, value] of Object.entries(env)) {
+    if (key.startsWith('EXPO_PUBLIC_')) {
+      out[key] = value;
+    }
+  }
+  return out;
+}
+
+const SOURCE_EXT = /\.(ts|tsx|js|jsx)$/;
+const ENV_MODULE =
+  /(?:from|import)\s+['"][^'"]*\.env(?:\.[^'"]*)?['"]|require\(\s*['"][^'"]*\.env(?:\.[^'"]*)?['"]\s*\)/;
+
+export function assertEnvFilesNotInAppImportGraph(scriptName) {
+  const hits = [];
+  for (const dir of ['app', 'src']) {
+    collectEnvImports(join(APP_ROOT, dir), hits);
+  }
+  if (hits.length === 0) {
+    return;
+  }
+  console.error(
+    `${scriptName} refused to run: env files must never be imported into the app bundle. Metro would try to parse them as JavaScript.`,
+  );
+  for (const hit of hits) {
+    console.error(`  ${hit}`);
+  }
+  process.exit(1);
+}
+
+function collectEnvImports(dir, hits) {
+  if (!existsSync(dir)) {
+    return;
+  }
+  for (const name of readdirSync(dir)) {
+    const path = join(dir, name);
+    const st = statSync(path);
+    if (st.isDirectory()) {
+      if (name === 'node_modules') {
+        continue;
+      }
+      collectEnvImports(path, hits);
+      continue;
+    }
+    if (!SOURCE_EXT.test(name)) {
+      continue;
+    }
+    const text = readFileSync(path, 'utf8');
+    if (ENV_MODULE.test(text)) {
+      hits.push(relative(APP_ROOT, path));
+    }
+  }
 }
 
 export function supabaseUrlFromEnv(env) {

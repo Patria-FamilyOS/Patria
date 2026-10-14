@@ -1,13 +1,22 @@
 # Phone test automation
 
-From `patria-app`:
+From `patria-app`, two terminals:
+
+Terminal 1:
 
 ```bash
 npm run e2e:build
+```
+
+That compile leaves Metro running in that terminal on purpose. Leave it open. Open a second terminal for the flows:
+
+```bash
 npm run e2e
 ```
 
-`e2e:build` compiles the iOS Simulator app with `.env.e2e.local` only (`EXPO_NO_DOTENV=1`, so `.env` and the hosted test project are not used). `e2e` then runs the Maestro flows.
+When you are done, stop Metro in the first terminal with Control and C.
+
+`e2e:build` reads `.env.e2e.local` in the script and passes only `EXPO_PUBLIC_` values into `npx expo run:ios`, with `EXPO_NO_DOTENV=1` so `.env` and the hosted test project are not mixed in. Env files are never imported into the app; Metro is told to ignore them. `npx expo start` is unchanged: it still loads `patria-app/.env` and talks to the hosted test project.
 
 Maestro runs the numbered tests in `PHONE_TESTS.md` on iOS Simulator. Jest and pgTAP stay as they are.
 
@@ -22,12 +31,19 @@ Maestro runs the numbered tests in `PHONE_TESTS.md` on iOS Simulator. Jest and p
 
 ## One-time setup
 
-1. Java 17+, Xcode, iOS Simulator, Docker.
-2. `cd patria-app && npx supabase start`
-3. Copy `.e2e-secrets.example` to `.e2e-secrets` and set the three test passwords, or let `e2e-setup` generate local-only passwords into that gitignored file (it never prints them). Optionally set `SUPABASE_SERVICE_ROLE_KEY` from `npx supabase status`; otherwise setup reads it from status.
-4. `npm run e2e:setup` (creates/updates Test 1–3, shortens recovery wait to 8 seconds locally, writes `.env.e2e.local` with the anon key only).
-5. Install Maestro (`curl -Ls "https://get.maestro.dev" | bash`).
-6. `npm run e2e:build` (first time, and after native or env changes).
+On a Mac that has not built the Simulator app before:
+
+1. Install Homebrew if it is not already installed.
+2. `brew install cocoapods`
+3. `sudo xcodebuild -license accept`
+4. `xcodebuild -runFirstLaunch`
+5. Open a fresh terminal so `pod` is on PATH.
+6. Java 17+, Xcode, iOS Simulator, Docker.
+7. `cd patria-app && npx supabase start`
+8. Copy `.e2e-secrets.example` to `.e2e-secrets` and set the three test passwords, or let `e2e-setup` generate local-only passwords into that gitignored file (it never prints them). Optionally set `SUPABASE_SERVICE_ROLE_KEY` from `npx supabase status`; otherwise setup reads it from status.
+9. `npm run e2e:setup` (creates/updates Test 1–3, shortens recovery wait to 8 seconds locally, writes `.env.e2e.local` with the anon key only).
+10. Install Maestro (`curl -Ls "https://get.maestro.dev" | bash`).
+11. `npm run e2e:build` (first time, and after native or env changes). Leave this terminal running Metro; use another terminal for `npm run e2e`.
 
 The development bundle id `app.patria.dev` is provisional (D28).
 

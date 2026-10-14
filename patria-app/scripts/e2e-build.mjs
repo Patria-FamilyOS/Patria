@@ -4,8 +4,10 @@ import { join } from 'node:path';
 
 import {
   APP_ROOT,
+  assertEnvFilesNotInAppImportGraph,
   assertLocalSupabaseUrl,
   loadLocalFiles,
+  publicExpoEnv,
   supabaseUrlFromEnv,
 } from './e2e-lib.mjs';
 
@@ -17,10 +19,13 @@ if (!existsSync(envPath)) {
   process.exit(1);
 }
 
-const { e2eEnv } = loadLocalFiles();
-assertLocalSupabaseUrl(supabaseUrlFromEnv(e2eEnv), SCRIPT);
+assertEnvFilesNotInAppImportGraph(SCRIPT);
 
-if (e2eEnv.EXPO_PUBLIC_SUPABASE_ANON_KEY && /service_role/i.test(e2eEnv.EXPO_PUBLIC_SUPABASE_ANON_KEY)) {
+const { e2eEnv } = loadLocalFiles();
+const publicEnv = publicExpoEnv(e2eEnv);
+assertLocalSupabaseUrl(supabaseUrlFromEnv(publicEnv), SCRIPT);
+
+if (publicEnv.EXPO_PUBLIC_SUPABASE_ANON_KEY && /service_role/i.test(publicEnv.EXPO_PUBLIC_SUPABASE_ANON_KEY)) {
   console.error(`${SCRIPT}: refused to build. The app env must not contain a service role key.`);
   process.exit(1);
 }
@@ -34,7 +39,7 @@ const child = spawn(
     stdio: 'inherit',
     env: {
       ...process.env,
-      ...e2eEnv,
+      ...publicEnv,
       EXPO_NO_DOTENV: '1',
     },
   },
