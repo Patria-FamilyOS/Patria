@@ -1,0 +1,15 @@
+# PHONE_TESTS: 7
+appId: app.patria.dev
+---
+- launchApp
+- takeScreenshot: e2e-artifacts/07-welcome
+- runFlow:
+    file: subflows/sign_in.yaml
+- takeScreenshot: e2e-artifacts/07-home
+- tapOn:
+    id: "invite-someone"
+- takeScreenshot: e2e-artifacts/07-invite
+- tapOn: "Back"
+- tapOn:
+    id: "add-a-child"
+- takeScreenshot: e2e-artifacts/07-add-child

@@ -29,6 +29,7 @@ import {
 } from '../../lib/crypto/recoverySetup';
 import { memberDisplayName } from '../../lib/displayName';
 import { routes } from '../../lib/navigation';
+import { testIdFromLabel } from '../../lib/testId';
 import { colors, spacing, type } from '../../theme';
 
 export function RecoverySetupScreen() {
@@ -204,6 +205,7 @@ export function RecoverySetupScreen() {
         return (
           <Pressable
             key={row.userId}
+            testID={`recovery-contact-${testIdFromLabel(memberDisplayName(member?.displayName))}`}
             accessibilityRole="button"
             accessibilityLabel={memberDisplayName(member?.displayName)}
             onPress={() => toggle(row.userId)}

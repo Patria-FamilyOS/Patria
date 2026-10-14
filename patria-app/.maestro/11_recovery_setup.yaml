@@ -1,0 +1,81 @@
+# PHONE_TESTS: 11
+# Printed words: copy to clipboard only. Never screenshot this flow on the words screen.
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'open_card'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertVisible: "Set up recovery"
+      - tapOn:
+          id: "choose-recovery-contacts"
+      - assertVisible: "Recovery contacts"
+- runFlow:
+    when:
+      true: ${PHASE == 'pick_contact'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "choose-recovery-contacts"
+          optional: true
+      - tapOn:
+          id: ${CONTACT_ID}
+      - tapOn:
+          id: "ask-these-people"
+- runFlow:
+    when:
+      true: ${PHASE == 'accept_contact'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - swipe:
+          start: 50%, 25%
+          end: 50%, 80%
+      - assertVisible: "Will you help with recovery?"
+      - tapOn:
+          id: "accept"
+- runFlow:
+    when:
+      true: ${PHASE == 'setup_done'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertVisible: "Recovery: set up"
+- runFlow:
+    when:
+      true: ${PHASE == 'printed_code'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "write-down-a-printed-code"
+      - extendedWaitUntil:
+          visible:
+            id: "printed-code-words"
+          timeout: 20000
+      - copyTextFrom:
+          id: "printed-code-words"
+      - tapOn:
+          id: "i-have-written-them-down"
+      - tapOn:
+          id: "skip-for-now"
+          optional: true
+- runFlow:
+    when:
+      true: ${PHASE == 'remove_contact'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "choose-recovery-contacts"
+          optional: true
+      - tapOn:
+          id: "recovery-contacts"
+          optional: true
+      - tapOn:
+          id: "remove-as-recovery-contact"
+      - tapOn: "Back"
+      - assertVisible: "Recovery needs attention"

@@ -1,0 +1,87 @@
+# PHONE_TESTS: 12
+# Do not screenshot the printed-code field. Words stay in clipboard / Maestro memory only.
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'start'}
+    commands:
+      - launchApp
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertVisible: "Waiting for"
+      - tapOn:
+          id: "i-lost-my-phone"
+      - tapOn:
+          id: "start-recovery"
+      - assertVisible: "Waiting until"
+- runFlow:
+    when:
+      true: ${PHASE == 'old_phone_alert'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertVisible:
+          id: "this-wasnt-me"
+- runFlow:
+    when:
+      true: ${PHASE == 'cancel_not_me'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "this-wasnt-me"
+- runFlow:
+    when:
+      true: ${PHASE == 'cancelled_by_you'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertVisible: "Cancelled by you"
+- runFlow:
+    when:
+      true: ${PHASE == 'admin_stop'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "stop-this-recovery"
+- runFlow:
+    when:
+      true: ${PHASE == 'cancelled_by_admin'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertVisible: "Cancelled by a family admin"
+- runFlow:
+    when:
+      true: ${PHASE == 'approve_help'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "help-with-recovery"
+          optional: true
+- runFlow:
+    when:
+      true: ${PHASE == 'finish_paper'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "printed-code-24-words"
+      - eraseText
+      - pasteFromClipboard
+      - tapOn:
+          id: "finish-recovery"
+      - extendedWaitUntil:
+          visible: "Remove your old phones"
+          timeout: 30000
+- runFlow:
+    when:
+      true: ${PHASE == 'remove_old'}
+    commands:
+      - tapOn:
+          id: "remove-listed-phones"
+      - assertNotVisible:
+          id: "printed-code-words"

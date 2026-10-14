@@ -53,6 +53,7 @@ import { describeCaughtError, logFailedAction, logKeyStep } from '../../lib/devL
 import { routes } from '../../lib/navigation';
 import { countAdmins, isKeyEligibleRole, isSpaceAdmin } from '../../lib/roles';
 import { supabase } from '../../lib/supabase';
+import { testIdFromLabel } from '../../lib/testId';
 import { colors, spacing, type } from '../../theme';
 
 export function HomeScreen() {
@@ -373,6 +374,7 @@ export function HomeScreen() {
 
   const joinFamilyLink = (
     <Pressable
+      testID={testIdFromLabel(copy.home.joinFamily)}
       accessibilityRole="link"
       accessibilityLabel={copy.home.joinFamily}
       onPress={() => router.push(routes.joinFamily)}
@@ -442,18 +444,20 @@ export function HomeScreen() {
       <Title>{copy.home.greeting.replace('{name}', displayName)}</Title>
       <Title>{current.space.name}</Title>
       <Muted>{copy.home.todoMemories}</Muted>
-      {keyStatusQuery.data ? <Muted>{keyStatusCopy(keyStatusQuery.data)}</Muted> : null}
+      {keyStatusQuery.data ? (
+        <Muted testID="home-keys-status">{keyStatusCopy(keyStatusQuery.data)}</Muted>
+      ) : null}
       {keyHolder && recoveryQuery.data?.status === 'not_setup' ? (
-        <Muted>{copy.home.recoveryNotSetup}</Muted>
+        <Muted testID="home-recovery-status">{copy.home.recoveryNotSetup}</Muted>
       ) : null}
       {keyHolder && recoveryQuery.data?.status === 'one_of_two' ? (
-        <Muted>{copy.home.recoveryOneOfTwo}</Muted>
+        <Muted testID="home-recovery-status">{copy.home.recoveryOneOfTwo}</Muted>
       ) : null}
       {keyHolder && recoveryQuery.data?.status === 'needs_attention' ? (
-        <Muted>{copy.home.recoveryNeedsAttention}</Muted>
+        <Muted testID="home-recovery-status">{copy.home.recoveryNeedsAttention}</Muted>
       ) : null}
       {keyHolder && recoveryQuery.data?.status === 'setup' ? (
-        <Muted>{copy.home.recoverySetup}</Muted>
+        <Muted testID="home-recovery-status">{copy.home.recoverySetup}</Muted>
       ) : null}
       {!admin && recoveryQuery.data?.status === 'contact' ? (
         <Muted>
@@ -682,6 +686,7 @@ export function HomeScreen() {
           {(membershipsQuery.data ?? []).map((item) => (
             <Pressable
               key={item.space.id}
+              testID={`family-${testIdFromLabel(item.space.name)}`}
               accessibilityRole="button"
               accessibilityLabel={item.space.name}
               onPress={() => {
@@ -706,6 +711,7 @@ export function HomeScreen() {
       {(membersQuery.data ?? []).map((row) => (
         <Pressable
           key={row.id}
+          testID={`member-${testIdFromLabel(row.displayName)}`}
           accessibilityRole="button"
           accessibilityLabel={`${row.displayName}, ${copy.roles[row.role]}`}
           disabled={!admin}
@@ -725,6 +731,7 @@ export function HomeScreen() {
       {(childrenQuery.data ?? []).map((child) => (
         <Pressable
           key={child.id}
+          testID={`child-${testIdFromLabel(child.displayName)}`}
           accessibilityRole="button"
           accessibilityLabel={`${child.displayName}, ${copy.roles.child}`}
           disabled={!admin}

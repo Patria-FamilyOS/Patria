@@ -1,0 +1,56 @@
+# PHONE_TESTS: 10
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'waiting_own'}
+    commands:
+      - launchApp
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertVisible: "Waiting for one of your phones to let this one in"
+- runFlow:
+    when:
+      true: ${PHASE == 'own_notice'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertVisible: "Is this your new phone?"
+- runFlow:
+    when:
+      true: ${PHASE == 'co_admin_info'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertVisible: "added a new phone"
+      - assertNotVisible:
+          id: "yes-this-is-my-phone"
+- runFlow:
+    when:
+      true: ${PHASE == 'approve'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "yes-this-is-my-phone"
+- runFlow:
+    when:
+      true: ${PHASE == 'reject'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "this-wasnt-me"
+- runFlow:
+    when:
+      true: ${PHASE == 'remove_other'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "your-phones"
+      - tapOn:
+          id: "remove"
+      - tapOn:
+          text: "Remove"
+          optional: true

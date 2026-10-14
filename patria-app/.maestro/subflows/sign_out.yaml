@@ -1,0 +1,7 @@
+appId: app.patria.dev
+---
+- tapOn:
+    id: "sign-out"
+- extendedWaitUntil:
+    visible: "I already have an account"
+    timeout: 20000

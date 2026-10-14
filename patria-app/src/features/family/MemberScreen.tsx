@@ -20,6 +20,7 @@ import { logFailedAction } from '../../lib/devLog';
 import { fetchAdminMemberEmail, fetchMembers } from '../../lib/family';
 import { countAdmins, INVITE_ROLES, isSpaceAdmin, type SpaceRole } from '../../lib/roles';
 import { supabase } from '../../lib/supabase';
+import { testIdFromLabel } from '../../lib/testId';
 import { colors, spacing, type } from '../../theme';
 
 type MemberScreenProps = {
@@ -127,6 +128,7 @@ export function MemberScreen({ userId }: MemberScreenProps) {
             {INVITE_ROLES.map((item) => (
               <Pressable
                 key={item}
+                testID={`role-${testIdFromLabel(copy.roles[item])}`}
                 accessibilityRole="button"
                 accessibilityLabel={copy.roles[item]}
                 onPress={() => setRoleOverride(item)}

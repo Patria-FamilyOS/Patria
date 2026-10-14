@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { testIdFromLabel } from '../lib/testId';
 import { colors, spacing, textScale, type } from '../theme';
 
 export function AppText({ children, ...rest }: ComponentProps<typeof Text>) {
@@ -73,18 +74,30 @@ export function Screen({
   );
 }
 
-type TitleProps = { children: ReactNode };
+type TitleProps = { children: ReactNode; testID?: string };
 
-export function Title({ children }: TitleProps) {
-  return <AppText style={styles.title}>{children}</AppText>;
+export function Title({ children, testID }: TitleProps) {
+  return (
+    <AppText testID={testID} style={styles.title}>
+      {children}
+    </AppText>
+  );
 }
 
-export function Body({ children }: TitleProps) {
-  return <AppText style={styles.body}>{children}</AppText>;
+export function Body({ children, testID }: TitleProps) {
+  return (
+    <AppText testID={testID} style={styles.body}>
+      {children}
+    </AppText>
+  );
 }
 
-export function Muted({ children }: TitleProps) {
-  return <AppText style={styles.muted}>{children}</AppText>;
+export function Muted({ children, testID }: TitleProps) {
+  return (
+    <AppText testID={testID} style={styles.muted}>
+      {children}
+    </AppText>
+  );
 }
 
 type ButtonProps = {
@@ -94,6 +107,7 @@ type ButtonProps = {
   disabled?: boolean;
   busy?: boolean;
   accessibilityHint?: string;
+  testID?: string;
 };
 
 export function Button({
@@ -103,10 +117,12 @@ export function Button({
   disabled = false,
   busy = false,
   accessibilityHint,
+  testID,
 }: ButtonProps) {
   const inactive = disabled || busy;
   return (
     <Pressable
+      testID={testID ?? testIdFromLabel(label)}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
@@ -150,6 +166,7 @@ export function Field({ label, error, ...inputProps }: FieldProps) {
       <AppText style={styles.fieldLabel}>{label}</AppText>
       <AppTextInput
         {...inputProps}
+        testID={inputProps.testID ?? testIdFromLabel(label)}
         accessibilityLabel={label}
         placeholderTextColor={colors.textMuted}
         style={styles.input}

@@ -1,0 +1,14 @@
+# PHONE_TESTS: 5
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- tapOn:
+    id: "sign-out"
+- extendedWaitUntil:
+    visible: "I already have an account"
+    timeout: 20000
+- swipe:
+    start: 2%, 50%
+    end: 80%, 50%
+- assertVisible: "I already have an account"

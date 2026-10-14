@@ -1,0 +1,60 @@
+# PHONE_TESTS: 13
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'remove_member'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: ${MEMBER_ID}
+      - tapOn:
+          id: "remove-from-this-family"
+      - tapOn:
+          text: "Remove from this family"
+          optional: true
+- runFlow:
+    when:
+      true: ${PHASE == 'keys_ready'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - swipe:
+          start: 50%, 25%
+          end: 50%, 80%
+      - assertVisible: "Family keys: set up on this phone"
+- runFlow:
+    when:
+      true: ${PHASE == 'no_family'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertNotVisible: ${FAMILY_NAME}
+- runFlow:
+    when:
+      true: ${PHASE == 'needs_attention'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertVisible: "Recovery needs attention"
+- runFlow:
+    when:
+      true: ${PHASE == 'leave_family'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "leave-family"
+- runFlow:
+    when:
+      true: ${PHASE == 'change_role'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: ${MEMBER_ID}
+      - tapOn:
+          id: ${ROLE_ID}
+      - tapOn:
+          id: "save-role"

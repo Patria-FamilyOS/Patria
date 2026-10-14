@@ -1,0 +1,31 @@
+# PHONE_TESTS: 6
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'admin'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "add-a-child"
+      - tapOn:
+          id: "name"
+      - eraseText
+      - inputText: "Lily"
+      - tapOn:
+          id: "add-child"
+      - extendedWaitUntil:
+          visible:
+            id: "child-lily"
+          timeout: 20000
+      - assertVisible: "No email needed"
+- runFlow:
+    when:
+      true: ${PHASE == 'member'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertNotVisible:
+          id: "add-a-child"
+      - assertNotVisible: "@gmail.com"

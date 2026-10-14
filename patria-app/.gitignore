@@ -33,6 +33,12 @@ yarn-error.*
 # local env files
 .env
 .env*.local
+.e2e-secrets
+
+# Maestro / phone-test artifacts (may include recovery screens)
+e2e-artifacts/
+e2e-recordings/
+.maestro/tests/
 
 # typescript
 *.tsbuildinfo

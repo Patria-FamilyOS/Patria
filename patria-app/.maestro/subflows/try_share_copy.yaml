@@ -1,0 +1,13 @@
+appId: app.patria.dev
+---
+- tapOn:
+    id: "share-invite-link"
+- tapOn:
+    text: "Copy"
+    optional: true
+- tapOn:
+    text: "Close"
+    optional: true
+- tapOn:
+    text: "Cancel"
+    optional: true

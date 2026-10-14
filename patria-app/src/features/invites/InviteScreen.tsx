@@ -25,6 +25,7 @@ import { fetchInviteCircles, fetchInviteShareToken, fetchPendingInvites } from '
 import { inviteUrlFromToken } from '../../lib/inviteUrl';
 import { INVITE_ROLES, type SpaceRole } from '../../lib/roles';
 import { supabase } from '../../lib/supabase';
+import { testIdFromLabel } from '../../lib/testId';
 import { colors, spacing, type } from '../../theme';
 
 const schema = z.object({
@@ -178,6 +179,7 @@ export function InviteScreen() {
             {INVITE_ROLES.map((role) => (
               <Pressable
                 key={role}
+                testID={`role-${testIdFromLabel(copy.roles[role])}`}
                 accessibilityRole="button"
                 accessibilityLabel={copy.roles[role]}
                 onPress={() => field.onChange(role)}

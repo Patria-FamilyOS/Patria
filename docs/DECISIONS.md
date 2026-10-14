@@ -168,3 +168,7 @@ Recovery contacts (first version) are adult family members with a key-eligible r
 ## D27. Per member recovery key pairs replace the single family recovery key (13 October 2026)
 
 Each key-holding member has an X25519 recovery key pair. The public half is stored on the server. The private half exists only inside that member’s 2-of-3 pair boxes and is wiped from memory after setup and after recovery. No device keeps it. There is no family-wide recovery secret and no `recovery_key_wraps`. The family key under recovery is one sealed box per member per epoch, sealed to that member’s recovery public key with the existing wrap module. Rotation seals the new family key to remaining members’ recovery public keys; it cannot open those private keys. A removed admin, a completed recovery, or two contacts of one member must not be able to open another member’s future recovery boxes.
+
+## D28. Development bundle identifier is provisional (13 October 2026)
+
+The iOS bundle identifier `app.patria.dev` is for local development and Maestro phone tests only. A production App Store identifier will be chosen before submission. Normal `npx expo start` still loads `patria-app/.env` and the hosted test project. Only the e2e native build loads `patria-app/.env.e2e.local` (local Docker Supabase).

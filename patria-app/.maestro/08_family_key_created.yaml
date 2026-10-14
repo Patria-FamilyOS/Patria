@@ -1,0 +1,56 @@
+# PHONE_TESTS: 8
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'create_family'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "join-another-family"
+          optional: true
+      - tapOn:
+          id: "family-space-name"
+          optional: true
+      - tapOn:
+          id: "family-space-name"
+      - eraseText
+      - inputText: ${FAMILY_NAME}
+      - tapOn:
+          id: "create-our-family"
+      - tapOn:
+          id: "take-me-home"
+          optional: true
+      - extendedWaitUntil:
+          visible:
+            id: "home-keys-status"
+          timeout: 30000
+      - assertVisible: "Family keys: set up on this phone"
+- runFlow:
+    when:
+      true: ${PHASE == 'switch_older'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: ${OLDER_FAMILY_ID}
+      - assertVisible: "Family keys: set up on this phone"
+- runFlow:
+    when:
+      true: ${PHASE == 'member_waiting'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertVisible: "Waiting for a family admin to let this phone in"
+- runFlow:
+    when:
+      true: ${PHASE == 'reopen'}
+    commands:
+      - stopApp
+      - launchApp
+      - extendedWaitUntil:
+          visible:
+            id: "home-keys-status"
+          timeout: 30000
+      - assertVisible: "Family keys: set up on this phone"

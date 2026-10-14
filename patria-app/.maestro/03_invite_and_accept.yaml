@@ -1,0 +1,44 @@
+# PHONE_TESTS: 3
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'create'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "invite-someone"
+      - tapOn:
+          id: "their-email"
+      - eraseText
+      - inputText: ${INVITE_EMAIL}
+      - tapOn:
+          id: "role-elder"
+      - tapOn:
+          id: "create-invite"
+      - assertVisible: "Invite is ready"
+- runFlow:
+    when:
+      true: ${PHASE == 'share_copy'}
+    file: subflows/try_share_copy.yaml
+- runFlow:
+    when:
+      true: ${PHASE == 'accept'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertVisible: "Create our family"
+      - tapOn:
+          id: "invite-link"
+      - eraseText
+      - inputText: ${INVITE_URL}
+      - tapOn:
+          id: "open"
+      - assertVisible: "You are invited"
+      - tapOn:
+          id: "accept"
+      - extendedWaitUntil:
+          visible: "Sign out"
+          timeout: 30000
+      - assertVisible: "Your family"

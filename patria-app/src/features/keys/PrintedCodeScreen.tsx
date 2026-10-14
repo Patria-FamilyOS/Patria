@@ -73,7 +73,7 @@ export function PrintedCodeScreen() {
       <Screen withHeader accessibilityLabel={copy.recovery.printedTitle}>
         <Title>{copy.recovery.printedTitle}</Title>
         <Body>{copy.recovery.printedBody}</Body>
-        <Muted>{printed.words}</Muted>
+        <Muted testID="printed-code-words">{printed.words}</Muted>
         <Button label={copy.recovery.printedContinue} onPress={() => setPhase('confirm')} />
         <Button
           label={copy.recovery.printedSkip}

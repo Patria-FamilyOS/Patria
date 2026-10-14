@@ -1,0 +1,49 @@
+# PHONE_TESTS: 4
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'create'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "invite-someone"
+      - tapOn:
+          id: "their-email"
+      - eraseText
+      - inputText: ${INVITE_EMAIL}
+      - tapOn:
+          id: "role-elder"
+      - tapOn:
+          id: "create-invite"
+      - assertVisible: "Invite is ready"
+      - tapOn:
+          id: "revoke"
+      - assertVisible: "No pending invites."
+- runFlow:
+    when:
+      true: ${PHASE == 'share_copy'}
+    file: subflows/try_share_copy.yaml
+- runFlow:
+    when:
+      true: ${PHASE == 'open_revoked'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "invite-link"
+      - eraseText
+      - inputText: ${INVITE_URL}
+      - tapOn:
+          id: "open"
+      - assertVisible: "This invite is no longer valid"
+      - assertNotVisible: "PGRST"
+      - tapOn:
+          id: "continue"
+          optional: true
+      - runFlow:
+          file: subflows/sign_out.yaml
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertNotVisible: "You are invited"

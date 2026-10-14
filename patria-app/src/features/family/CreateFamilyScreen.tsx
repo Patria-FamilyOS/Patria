@@ -23,6 +23,7 @@ import { copy } from '../../lib/copy';
 import { writeCurrentFamilyId } from '../../lib/currentFamily';
 import { routes } from '../../lib/navigation';
 import { supabase } from '../../lib/supabase';
+import { testIdFromLabel } from '../../lib/testId';
 import { colors, spacing, type } from '../../theme';
 import { PasteInviteField } from '../invites/PasteInviteField';
 
@@ -100,6 +101,7 @@ export function CreateFamilyScreen() {
               return (
                 <Pressable
                   key={key}
+                  testID={`relationship-${testIdFromLabel(label)}`}
                   accessibilityRole="button"
                   accessibilityLabel={label}
                   accessibilityState={{ selected }}

@@ -1,0 +1,63 @@
+# PHONE_TESTS: 9
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'invite'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "invite-someone"
+      - tapOn:
+          id: "their-email"
+      - eraseText
+      - inputText: ${INVITE_EMAIL}
+      - tapOn:
+          id: ${ROLE_ID}
+      - tapOn:
+          id: "create-invite"
+      - assertVisible: "Invite is ready"
+- runFlow:
+    when:
+      true: ${PHASE == 'waiting'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertVisible: "Waiting for a family admin to let this phone in"
+- runFlow:
+    when:
+      true: ${PHASE == 'let_in'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertVisible: "wants this phone let in"
+      - tapOn:
+          id: "let-in"
+      - extendedWaitUntil:
+          notVisible: "wants this phone let in"
+          timeout: 20000
+- runFlow:
+    when:
+      true: ${PHASE == 'keys_ready'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertVisible: "Family keys: set up on this phone"
+- runFlow:
+    when:
+      true: ${PHASE == 'no_notice'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertNotVisible: "wants this phone let in"
+- runFlow:
+    when:
+      true: ${PHASE == 'decline'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertVisible: "wants this phone let in"
+      - tapOn:
+          id: "decline"
+      - assertNotVisible: "Let in"

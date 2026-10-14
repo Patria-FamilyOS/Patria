@@ -1,0 +1,31 @@
+# PHONE_TESTS: 1
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- tapOn:
+    id: "invite-someone"
+- assertVisible: "Back"
+- tapOn: "Back"
+- assertVisible:
+    id: "invite-someone"
+- tapOn:
+    id: "invite-someone"
+- swipe:
+    start: 2%, 50%
+    end: 80%, 50%
+- assertVisible:
+    id: "invite-someone"
+- tapOn:
+    id: "add-a-child"
+- tapOn: "Back"
+- assertVisible:
+    id: "invite-someone"
+- tapOn:
+    id: "add-a-child"
+- swipe:
+    start: 2%, 50%
+    end: 80%, 50%
+- assertVisible:
+    id: "invite-someone"
+- assertNotVisible: "Back"

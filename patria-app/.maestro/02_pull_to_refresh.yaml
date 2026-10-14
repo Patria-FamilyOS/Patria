@@ -1,0 +1,11 @@
+# PHONE_TESTS: 2
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- swipe:
+    start: 50%, 25%
+    end: 50%, 80%
+- assertNotVisible: "Continue"
+- assertVisible:
+    id: "invite-someone"

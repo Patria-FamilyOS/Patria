@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-13 — Maestro phone tests from PHONE_TESTS.md
+
+Phone tests 1–13 now have Maestro flows under `patria-app/.maestro/`. Local Docker Supabase only: `e2e-setup` and `e2e-db-check` refuse any URL that is not `127.0.0.1` or `localhost`. The service role key stays in gitignored files and is never in the app env. Default is two simulators; `E2E_DEVICES=3` runs all of test 12 at once. Share-sheet Copy is tried then marked manual if the sheet is not automatable. `npm run e2e:check` fails when a numbered test has no flow (unless the heading is marked manual) or a flow points at a missing test. Production App Store bundle id is still open (D28). Jest and pgTAP are unchanged.
+
+---
+
 ## 2026-10-13 — Rotate the family key when a key holder leaves (CIR05 Step 8)
 
 When an admin, co-admin, teen, or elder leaves or is moved off a key-holding role, remaining approved phones get a new family-key epoch. The rotating admin seals that key to remaining members’ recovery public keys with the existing wrap module (D27). A removed recovery contact cannot approve; the people who named them keep remaining contact plus paper until they redo, which deletes the old recovery public key and its sealed boxes. Caregivers, extended relatives, successors, and children do not trigger rotation. Home is never blocked. Human security review still required on the crypto files.
