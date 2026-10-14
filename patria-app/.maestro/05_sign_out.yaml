@@ -1,4 +1,5 @@
 # PHONE_TESTS: 5
+# AREAS: auth
 appId: app.patria.dev
 ---
 - runFlow:

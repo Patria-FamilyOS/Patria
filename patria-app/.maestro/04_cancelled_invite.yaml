@@ -1,4 +1,5 @@
 # PHONE_TESTS: 4
+# AREAS: invites, auth
 appId: app.patria.dev
 ---
 - runFlow:
@@ -7,6 +8,11 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - scrollUntilVisible:
+          element:
+            id: "invite-someone"
+          direction: DOWN
+          timeout: 10000
       - tapOn:
           id: "invite-someone"
       - tapOn:
@@ -54,7 +60,9 @@ appId: app.patria.dev
       - inputText: ${INVITE_URL}
       - tapOn:
           id: "open"
-      - assertVisible: "no longer valid"
+      - assertVisible:
+          id: "invite-no-longer-valid"
+          text: ".*no longer valid.*"
       - assertNotVisible: "PGRST"
       - tapOn:
           id: "continue"

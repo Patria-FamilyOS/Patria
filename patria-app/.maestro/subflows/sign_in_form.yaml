@@ -3,15 +3,15 @@ appId: app.patria.dev
 - runFlow:
     when:
       visible:
-        id: "home"
+        id: "^home$"
     commands:
       - scrollUntilVisible:
           element:
-            id: "sign-out"
+            id: "^sign-out$"
           direction: DOWN
           timeout: 20000
       - tapOn:
-          id: "sign-out"
+          id: "^sign-out$"
       - extendedWaitUntil:
           visible: "I already have an account"
           timeout: 30000
@@ -20,34 +20,38 @@ appId: app.patria.dev
       visible: "Create our family"
     commands:
       - tapOn:
-          id: "sign-out"
+          id: "^sign-out$"
       - extendedWaitUntil:
           visible: "I already have an account"
           timeout: 30000
 - tapOn:
-    text: "Cancel"
+    text: "Already have an account? Sign in"
     optional: true
 - tapOn:
-    id: "i-already-have-an-account"
+    id: "^already-have-an-account-sign-in$"
+    optional: true
+- tapOn:
+    id: "^i-already-have-an-account$"
     optional: true
 - hideKeyboard
 - extendedWaitUntil:
     visible:
-      id: "email"
+      id: "^email$"
     timeout: 30000
 - tapOn:
-    id: "email"
+    id: "^email$"
 - eraseText
 - inputText: ${E2E_EMAIL}
 - hideKeyboard
 - tapOn:
-    id: "password"
+    id: "^password$"
 - eraseText
 - inputText: ${E2E_PASSWORD}
-- hideKeyboard
 - tapOn:
-    id: "sign-in"
-- hideKeyboard
+    id: "Return"
+    optional: true
+- tapOn:
+    id: "^sign-in$"
 - tapOn:
     text: "Not Now"
     optional: true

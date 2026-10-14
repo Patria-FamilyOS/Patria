@@ -1,4 +1,5 @@
 # PHONE_TESTS: 1
+# AREAS: navigation, auth
 # iOS shows a chevron, not the word Back (headerBackButtonDisplayMode: minimal).
 appId: app.patria.dev
 ---

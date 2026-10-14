@@ -56,7 +56,8 @@ Patria is a private family app: it runs a family's day to day and keeps its memo
 5. Before suggesting a commit that changes app code or tests, run `npm run test:linux` (CI checks on Linux in Docker) as well as `npx supabase test db`. If something fails only in CI, reproduce it in Docker before changing any code.
 6. Suggest a short commit message describing the change.
 7. If a requirement is unclear or conflicts with these rules, stop and ask instead of guessing.
-8. Every feature that changes what a person sees or taps must, in the same commit:
+8. Before suggesting a commit that changes what a person sees or taps, run `npm run e2e:affected` (it includes the feature's own phone test) and `npm run e2e:smoke` from `patria-app`. Run `npm run e2e:full` only when asked. Report pass, fail or skip for each test that ran.
+9. Every feature that changes what a person sees or taps must, in the same commit:
    (1) add or update its test in `docs/testing/PHONE_TESTS.md`, numbered after the last test,
        in the same format (steps with a clear pass condition; steps needing human judgement
        marked (manual));

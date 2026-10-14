@@ -4,7 +4,7 @@ Master copy for people: the Patria Test and Demo Script (Claude Doc). Keep both 
 
 Copied from the Patria Test and Demo Script on Oct 13, 2026. When a test changes, both are updated.
 
-Each step says what counts as a pass. Steps marked **(manual)** need a person's judgement and stay manual.
+Each step says what counts as a pass. Steps marked **(manual)** need a person's judgement and stay manual. Each test lists `Areas:` (auth, navigation, invites, children, keys, devices, recovery, rotation, membership) so `npm run e2e:affected` can run only the tests that match changed files.
 
 ## Accounts
 
@@ -19,6 +19,7 @@ Passwords are never written in this file. Invites must go to these exact address
 ## Slice 1 (CIR05, CIR01, CIR02)
 
 ### 1. Back navigation
+Areas: navigation, auth
 1. Sign in as Test 1. You land on Home.
 2. Tap **Invite someone**. Pass if a back arrow shows at the top left.
 3. Tap the arrow. Pass if you return to Home.
@@ -26,10 +27,12 @@ Passwords are never written in this file. Invites must go to these exact address
 5. Repeat with **Add a child**. Pass if Home itself has no back arrow.
 
 ### 2. Pull to refresh
+Areas: navigation
 1. On Home, drag down from near the top and let go.
 2. Pass if a spinner shows briefly, the screen reloads, and there is no **Continue** button.
 
 ### 3. Invite and accept
+Areas: invites, auth, membership
 1. As Test 1, tap **Invite someone**, enter Test 2's email, choose **Elder**, and send.
 2. In the share sheet, tap **Copy**. (manual)
 3. Sign out, then sign in as Test 2. A new person with no family lands on **Create family**.
@@ -38,6 +41,7 @@ Passwords are never written in this file. Invites must go to these exact address
 6. Tap **Accept**. Pass if you land on Home and see the family and its members.
 
 ### 4. Cancelled invite
+Areas: invites, auth
 1. Sign out, sign in as Test 1, invite Test 3's email, and tap **Copy**. (manual)
 2. Find the pending invite and tap **Revoke**.
 3. Sign out, sign in as Test 3, and paste the link.
@@ -45,15 +49,18 @@ Passwords are never written in this file. Invites must go to these exact address
 5. Sign out and back in as Test 3. Pass if the old invite does not reappear.
 
 ### 5. Sign out
+Areas: auth
 1. On Home, tap **Sign out**. Pass if a spinner shows, then the Welcome screen.
 2. Swipe right from the left edge. Pass if you stay on Welcome.
 
 ### 6. Add a child
+Areas: children, membership
 1. As Test 1, tap **Add a child**, enter **Lily**, and save.
 2. Pass if Lily appears in the member list as a child with no email.
 3. Sign out, sign in as Test 2. Pass if there is no **Add a child** option and no email addresses are shown (D17).
 
 ### 7. Large text (manual)
+Areas: navigation
 1. Settings, Accessibility, Display & Text Size, Larger Text: turn on Larger Accessibility Sizes and drag the slider most of the way right.
 2. Open Welcome, Home, Invite someone and Add a child.
 3. Pass if all text is readable, no button is cut off, and everything can be reached by scrolling. For now (D19) text stops growing at a moderate size.
@@ -62,6 +69,7 @@ Automation may capture screenshots at large text for a person to review, but a p
 ## Family keys (CIR05 part B)
 
 ### 8. Family key created on this phone (Step 3)
+Areas: keys
 1. Sign in as Test 1 and create a new family, for example **Test Keys Family**. If you already have a space, tap **Create another family** on Home.
 2. Pass if Home shows that family keys are set up on this phone.
 3. Database: one row in `family_key_meta` for the new family with key epoch 1.
@@ -71,6 +79,7 @@ Automation may capture screenshots at large text for a person to review, but a p
 7. Fully close and reopen the app as Test 1. Pass if keys still show as set up, with no new rows in `family_key_meta`.
 
 ### 9. Let a new member's phone in (Step 4)
+Areas: keys, devices, membership, invites
 One device is enough: each account on the same device counts as its own device. With two devices, keep Test 1 on device A and Test 2 on device B and skip the sign outs.
 1. As Test 1 in the family with keys, invite Test 2 as **Elder** if not already a member.
 2. As Test 2, accept the invite if needed. Pass if Home says this phone is waiting for a family admin.
@@ -81,6 +90,7 @@ One device is enough: each account on the same device counts as its own device. 
 7. Invite Test 3 to a different test family as **Elder**, have them accept, then as Test 1 tap **Decline**. Pass if Test 3 keeps waiting and no wrap row is created.
 
 ### 10. Approve your own new phone (Step 5)
+Areas: devices, keys
 Needs a second device for the same account (device B). Device A is where Test 1 already has keys.
 1. Sign in as Test 1 on device B. Pass if B says it is waiting for one of your existing phones.
 2. On device A as Test 1. Pass if a notice asks "Is this your new phone?" with when B was set up.
@@ -90,6 +100,7 @@ Needs a second device for the same account (device B). Device A is where Test 1 
 6. On device A open **Your phones** and remove device B. Pass if B goes back to waiting and its row disappears from `family_key_wraps`.
 
 ### 11. Set up recovery contacts and printed code (Step 6)
+Areas: recovery, keys
 Device A: Test 1 (Family admin). Device B: Test 2, Elder or Co admin, already let in. After D27 (Oct 13), run this fresh for each account before test 12.
 1. On A as Test 1, open the family. Pass if Home shows a calm **Set up recovery** card that blocks nothing else.
 2. Tap it and choose Test 2 as the first contact. Pass if only adult family members whose phones are let in can be chosen.
@@ -100,6 +111,7 @@ Device A: Test 1 (Family admin). Device B: Test 2, Elder or Co admin, already le
 7. Remove Test 3 as a contact. Pass if that member sees **Recovery needs attention** and is asked to choose a new contact. Remaining contact and paper stay valid until they redo (D27). Redo offers a new printed code; the old code then no longer works.
 
 ### 12. Recover after losing every phone (Step 7)
+Areas: recovery, devices
 Before: test 11 passed for Test 2 (contacts Test 1 and Test 3, printed code known). Recovery wait shortened for testing only. Devices: device 1 = Test 1 (contact A, admin); device 2 = Test 2's old phone; new device = Test 2's new device.
 1. On the new device sign in as Test 2. Pass if "Waiting for approval" shows with **I lost my phone**. Tap it and confirm.
 2. Pass if the new device shows a countdown and says contacts were asked to call first, and devices 1 and 2 both show a recovery alert, with **This wasn't me** on device 2.
@@ -114,6 +126,7 @@ Before: test 11 passed for Test 2 (contacts Test 1 and Test 3, printed code know
 Pass when steps 2 to 8 behave as written, no screen shows the code words after typing, and no database column holds the printed code.
 
 ### 13. A new family key when someone leaves (Step 8)
+Areas: rotation, membership, keys
 Before: Test 1 (admin) and Test 2 (Elder) have let in devices; Test 3 joined as Teen or Elder with a let in device. Note the highest key epoch for the family.
 1. On device 1 (Test 1) remove Test 3. Pass if it briefly shows it is updating the family key, then confirms.
 2. Database: key epoch up by one; new wraps only for Test 1's and Test 2's let in devices; none for Test 3 at any epoch.

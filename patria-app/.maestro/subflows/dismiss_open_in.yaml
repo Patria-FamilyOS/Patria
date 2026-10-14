@@ -1,0 +1,9 @@
+# iOS "Open in patria-app?" only appears if a link opened the dev client.
+# Prefer launchApp. If the sheet is still there, tap Open (not Cancel).
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      visible: "Open in"
+    commands:
+      - tapOn: "Open"

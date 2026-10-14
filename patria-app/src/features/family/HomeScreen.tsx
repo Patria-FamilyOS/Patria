@@ -728,7 +728,9 @@ export function HomeScreen() {
         const title = copy.home.letInNotice.replace('{name}', name);
         return (
           <View key={notice.id} style={styles.row}>
-            <AppText style={styles.rowTitle}>{title}</AppText>
+            <AppText testID="let-in-notice" style={styles.rowTitle}>
+              {title}
+            </AppText>
             <Muted>
               {member ? copy.roles[member.role] : ''}
               {member ? ' · ' : ''}
@@ -811,7 +813,7 @@ export function HomeScreen() {
           style={styles.row}
         >
           <AppText style={styles.rowTitle}>{child.displayName}</AppText>
-          <Muted>
+          <Muted testID={`child-${testIdFromLabel(child.displayName)}-subtitle`}>
             {copy.roles.child} · {copy.child.noEmail}
           </Muted>
         </Pressable>

@@ -1,4 +1,5 @@
 # PHONE_TESTS: 13
+# AREAS: rotation, membership, keys
 appId: app.patria.dev
 ---
 - runFlow:

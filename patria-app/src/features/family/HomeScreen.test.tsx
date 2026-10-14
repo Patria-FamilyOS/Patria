@@ -240,9 +240,10 @@ describe('HomeScreen invite entry', () => {
         kind: 'first_device',
       },
     ]);
-    const { findByText, getByText } = renderScreen(<HomeScreen />);
+    const { findByText, findByTestId, getByText } = renderScreen(<HomeScreen />);
 
     expect(await findByText(`${copy.member.fallbackName} wants this phone let in`)).toBeTruthy();
+    expect((await findByTestId('let-in-notice')).props.testID).toBe('let-in-notice');
     fireEvent.press(getByText(copy.home.letIn));
     await waitFor(() => {
       expect(approveFirstDevice).toHaveBeenCalled();
@@ -298,6 +299,16 @@ describe('HomeScreen invite entry', () => {
     const { findByText } = renderScreen(<HomeScreen />);
     fireEvent.press(await findByText(copy.home.yourPhones));
     expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/your-phones');
+  });
+
+  it('lists a child with a subtitle test id for kid profile and no email', async () => {
+    (fetchChildren as jest.Mock).mockResolvedValueOnce([
+      { id: 'c1', displayName: 'Lily', dateOfBirth: null },
+    ]);
+    const { findByTestId } = renderScreen(<HomeScreen />);
+    const subtitle = await findByTestId('child-lily-subtitle');
+    expect(String(subtitle.props.children)).toMatch(/Kid profile/);
+    expect(String(subtitle.props.children)).toMatch(/no email/i);
   });
 
   it('never shows a blank member card', async () => {

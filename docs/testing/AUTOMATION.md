@@ -1,5 +1,13 @@
 # Phone test automation
 
+From `patria-app`, after Metro is up (`npm run e2e:build` in another terminal, or the runner will start it):
+
+```bash
+npm run e2e:smoke      # tests 1, 3, 8 — aim for under 5 minutes
+npm run e2e:affected   # tests whose areas match files that differ from main, plus new tests
+npm run e2e:full       # every numbered test (same as npm run e2e)
+```
+
 From `patria-app`, two terminals:
 
 Terminal 1:
@@ -53,7 +61,9 @@ The development bundle id `app.patria.dev` is provisional (D28).
 
 ```bash
 cd patria-app
-npm run e2e
+npm run e2e:smoke
+npm run e2e:affected
+npm run e2e:full
 npm run e2e -- --test 9
 E2E_DEVICES=3 npm run e2e -- --test 12
 npm run e2e -- --record

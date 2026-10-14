@@ -1,4 +1,5 @@
 # PHONE_TESTS: 8
+# AREAS: keys
 appId: app.patria.dev
 ---
 - runFlow:

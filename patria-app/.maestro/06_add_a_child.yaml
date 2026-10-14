@@ -1,4 +1,5 @@
 # PHONE_TESTS: 6
+# AREAS: children, membership
 appId: app.patria.dev
 ---
 - runFlow:
@@ -21,6 +22,12 @@ appId: app.patria.dev
           timeout: 20000
       - assertVisible:
           id: "child-lily"
+      - assertVisible:
+          id: "child-lily-subtitle"
+          text: ".*Kid profile.*"
+      - assertVisible:
+          id: "child-lily-subtitle"
+          text: ".*[Nn]o email.*"
       - assertNotVisible: "@gmail.com"
 - runFlow:
     when:

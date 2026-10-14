@@ -1,4 +1,5 @@
 # PHONE_TESTS: 2
+# AREAS: navigation
 appId: app.patria.dev
 ---
 - runFlow:

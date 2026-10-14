@@ -1,4 +1,5 @@
 # PHONE_TESTS: 9
+# AREAS: keys, devices, membership, invites
 appId: app.patria.dev
 ---
 - runFlow:
@@ -7,6 +8,11 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - scrollUntilVisible:
+          element:
+            id: "invite-someone"
+          direction: DOWN
+          timeout: 10000
       - tapOn:
           id: "invite-someone"
       - tapOn:
@@ -36,16 +42,25 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
-      - assertVisible: "Waiting for a family admin to let this phone in"
+      - assertVisible:
+          id: "home-keys-status"
+          text: ".*Waiting for a family admin.*"
 - runFlow:
     when:
       true: ${PHASE == 'let_in'}
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
-      - assertVisible: "wants this phone let in"
+      - scrollUntilVisible:
+          element:
+            id: "let-in-notice"
+          direction: DOWN
+          timeout: 10000
+      - assertVisible:
+          id: "let-in-notice"
+          text: ".*wants this phone let in.*"
       - tapOn:
-          id: "let-in"
+          id: "^let-in$"
       - extendedWaitUntil:
           notVisible: "wants this phone let in"
           timeout: 20000
@@ -55,7 +70,9 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
-      - assertVisible: "Family keys: set up on this phone"
+      - assertVisible:
+          id: "home-keys-status"
+          text: ".*Family keys: set up on this phone.*"
 - runFlow:
     when:
       true: ${PHASE == 'no_notice'}
@@ -69,7 +86,9 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
-      - assertVisible: "wants this phone let in"
+      - assertVisible:
+          id: "let-in-notice"
+          text: ".*wants this phone let in.*"
       - tapOn:
           id: "decline"
       - assertNotVisible: "Let in"

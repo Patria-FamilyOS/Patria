@@ -1,4 +1,5 @@
 # PHONE_TESTS: 12
+# AREAS: recovery, devices
 # Do not screenshot the printed-code field. Words stay in clipboard / Maestro memory only.
 appId: app.patria.dev
 ---

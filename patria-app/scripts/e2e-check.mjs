@@ -1,7 +1,13 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { MAESTRO_DIR, PHONE_TESTS, parsePhoneTests } from './e2e-lib.mjs';
+import {
+  MAESTRO_DIR,
+  PHONE_AREA_LIST,
+  PHONE_TESTS,
+  parseAreaList,
+  parsePhoneTests,
+} from './e2e-lib.mjs';
 
 function flowNumber(filename) {
   const match = filename.match(/^(\d+)_.*\.ya?ml$/);
@@ -11,6 +17,17 @@ function flowNumber(filename) {
 function phoneTestsTag(contents) {
   const match = contents.match(/#\s*PHONE_TESTS:\s*(\d+)/);
   return match ? Number(match[1]) : null;
+}
+
+function flowAreas(contents) {
+  const match = contents.match(/#\s*AREAS:\s*(.+)/);
+  return parseAreaList(match ? match[1] : '');
+}
+
+function sameAreas(left, right) {
+  const a = [...left].sort().join(',');
+  const b = [...right].sort().join(',');
+  return a === b;
 }
 
 const markdown = readFileSync(PHONE_TESTS, 'utf8');
@@ -26,8 +43,17 @@ const flowFiles = existsSync(MAESTRO_DIR)
 
 const errors = [];
 const testsByNumber = new Map(tests.map((test) => [test.number, test]));
+const known = new Set(PHONE_AREA_LIST);
 
 for (const test of tests) {
+  if (test.areas.length === 0) {
+    errors.push(`PHONE_TESTS.md test ${test.number} ("${test.title}") has no Areas: line.`);
+  }
+  for (const area of test.areas) {
+    if (!known.has(area)) {
+      errors.push(`PHONE_TESTS.md test ${test.number} has unknown area "${area}".`);
+    }
+  }
   if (test.manual) {
     continue;
   }
@@ -50,6 +76,22 @@ for (const filename of flowFiles) {
   }
   if (!testsByNumber.has(number)) {
     errors.push(`${filename} points to test ${number}, which is not in PHONE_TESTS.md.`);
+    continue;
+  }
+  const yamlAreas = flowAreas(contents);
+  if (yamlAreas.length === 0) {
+    errors.push(`${filename} has no # AREAS: line.`);
+  }
+  for (const area of yamlAreas) {
+    if (!known.has(area)) {
+      errors.push(`${filename} has unknown area "${area}".`);
+    }
+  }
+  const mdAreas = testsByNumber.get(number).areas;
+  if (mdAreas.length > 0 && yamlAreas.length > 0 && !sameAreas(mdAreas, yamlAreas)) {
+    errors.push(
+      `${filename} areas (${yamlAreas.join(', ')}) do not match PHONE_TESTS.md (${mdAreas.join(', ')}).`,
+    );
   }
 }
 

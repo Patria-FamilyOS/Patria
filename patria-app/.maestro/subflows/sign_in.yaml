@@ -1,9 +1,8 @@
 appId: app.patria.dev
 ---
 - launchApp
-- tapOn:
-    text: "Cancel"
-    optional: true
+- runFlow:
+    file: dismiss_open_in.yaml
 - tapOn:
     text: "Dismiss"
     optional: true
@@ -19,7 +18,7 @@ appId: app.patria.dev
     commands:
       - extendedWaitUntil:
           visible:
-            id: "home"
+            id: "^home$"
           timeout: 20000
 - runFlow:
     when:
@@ -41,5 +40,5 @@ appId: app.patria.dev
     commands:
       - extendedWaitUntil:
           visible:
-            id: "home"
+            id: "^home$"
           timeout: 45000

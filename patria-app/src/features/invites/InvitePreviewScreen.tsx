@@ -98,7 +98,7 @@ export function InvitePreviewScreen({ token }: InvitePreviewScreenProps) {
     return (
       <Screen accessibilityLabel={copy.invitePreview.invalid} withHeader>
         {previewQuery.isError ? <ErrorState message={copy.common.error} /> : null}
-        <Body>{copy.invitePreview.invalid}</Body>
+        <Body testID="invite-no-longer-valid">{copy.invitePreview.invalid}</Body>
         <Button label={copy.common.continue} onPress={() => void onLeaveInvalid()} />
       </Screen>
     );
@@ -107,7 +107,7 @@ export function InvitePreviewScreen({ token }: InvitePreviewScreenProps) {
   if (!previewQuery.data) {
     return (
       <Screen accessibilityLabel={copy.invitePreview.invalid} withHeader>
-        <Body>{copy.invitePreview.invalid}</Body>
+        <Body testID="invite-no-longer-valid">{copy.invitePreview.invalid}</Body>
         <Button label={copy.common.continue} onPress={() => void onLeaveInvalid()} />
       </Screen>
     );

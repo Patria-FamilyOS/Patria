@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-14 — Phone test sizes, Open sheet, invite/child testIDs
+
+Sign-in uses `launchApp` only (no `simctl openurl`); a shared subflow taps **Open** if the iOS “Open in patria-app?” sheet still appears. After the password field, the form taps **Sign in** without `hideKeyboard` (device B’s Passwords keyboard has no dismiss). Invalid invite copy, the child-row subtitle, and the let-in notice have testIDs so Maestro can match “no longer valid”, “Kid profile” / “no email”, and “wants this phone let in” with a contains regex. Invite from Home scrolls to the button when recovery and let-in cards push it below the fold. Phone tests list `Areas:`; `e2e:smoke` runs 1, 3 and 8, `e2e:affected` diffs against main and picks tests by area plus new tests, `e2e:full` is the whole suite.
+
+---
+
 ## 2026-10-14 — Phone tests: every simulator, let-in seed, Invite keyboard
 
 `e2e:build` now installs `app.patria.dev` on every simulator the run will use (A, B, and C when `E2E_DEVICES=3`). The runner checks install before starting. Tests 11 and 13 still seed membership through `invites` insert and `accept_invite`; let-in wraps cannot be invented on the server (they are sealed to the phone’s device key), so the runner then opens Home as Test 1 and lets Test 2/3 in through the same app path as test 9. Test 5 scrolls to Sign out. Test 6 asserts Lily as a kid profile with no email address, not the phrase “No email needed”. Invite create hides the keyboard and waits for the real created copy; the earlier failure showed the form still open with the keyboard covering the lower half and a garbled `…comg` email, not a database error.

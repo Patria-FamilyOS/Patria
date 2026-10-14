@@ -19,6 +19,8 @@ import {
   parsePhoneTests,
   passwordFor,
   publicExpoEnv,
+  selectAffectedPhoneTests,
+  SMOKE_TEST_NUMBERS,
   supabaseUrlFromEnv,
 } from './e2e-lib.mjs';
 
@@ -28,7 +30,7 @@ const RECORDINGS = join(APP_ROOT, 'e2e-recordings');
 
 function parseArgs(argv) {
   let devicesRaw = process.env.E2E_DEVICES || '2';
-  const out = { test: null, record: null, devices: 2 };
+  const out = { test: null, record: null, devices: 2, mode: 'full' };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--test') {
@@ -41,6 +43,12 @@ function parseArgs(argv) {
     } else if (arg === '--devices') {
       devicesRaw = argv[i + 1];
       i += 1;
+    } else if (arg === '--smoke') {
+      out.mode = 'smoke';
+    } else if (arg === '--affected') {
+      out.mode = 'affected';
+    } else if (arg === '--full') {
+      out.mode = 'full';
     }
   }
   try {
@@ -209,7 +217,24 @@ try {
 }
 
 const tests = parsePhoneTests(readFileSync(PHONE_TESTS, 'utf8'));
-const selected = args.test ? tests.filter((test) => test.number === args.test) : tests;
+let selected = tests;
+if (args.test) {
+  selected = tests.filter((test) => test.number === args.test);
+} else if (args.mode === 'smoke') {
+  selected = tests.filter((test) => SMOKE_TEST_NUMBERS.includes(test.number));
+  console.log(`e2e:smoke: tests ${SMOKE_TEST_NUMBERS.join(', ')} (auth, invites, keys).`);
+} else if (args.mode === 'affected') {
+  const picked = selectAffectedPhoneTests(tests);
+  for (const line of picked.reasons) {
+    console.log(line);
+  }
+  selected = tests.filter((test) => picked.numbers.includes(test.number));
+  if (selected.length === 0) {
+    console.log('e2e:affected: no phone tests to run.');
+    process.exit(0);
+  }
+  console.log(`e2e:affected: running tests ${picked.numbers.join(', ')}.`);
+}
 if (selected.length === 0) {
   console.error(`${SCRIPT}: no matching test.`);
   process.exit(1);
@@ -277,22 +302,6 @@ async function metroReady() {
   return false;
 }
 
-function openDevClient(udid) {
-  try {
-    execFileSync(
-      'xcrun',
-      ['simctl', 'openurl', udid, 'app.patria.dev://expo-development-client/?url=http://127.0.0.1:8081'],
-      { stdio: 'ignore' },
-    );
-  } catch {
-    try {
-      execFileSync('xcrun', ['simctl', 'openurl', udid, 'exp://127.0.0.1:8081'], { stdio: 'ignore' });
-    } catch {
-      // The next launchApp in Maestro still tries the last Metro URL.
-    }
-  }
-}
-
 async function ensureMetro() {
   const readyHost = await metroReady();
   if (!readyHost) {
@@ -328,9 +337,6 @@ async function ensureMetro() {
     progress(`Metro already running on port 8081 (${readyHost}).`);
   }
   progress('Metro is ready.');
-  for (const udid of [deviceA, deviceB, deviceC].filter(Boolean)) {
-    openDevClient(udid);
-  }
 }
 
 function notifyMac(message) {

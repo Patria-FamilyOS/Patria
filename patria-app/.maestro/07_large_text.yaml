@@ -1,8 +1,11 @@
 # PHONE_TESTS: 7
+# AREAS: navigation
 # iOS shows a chevron, not the word Back (headerBackButtonDisplayMode: minimal).
 appId: app.patria.dev
 ---
 - launchApp
+- runFlow:
+    file: subflows/dismiss_open_in.yaml
 - takeScreenshot: e2e-artifacts/07-welcome
 - runFlow:
     file: subflows/sign_in.yaml

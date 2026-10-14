@@ -1,4 +1,5 @@
 # PHONE_TESTS: 11
+# AREAS: recovery, keys
 # Printed words: copy to clipboard only. Never screenshot this flow on the words screen.
 appId: app.patria.dev
 ---

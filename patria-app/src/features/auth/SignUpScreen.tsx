@@ -44,7 +44,7 @@ export function SignUpScreen() {
   });
 
   return (
-    <Screen accessibilityLabel={copy.auth.signUpTitle} withHeader>
+    <Screen accessibilityLabel={copy.auth.signUpTitle} testID="sign-up-screen" withHeader>
       <Title>{copy.auth.signUpTitle}</Title>
       <Controller
         control={control}

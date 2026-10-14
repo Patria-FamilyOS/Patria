@@ -320,6 +320,24 @@ export function ensureJavaHome() {
   }
 }
 
+export const PHONE_AREA_LIST = [
+  'auth',
+  'navigation',
+  'invites',
+  'children',
+  'keys',
+  'devices',
+  'recovery',
+  'rotation',
+  'membership',
+];
+
+export const SMOKE_TEST_NUMBERS = [1, 3, 8];
+
+export function parseAreaList(raw) {
+  return [...new Set((raw ?? '').split(',').map((part) => part.trim()).filter(Boolean))];
+}
+
 export function parsePhoneTests(markdown) {
   const tests = [];
   const heading = /^### (\d+)\.\s+(.+)$/gm;
@@ -330,6 +348,8 @@ export function parsePhoneTests(markdown) {
     const start = match.index + match[0].length;
     const next = heading.exec(markdown);
     const body = markdown.slice(start, next ? next.index : markdown.length);
+    const areasMatch = body.match(/^Areas:\s*(.+)$/m);
+    const areas = parseAreaList(areasMatch ? areasMatch[1] : '');
     const steps = [];
     const stepRe = /^(\d+)\.\s+(.+)$/gm;
     let stepMatch = stepRe.exec(body);
@@ -345,9 +365,185 @@ export function parsePhoneTests(markdown) {
       number,
       title,
       manual: /\(manual\)/i.test(title),
+      areas,
       steps,
     });
     match = next;
   }
   return tests;
+}
+
+function gitVerifyRef(ref) {
+  try {
+    execFileSync('git', ['rev-parse', '--verify', ref], {
+      cwd: REPO_ROOT,
+      stdio: 'ignore',
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function gitBaseRef() {
+  if (gitVerifyRef('main')) {
+    return 'main';
+  }
+  if (gitVerifyRef('origin/main')) {
+    return 'origin/main';
+  }
+  if (gitVerifyRef('master')) {
+    return 'master';
+  }
+  return '';
+}
+
+export function changedFilesVsMain() {
+  const base = gitBaseRef();
+  if (!base) {
+    return { base: '', files: [] };
+  }
+  const names = new Set();
+  for (const args of [
+    ['diff', '--name-only', base],
+    ['diff', '--name-only', '--cached', base],
+    ['diff', '--name-only', `${base}...HEAD`],
+  ]) {
+    const raw = execFileSync('git', args, {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    for (const line of raw.split('\n')) {
+      const name = line.trim();
+      if (name) {
+        names.add(name);
+      }
+    }
+  }
+  return { base, files: [...names].sort() };
+}
+
+export function mapFileToAreas(file) {
+  const n = file.replace(/\\/g, '/');
+  const areas = new Set();
+  if (
+    /patria-app\/src\/lib\/auth|auth-context|authSession|sessionGate|signed-out/.test(n)
+  ) {
+    areas.add('auth');
+  }
+  if (/patria-app\/\.maestro\/subflows\/sign_(in|out)/.test(n)) {
+    areas.add('auth');
+  }
+  if (/patria-app\/src\/components|patria-app\/src\/theme|app\/_layout/.test(n)) {
+    areas.add('navigation');
+  }
+  if (/01_back_navigation|02_pull_to_refresh|07_large_text/.test(n)) {
+    areas.add('navigation');
+  }
+  if (/patria-app\/src\/features\/invites|inviteUrl|InviteScreen|InvitePreview/.test(n)) {
+    areas.add('invites');
+  }
+  if (/AddChild|ChildProfile|child_profiles|06_add_a_child/.test(n)) {
+    areas.add('children');
+  }
+  if (/patria-app\/src\/features\/family/.test(n) && !/AddChild|ChildProfile/.test(n)) {
+    areas.add('membership');
+    areas.add('navigation');
+  }
+  if (/YourPhones|approve_own|10_approve_own|deviceAccess|deviceIdentity/.test(n)) {
+    areas.add('devices');
+    areas.add('keys');
+  }
+  if (/recoverFlow|RecoverySetup|recoverySetup|recoveryAccess|11_recovery|12_recover/.test(n)) {
+    areas.add('recovery');
+    areas.add('keys');
+  }
+  if (/rotateFamilyKey|13_key_rotation|on_key_holder/.test(n)) {
+    areas.add('rotation');
+    areas.add('keys');
+  }
+  if (
+    /familyCeremony|family_key|patria-app\/src\/lib\/crypto|patria-app\/src\/features\/keys/.test(n)
+  ) {
+    areas.add('keys');
+  }
+  if (n.includes('patria-app/supabase')) {
+    areas.add('membership');
+    areas.add('invites');
+    areas.add('keys');
+    areas.add('recovery');
+    areas.add('rotation');
+    areas.add('devices');
+  }
+  return [...areas];
+}
+
+export function newTestNumbersVsMain(tests) {
+  const base = gitBaseRef();
+  if (!base) {
+    return [];
+  }
+  try {
+    const oldMarkdown = execFileSync('git', ['show', `${base}:docs/testing/PHONE_TESTS.md`], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const oldNumbers = new Set(parsePhoneTests(oldMarkdown).map((test) => test.number));
+    return tests.map((test) => test.number).filter((number) => !oldNumbers.has(number));
+  } catch {
+    return [];
+  }
+}
+
+export function selectAffectedPhoneTests(tests) {
+  const { base, files } = changedFilesVsMain();
+  const reasons = [];
+  const chosen = new Set();
+  if (!base) {
+    reasons.push('e2e:affected: no main branch to diff against.');
+    return { numbers: [], reasons, files, base };
+  }
+  if (files.length === 0) {
+    reasons.push(`e2e:affected: no files differ from ${base}.`);
+    return { numbers: [], reasons, files, base };
+  }
+  reasons.push(`e2e:affected: ${files.length} file(s) differ from ${base}.`);
+  const areas = new Set();
+  for (const file of files) {
+    const flow = file.match(/\.maestro\/(\d+)_/);
+    if (flow) {
+      const number = Number(flow[1]);
+      chosen.add(number);
+      reasons.push(`  test ${number}: flow file ${file} changed`);
+    }
+    const mapped = mapFileToAreas(file);
+    for (const area of mapped) {
+      areas.add(area);
+    }
+    reasons.push(
+      mapped.length ? `  ${file} → ${mapped.join(', ')}` : `  ${file} → (no area)`,
+    );
+  }
+  if (areas.size > 0) {
+    reasons.push(`e2e:affected: areas ${[...areas].sort().join(', ')}`);
+  }
+  for (const test of tests) {
+    const hit = (test.areas ?? []).filter((area) => areas.has(area));
+    if (hit.length > 0) {
+      chosen.add(test.number);
+      reasons.push(`  test ${test.number} (${test.title}): ${hit.join(', ')}`);
+    }
+  }
+  for (const number of newTestNumbersVsMain(tests)) {
+    chosen.add(number);
+    reasons.push(`  test ${number}: new in PHONE_TESTS.md vs ${base}`);
+  }
+  return {
+    numbers: [...chosen].sort((left, right) => left - right),
+    reasons,
+    files,
+    base,
+  };
 }

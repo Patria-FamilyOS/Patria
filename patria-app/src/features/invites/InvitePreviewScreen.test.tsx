@@ -45,6 +45,7 @@ describe('InvitePreviewScreen invalid invite', () => {
     await waitFor(() => {
       expect(getByText(copy.invitePreview.invalid)).toBeTruthy();
     });
+    expect(getByText(copy.invitePreview.invalid).props.testID).toBe('invite-no-longer-valid');
     fireEvent.press(getByText(copy.common.continue));
 
     await waitFor(() => {

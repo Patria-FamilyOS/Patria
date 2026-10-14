@@ -1,4 +1,5 @@
 # PHONE_TESTS: 10
+# AREAS: devices, keys
 appId: app.patria.dev
 ---
 - runFlow:
@@ -6,6 +7,8 @@ appId: app.patria.dev
       true: ${PHASE == 'waiting_own'}
     commands:
       - launchApp
+      - runFlow:
+          file: subflows/dismiss_open_in.yaml
       - runFlow:
           file: subflows/sign_in.yaml
       - assertVisible: "Waiting for one of your phones to let this one in"
