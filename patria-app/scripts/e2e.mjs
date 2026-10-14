@@ -1,18 +1,21 @@
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
   APP_ROOT,
+  E2E_FAMILY_NAME,
   MAESTRO_DIR,
   PHONE_TESTS,
   TEST_EMAILS,
+  TEST_TIMEOUT_MS,
   assertLocalSupabaseUrl,
   ensureJavaHome,
   loadLocalFiles,
   parsePhoneTests,
   passwordFor,
+  publicExpoEnv,
   supabaseUrlFromEnv,
 } from './e2e-lib.mjs';
 
@@ -79,6 +82,19 @@ function dbCheck(args) {
   }
 }
 
+function redactCli(text) {
+  return text.replace(/E2E_PASSWORD=[^\s]+/g, 'E2E_PASSWORD=(redacted)');
+}
+
+let testDeadline = 0;
+
+function remainingMs() {
+  if (!testDeadline) {
+    return TEST_TIMEOUT_MS;
+  }
+  return testDeadline - Date.now();
+}
+
 function maestro({ flow, device, env }) {
   const args = ['test', '--no-ansi', '--platform', 'ios'];
   if (device) {
@@ -90,11 +106,26 @@ function maestro({ flow, device, env }) {
     }
   }
   args.push(flow);
-  execFileSync('maestro', args, {
+  const timeout = remainingMs();
+  if (timeout <= 0) {
+    throw new Error('timed out');
+  }
+  const result = spawnSync('maestro', args, {
     cwd: APP_ROOT,
     stdio: 'inherit',
     env: { ...process.env },
+    timeout,
+    killSignal: 'SIGTERM',
   });
+  if (result.error && result.error.code === 'ETIMEDOUT') {
+    throw new Error('timed out');
+  }
+  if (result.signal) {
+    throw new Error('timed out');
+  }
+  if (result.status !== 0) {
+    throw new Error(redactCli(`Command failed: maestro ${args.join(' ')}`));
+  }
 }
 
 function tryMaestro(opts) {
@@ -166,6 +197,7 @@ function signInEnv(secrets, n) {
   return {
     E2E_EMAIL: TEST_EMAILS[n],
     E2E_PASSWORD: passwordFor(secrets, n),
+    E2E_HELLO: `Hello, Test ${n}`,
   };
 }
 
@@ -224,6 +256,104 @@ try {
 
 const [deviceA, deviceB, deviceC] = devices;
 mkdirSync(ARTIFACTS, { recursive: true });
+const progressPath = join(ARTIFACTS, 'progress.txt');
+writeFileSync(progressPath, '', { encoding: 'utf8' });
+
+function progress(line) {
+  console.log(line);
+  appendFileSync(progressPath, `${line}\n`);
+}
+
+function captureScreen(udid, name) {
+  if (!udid) {
+    return;
+  }
+  try {
+    execFileSync('xcrun', ['simctl', 'io', udid, 'screenshot', join(ARTIFACTS, `${name}.png`)], {
+      stdio: 'ignore',
+    });
+  } catch {
+    // Screenshot is best-effort; the test result still stands.
+  }
+}
+
+async function metroReady() {
+  for (const host of ['127.0.0.1', 'localhost', '[::1]']) {
+    try {
+      const response = await fetch(`http://${host}:8081/status`);
+      const text = await response.text();
+      if (response.ok && /running/i.test(text)) {
+        return true;
+      }
+    } catch {
+      // Try the next host; Metro may be IPv4-only or IPv6-only.
+    }
+  }
+  return false;
+}
+
+function openDevClient(udid) {
+  try {
+    execFileSync(
+      'xcrun',
+      ['simctl', 'openurl', udid, 'app.patria.dev://expo-development-client/?url=http://127.0.0.1:8081'],
+      { stdio: 'ignore' },
+    );
+  } catch {
+    // The next launchApp in Maestro still tries the last Metro URL.
+  }
+}
+
+async function ensureMetro() {
+  if (!(await metroReady())) {
+    progress('Starting Metro in the background.');
+    const log = join(ARTIFACTS, 'metro.log');
+    const child = spawn('npx', ['expo', 'start', '--port', '8081'], {
+      cwd: APP_ROOT,
+      env: {
+        ...process.env,
+        ...publicExpoEnv(e2eEnv),
+        EXPO_NO_DOTENV: '1',
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const stream = (chunk) => appendFileSync(log, chunk.toString());
+    child.stdout?.on('data', stream);
+    child.stderr?.on('data', stream);
+    child.on('exit', (code, signal) => {
+      appendFileSync(log, `\nmetro exited code=${code} signal=${signal}\n`);
+    });
+    const started = Date.now();
+    while (Date.now() - started < 90000) {
+      if (await metroReady()) {
+        break;
+      }
+      if (child.exitCode != null) {
+        throw new Error('Metro exited before it became ready. See e2e-artifacts/metro.log.');
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    if (!(await metroReady())) {
+      throw new Error('Metro did not become ready on port 8081.');
+    }
+  } else {
+    progress('Metro already running on port 8081.');
+  }
+  progress('Metro is ready.');
+  for (const udid of [deviceA, deviceB, deviceC].filter(Boolean)) {
+    openDevClient(udid);
+  }
+}
+
+function notifyMac(message) {
+  try {
+    execFileSync('osascript', ['-e', `display notification ${JSON.stringify(message)} with title "Patria"`], {
+      stdio: 'ignore',
+    });
+  } catch {
+    // Notification is optional on machines without osascript.
+  }
+}
 
 const reports = [];
 
@@ -232,6 +362,11 @@ function flow(name) {
 }
 
 function step(testNumber, stepNumber, label, fn) {
+  if (remainingMs() <= 0) {
+    reports.push({ testNumber, stepNumber, label, status: 'fail', detail: 'timed out' });
+    console.log(`  ${stepNumber}. ${label}: FAIL (timed out)`);
+    throw new Error('timed out');
+  }
   let status = 'pass';
   let detail = '';
   try {
@@ -243,6 +378,12 @@ function step(testNumber, stepNumber, label, fn) {
   } catch (error) {
     status = 'fail';
     detail = error instanceof Error ? error.message : 'failed';
+    captureScreen(deviceA, `fail-test-${testNumber}-step-${stepNumber}`);
+    if (detail === 'timed out') {
+      reports.push({ testNumber, stepNumber, label, status, detail });
+      console.log(`  ${stepNumber}. ${label}: FAIL (timed out)`);
+      throw error;
+    }
   }
   reports.push({ testNumber, stepNumber, label, status, detail });
   const extra = detail ? ` (${detail})` : '';
@@ -268,10 +409,56 @@ if (record && deviceA) {
   recorders.push(startRecording(deviceA, `device-a`));
 }
 
+await ensureMetro();
+
+const total = selected.length;
+
+function deviceLabelFor(testNumber) {
+  if ((testNumber === 9 || testNumber === 10) && deviceB) {
+    return 'devices A and B';
+  }
+  if (testNumber === 12 && deviceC) {
+    return 'devices A, B and C';
+  }
+  return 'device A';
+}
+
+function endTestLine(test, index, started) {
+  const rows = reports.filter((row) => row.testNumber === test.number);
+  const elapsed = Math.max(1, Math.round((Date.now() - started) / 1000));
+  const failedStep = rows.find((row) => row.status === 'fail');
+  const skippedAll = rows.length > 0 && rows.every((row) => row.status === 'skip');
+  if (failedStep) {
+    progress(
+      `Test ${index} of ${total}: FAILED at step ${failedStep.stepNumber}${failedStep.detail ? ` (${failedStep.detail})` : ''}`,
+    );
+  } else if (skippedAll) {
+    progress(`Test ${index} of ${total}: SKIPPED, ${rows[0]?.detail || 'skipped'}`);
+  } else {
+    progress(`Test ${index} of ${total}: PASSED in ${elapsed}s`);
+  }
+}
+
 try {
-  for (const test of selected) {
-    console.log(`\nTEST ${test.number}. ${test.title}`);
+  for (let index = 0; index < selected.length; index += 1) {
+    const test = selected[index];
+    const started = Date.now();
+    const ordinal = index + 1;
+    progress(
+      `Test ${ordinal} of ${total}: ${test.title}, in progress (${deviceLabelFor(test.number)})`,
+    );
     wipeSensitiveArtifacts(test.number);
+    testDeadline = Date.now() + TEST_TIMEOUT_MS;
+    try {
+      runNode('e2e-setup.mjs', ['--test', String(test.number)]);
+    } catch (error) {
+      step(test.number, 1, 'Seed starting state', () => {
+        throw error instanceof Error ? error : new Error('e2e-setup failed');
+      });
+      endTestLine(test, ordinal, started);
+      continue;
+    }
+    try {
     if (!deviceA) {
       for (const item of test.steps) {
         reports.push({
@@ -339,7 +526,7 @@ try {
         maestro({
           flow: flow('03_invite_and_accept.yaml'),
           device: deviceA,
-          env: { ...signInEnv(secrets, 2), PHASE: 'accept', INVITE_URL: url.stdout },
+          env: { ...signInEnv(secrets, 2), PHASE: 'accept', INVITE_URL: url.stdout, EXPECT_HOME: '0' },
         });
       });
       step(3, 5, 'Preview family, role, what others see', () => result('pass'));
@@ -372,7 +559,7 @@ try {
         maestro({
           flow: flow('04_cancelled_invite.yaml'),
           device: deviceA,
-          env: { ...signInEnv(secrets, 3), PHASE: 'open_revoked', INVITE_URL: url.stdout },
+          env: { ...signInEnv(secrets, 3), PHASE: 'open_revoked', INVITE_URL: url.stdout, EXPECT_HOME: '0' },
         });
       });
       step(4, 4, 'Friendly no longer valid', () => result('pass'));
@@ -435,7 +622,7 @@ try {
           env: {
             ...signInEnv(secrets, 1),
             PHASE: 'create_family',
-            FAMILY_NAME: 'Test Keys Family',
+            FAMILY_NAME: E2E_FAMILY_NAME,
           },
         });
         if (!created.ok) {
@@ -449,9 +636,9 @@ try {
       });
       step(8, 2, 'Home shows keys set up', () => result('pass'));
       step(8, 3, 'family_key_meta epoch 1', () => {
-        const check = dbCheck(['assert-epoch', '--family', 'Test Keys Family', '--equals', '1']);
+        const check = dbCheck(['assert-epoch', '--family', E2E_FAMILY_NAME, '--equals', '1']);
         if (!check.ok) {
-          const fallback = dbCheck(['assert-wraps', '--family', 'Test Keys Family', '--min', '1']);
+          const fallback = dbCheck(['assert-wraps', '--family', E2E_FAMILY_NAME, '--min', '1']);
           if (!fallback.ok) {
             throw new Error('no key meta for Test Keys Family; using current family wraps');
           }
@@ -459,7 +646,7 @@ try {
         }
       });
       step(8, 4, 'Exactly one wrap of unreadable bytes', () => {
-        const check = dbCheck(['assert-wraps', '--family', 'Test Keys Family', '--min', '1']);
+        const check = dbCheck(['assert-wraps', '--family', E2E_FAMILY_NAME, '--min', '1']);
         if (!check.ok) {
           throw new Error(check.error);
         }
@@ -518,7 +705,7 @@ try {
         const wraps = dbCheck([
           'assert-wraps',
           '--family',
-          'Test Keys Family',
+          E2E_FAMILY_NAME,
           '--email',
           TEST_EMAILS[2],
           '--min',
@@ -775,7 +962,7 @@ try {
         const gone = dbCheck([
           'assert-no-wraps',
           '--family',
-          'Test Keys Family',
+          E2E_FAMILY_NAME,
           '--email',
           TEST_EMAILS[3],
         ]);
@@ -797,7 +984,8 @@ try {
           env: {
             ...signInEnv(secrets, 3),
             PHASE: 'no_family',
-            FAMILY_NAME: 'Test Keys Family',
+            FAMILY_NAME: E2E_FAMILY_NAME,
+            EXPECT_HOME: '0',
           },
         });
       });
@@ -815,7 +1003,7 @@ try {
         const check = dbCheck([
           'assert-under-recovery',
           '--family',
-          'Test Keys Family',
+          E2E_FAMILY_NAME,
           '--email',
           TEST_EMAILS[1],
         ]);
@@ -850,6 +1038,26 @@ try {
       );
       step(13, 10, 'Two admins remove at once', () => result('skip', 'manual'));
     }
+    } catch (error) {
+      if (!(error instanceof Error) || error.message !== 'timed out') {
+        throw error;
+      }
+      const hasTimeout = reports.some(
+        (row) => row.testNumber === test.number && row.detail === 'timed out',
+      );
+      if (!hasTimeout) {
+        reports.push({
+          testNumber: test.number,
+          stepNumber: 1,
+          label: test.title,
+          status: 'fail',
+          detail: 'timed out',
+        });
+        captureScreen(deviceA, `timeout-test-${test.number}`);
+      }
+    } finally {
+      endTestLine(test, ordinal, started);
+    }
   }
 } finally {
   for (const handle of recorders) {
@@ -865,19 +1073,38 @@ for (const row of reports) {
   byTest.get(row.testNumber).push(row);
 }
 
-console.log('\n=== Phone test summary ===');
+let passed = 0;
 let failed = 0;
+let skipped = 0;
+const summaryLines = ['', '=== Phone test summary ===', '| Test | Result | First failure |', '| --- | --- | --- |'];
 for (const [number, rows] of byTest) {
   const statuses = new Set(rows.map((row) => row.status));
   const overall = statuses.has('fail') ? 'FAIL' : statuses.has('pass') ? 'PASS' : 'SKIP';
   if (overall === 'FAIL') {
     failed += 1;
+  } else if (overall === 'SKIP') {
+    skipped += 1;
+  } else {
+    passed += 1;
   }
+  const failedStep = rows.find((row) => row.status === 'fail');
+  const first = failedStep
+    ? `step ${failedStep.stepNumber}: ${failedStep.label}${failedStep.detail ? ` — ${failedStep.detail}` : ''}`
+    : overall === 'SKIP'
+      ? rows[0]?.detail || 'skipped'
+      : '';
+  summaryLines.push(`| ${number} | ${overall} | ${first} |`);
   console.log(`Test ${number}: ${overall}`);
   for (const row of rows) {
     console.log(`  ${row.stepNumber}. ${row.label}: ${row.status}${row.detail ? ` — ${row.detail}` : ''}`);
   }
 }
+const headline = `Patria tests finished: ${passed} passed, ${failed} failed, ${skipped} skipped`;
+summaryLines.push('', headline);
+for (const line of summaryLines) {
+  progress(line);
+}
+notifyMac(headline);
 
 if (failed > 0) {
   process.exit(1);

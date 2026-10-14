@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-14 — Phone tests seed a family before Home
+
+Maestro was failing on Create family after sign-in because setup only created users. Each test now reseeds through `create_family_space` (and invite/accept when a member is needed) so Test 1 starts as admin of E2E Family. Sign-in waits on a Home testID. The runner prints progress, caps each test at 10 minutes, starts Metro in the background, and posts a Mac notification when it finishes.
+
+---
+
 ## 2026-10-13 — Metro must not bundle env files
 
 `.env.e2e.local` is not JavaScript. Metro was parsing its `#` comment as source. Nothing in `app/` or `src/` imports env files; `e2e:build` now parses the file itself, passes only `EXPO_PUBLIC_` values, sets `EXPO_NO_DOTENV=1`, and refuses to build if an env file shows up in the app import graph. Metro also block-lists `.env*`. `npx expo start` still uses `.env` and the hosted test project.

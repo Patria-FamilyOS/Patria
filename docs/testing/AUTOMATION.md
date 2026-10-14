@@ -16,7 +16,9 @@ npm run e2e
 
 When you are done, stop Metro in the first terminal with Control and C.
 
-`e2e:build` reads `.env.e2e.local` in the script and passes only `EXPO_PUBLIC_` values into `npx expo run:ios`, with `EXPO_NO_DOTENV=1` so `.env` and the hosted test project are not mixed in. Env files are never imported into the app; Metro is told to ignore them. `npx expo start` is unchanged: it still loads `patria-app/.env` and talks to the hosted test project.
+`e2e:build` reads `.env.e2e.local` in the script and passes only `EXPO_PUBLIC_` values into `npx expo run:ios`, with `EXPO_NO_DOTENV=1` so `.env` and the hosted test project are not mixed in. Env files are never imported into the app; Metro is told to ignore them. `npm run e2e` starts Metro in the background if port 8081 is not already up, and waits until it is ready; it never waits for a command that does not exit. `npx expo start` without e2e is unchanged: it still loads `patria-app/.env` and talks to the hosted test project.
+
+Each test reseeds a local starting state through `e2e-setup` (Test 1 as admin of **E2E Family**, using `create_family_space` the same way the app does). Progress is printed and written to `patria-app/e2e-artifacts/progress.txt`. A test that runs longer than 10 minutes is marked failed (timed out) and the runner moves on. When the suite finishes, macOS shows a notification with passed, failed and skipped counts.
 
 Maestro runs the numbered tests in `PHONE_TESTS.md` on iOS Simulator. Jest and pgTAP stay as they are.
 

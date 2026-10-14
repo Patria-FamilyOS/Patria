@@ -40,6 +40,7 @@ export function AppTextInput(props: TextInputProps) {
 type ScreenProps = {
   children: ReactNode;
   accessibilityLabel?: string;
+  testID?: string;
   withHeader?: boolean;
   refreshing?: boolean;
   onRefresh?: () => void;
@@ -48,6 +49,7 @@ type ScreenProps = {
 export function Screen({
   children,
   accessibilityLabel,
+  testID,
   withHeader = false,
   refreshing = false,
   onRefresh,
@@ -57,6 +59,7 @@ export function Screen({
       style={styles.safe}
       edges={withHeader ? ['bottom', 'left', 'right'] : ['top', 'bottom', 'left', 'right']}
       accessibilityLabel={accessibilityLabel}
+      testID={testID}
     >
       <ScrollView
         contentContainerStyle={styles.scroll}

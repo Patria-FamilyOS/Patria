@@ -1,23 +1,33 @@
 appId: app.patria.dev
 ---
 - launchApp
-- tapOn:
-    id: "sign-out"
-    optional: true
-- tapOn:
-    id: "i-already-have-an-account"
-    optional: true
-- tapOn:
-    id: "email"
-- eraseText
-- inputText: ${E2E_EMAIL}
-- tapOn:
-    id: "password"
-- eraseText
-- inputText: ${E2E_PASSWORD}
-- hideKeyboard
-- tapOn:
-    id: "sign-in"
 - extendedWaitUntil:
-    visible: "Sign out"
+    notVisible: "Just a moment…"
     timeout: 30000
+- runFlow:
+    when:
+      visible: ${E2E_HELLO}
+    commands:
+      - extendedWaitUntil:
+          visible:
+            id: "home"
+          timeout: 20000
+- runFlow:
+    when:
+      notVisible: ${E2E_HELLO}
+    file: sign_in_form.yaml
+- runFlow:
+    when:
+      true: ${EXPECT_HOME == '0'}
+    commands:
+      - extendedWaitUntil:
+          visible: "Create our family"
+          timeout: 45000
+- runFlow:
+    when:
+      true: ${EXPECT_HOME != '0'}
+    commands:
+      - extendedWaitUntil:
+          visible:
+            id: "home"
+          timeout: 45000

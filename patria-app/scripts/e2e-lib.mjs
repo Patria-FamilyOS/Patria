@@ -7,6 +7,18 @@ export const APP_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const REPO_ROOT = join(APP_ROOT, '..');
 export const PHONE_TESTS = join(REPO_ROOT, 'docs', 'testing', 'PHONE_TESTS.md');
 export const MAESTRO_DIR = join(APP_ROOT, '.maestro');
+export const E2E_FAMILY_NAME = 'E2E Family';
+export const TEST_TIMEOUT_MS = 10 * 60 * 1000;
+
+export function scenarioForTest(testNumber) {
+  if (testNumber === 6 || testNumber === 8 || testNumber === 11) {
+    return 'admin-elder';
+  }
+  if (testNumber === 13) {
+    return 'admin-elders';
+  }
+  return 'admin';
+}
 
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost']);
 

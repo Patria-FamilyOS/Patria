@@ -492,6 +492,7 @@ export function HomeScreen() {
 
   return (
     <Screen
+      testID="home"
       accessibilityLabel={current.space.name}
       refreshing={refreshing}
       onRefresh={onRefresh}

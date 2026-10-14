@@ -183,6 +183,11 @@ describe('HomeScreen invite entry', () => {
     expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/join-family');
   });
 
+  it('marks the family Home with a stable testID', async () => {
+    const { findByTestId } = renderScreen(<HomeScreen />);
+    expect(await findByTestId('home')).toBeTruthy();
+  });
+
   it('signs out then replaces to welcome', async () => {
     const { findByText } = renderScreen(<HomeScreen />);
 

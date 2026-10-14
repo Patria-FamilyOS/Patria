@@ -1,31 +1,52 @@
 # PHONE_TESTS: 1
+# iOS shows a chevron, not the word Back (headerBackButtonDisplayMode: minimal).
 appId: app.patria.dev
 ---
 - runFlow:
     file: subflows/sign_in.yaml
 - tapOn:
     id: "invite-someone"
-- assertVisible: "Back"
-- tapOn: "Back"
-- assertVisible:
-    id: "invite-someone"
+- extendedWaitUntil:
+    visible: "Who is in the family?"
+    timeout: 15000
+- tapOn:
+    point: 8%, 12%
+- extendedWaitUntil:
+    visible:
+      id: "invite-someone"
+    timeout: 15000
 - tapOn:
     id: "invite-someone"
+- extendedWaitUntil:
+    visible: "Who is in the family?"
+    timeout: 15000
 - swipe:
     start: 2%, 50%
     end: 80%, 50%
-- assertVisible:
-    id: "invite-someone"
+- extendedWaitUntil:
+    visible:
+      id: "invite-someone"
+    timeout: 15000
 - tapOn:
     id: "add-a-child"
-- tapOn: "Back"
-- assertVisible:
-    id: "invite-someone"
+- extendedWaitUntil:
+    visible: "Add a child"
+    timeout: 15000
+- tapOn:
+    point: 8%, 12%
+- extendedWaitUntil:
+    visible:
+      id: "invite-someone"
+    timeout: 15000
 - tapOn:
     id: "add-a-child"
 - swipe:
     start: 2%, 50%
     end: 80%, 50%
+- extendedWaitUntil:
+    visible:
+      id: "invite-someone"
+    timeout: 15000
+- assertNotVisible: "Who is in the family?"
 - assertVisible:
-    id: "invite-someone"
-- assertNotVisible: "Back"
+    id: "home"

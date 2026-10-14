@@ -1,0 +1,47 @@
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      visible:
+        id: "home"
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: "sign-out"
+          direction: DOWN
+          timeout: 20000
+      - tapOn:
+          id: "sign-out"
+      - extendedWaitUntil:
+          visible: "I already have an account"
+          timeout: 30000
+- runFlow:
+    when:
+      visible: "Create our family"
+    commands:
+      - tapOn:
+          id: "sign-out"
+      - extendedWaitUntil:
+          visible: "I already have an account"
+          timeout: 30000
+- tapOn:
+    id: "i-already-have-an-account"
+    optional: true
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "email"
+    timeout: 30000
+- tapOn:
+    id: "email"
+- eraseText
+- inputText: ${E2E_EMAIL}
+- hideKeyboard
+- tapOn:
+    id: "password"
+- eraseText
+- inputText: ${E2E_PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: "sign-in"
+- hideKeyboard
