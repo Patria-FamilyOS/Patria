@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-14 — Phone tests: every simulator, let-in seed, Invite keyboard
+
+`e2e:build` now installs `app.patria.dev` on every simulator the run will use (A, B, and C when `E2E_DEVICES=3`). The runner checks install before starting. Tests 11 and 13 still seed membership through `invites` insert and `accept_invite`; let-in wraps cannot be invented on the server (they are sealed to the phone’s device key), so the runner then opens Home as Test 1 and lets Test 2/3 in through the same app path as test 9. Test 5 scrolls to Sign out. Test 6 asserts Lily as a kid profile with no email address, not the phrase “No email needed”. Invite create hides the keyboard and waits for the real created copy; the earlier failure showed the form still open with the keyboard covering the lower half and a garbled `…comg` email, not a database error.
+
+---
+
 ## 2026-10-14 — Phone tests seed a family before Home
 
 Maestro was failing on Create family after sign-in because setup only created users. Each test now reseeds through `create_family_space` (and invite/accept when a member is needed) so Test 1 starts as admin of E2E Family. Sign-in waits on a Home testID. The runner prints progress, caps each test at 10 minutes, starts Metro in the background, and posts a Mac notification when it finishes.

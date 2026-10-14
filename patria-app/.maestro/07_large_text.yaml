@@ -1,15 +1,26 @@
 # PHONE_TESTS: 7
+# iOS shows a chevron, not the word Back (headerBackButtonDisplayMode: minimal).
 appId: app.patria.dev
 ---
 - launchApp
 - takeScreenshot: e2e-artifacts/07-welcome
 - runFlow:
     file: subflows/sign_in.yaml
+- takeScreenshot: e2e-artifacts/07-after-sign-in
+- extendedWaitUntil:
+    visible:
+      id: "home"
+    timeout: 20000
 - takeScreenshot: e2e-artifacts/07-home
 - tapOn:
     id: "invite-someone"
 - takeScreenshot: e2e-artifacts/07-invite
-- tapOn: "Back"
+- tapOn:
+    point: 8%, 12%
+- extendedWaitUntil:
+    visible:
+      id: "add-a-child"
+    timeout: 15000
 - tapOn:
     id: "add-a-child"
 - takeScreenshot: e2e-artifacts/07-add-child

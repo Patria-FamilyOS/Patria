@@ -248,6 +248,9 @@ if (scenario === 'admin-elders') {
   await inviteAndAccept(3, 'elder');
 }
 
+// Let-in wraps cannot be seeded here: they are sealed to the phone's device
+// public key after that phone opens Home. e2e.mjs does that through the app.
+
 console.log(
   `${SCRIPT}: local users ready, recovery wait is 8 seconds, Test 1 is admin of ${E2E_FAMILY_NAME} (${scenario}), wrote .env.e2e.local (anon key only).`,
 );

@@ -21,6 +21,11 @@ appId: app.patria.dev
       - tapOn:
           id: "choose-recovery-contacts"
           optional: true
+      - scrollUntilVisible:
+          element:
+            id: ${CONTACT_ID}
+          direction: DOWN
+          timeout: 20000
       - tapOn:
           id: ${CONTACT_ID}
       - tapOn:
@@ -77,5 +82,6 @@ appId: app.patria.dev
           optional: true
       - tapOn:
           id: "remove-as-recovery-contact"
-      - tapOn: "Back"
+      - tapOn:
+          point: 8%, 12%
       - assertVisible: "Recovery needs attention"

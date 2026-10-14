@@ -11,13 +11,25 @@ appId: app.patria.dev
           id: "invite-someone"
       - tapOn:
           id: "their-email"
-      - eraseText
+      - eraseText: 80
       - inputText: ${INVITE_EMAIL}
+      - hideKeyboard
       - tapOn:
           id: ${ROLE_ID}
+      - hideKeyboard
+      - scrollUntilVisible:
+          element:
+            id: "create-invite"
+          direction: DOWN
+          timeout: 10000
       - tapOn:
           id: "create-invite"
-      - assertVisible: "Invite is ready"
+      - hideKeyboard
+      - scrollUntilVisible:
+          element: "Invite is ready. Share the link, send it by email, or both."
+          direction: DOWN
+          timeout: 20000
+      - assertVisible: "Invite is ready. Share the link, send it by email, or both."
 - runFlow:
     when:
       true: ${PHASE == 'waiting'}

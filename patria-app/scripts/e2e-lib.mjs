@@ -9,15 +9,113 @@ export const PHONE_TESTS = join(REPO_ROOT, 'docs', 'testing', 'PHONE_TESTS.md');
 export const MAESTRO_DIR = join(APP_ROOT, '.maestro');
 export const E2E_FAMILY_NAME = 'E2E Family';
 export const TEST_TIMEOUT_MS = 10 * 60 * 1000;
+export const APP_BUNDLE_ID = 'app.patria.dev';
+export const LARGE_TEXT_CATEGORY = 'UIContentSizeCategoryAccessibilityXXL';
 
 export function scenarioForTest(testNumber) {
-  if (testNumber === 6 || testNumber === 8 || testNumber === 11) {
+  if (testNumber === 6 || testNumber === 8 || testNumber === 9 || testNumber === 11) {
     return 'admin-elder';
   }
   if (testNumber === 13) {
     return 'admin-elders';
   }
   return 'admin';
+}
+
+export function e2eDeviceCount(raw = process.env.E2E_DEVICES || '2') {
+  const count = Number(raw);
+  if (![1, 2, 3].includes(count)) {
+    throw new Error('E2E_DEVICES must be 1, 2 or 3.');
+  }
+  return count;
+}
+
+export function listIphones() {
+  const raw = execFileSync('xcrun', ['simctl', 'list', 'devices', 'available', '-j'], {
+    encoding: 'utf8',
+  });
+  const json = JSON.parse(raw);
+  const devices = [];
+  for (const runtime of Object.values(json.devices ?? {})) {
+    for (const device of runtime) {
+      if (device.isAvailable && /iPhone/i.test(device.name)) {
+        devices.push(device);
+      }
+    }
+  }
+  return devices;
+}
+
+export function bootDevices(count) {
+  const available = listIphones();
+  const use = Math.min(count, available.length);
+  if (use === 0) {
+    throw new Error('No iPhone simulators available. Install an iOS runtime in Xcode.');
+  }
+  const picked = available.slice(0, use);
+  for (const device of picked) {
+    if (device.state !== 'Booted') {
+      execFileSync('xcrun', ['simctl', 'boot', device.udid], { stdio: 'ignore' });
+    }
+  }
+  return picked.map((device) => device.udid);
+}
+
+export function appInstalled(udid) {
+  try {
+    execFileSync('xcrun', ['simctl', 'get_app_container', udid, APP_BUNDLE_ID], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function appContainerPath(udid) {
+  return execFileSync('xcrun', ['simctl', 'get_app_container', udid, APP_BUNDLE_ID], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+}
+
+export function installApp(udid, appPath) {
+  execFileSync('xcrun', ['simctl', 'install', udid, appPath], { stdio: 'inherit' });
+}
+
+export function assertAppInstalledOn(udids, scriptName) {
+  const missing = udids.filter((udid) => !appInstalled(udid));
+  if (missing.length === 0) {
+    return;
+  }
+  throw new Error(
+    `${scriptName}: ${APP_BUNDLE_ID} is not installed on simulator(s) ${missing.join(', ')}. Run npm run e2e:build with the same E2E_DEVICES.`,
+  );
+}
+
+export function setPreferredContentSize(udid, category) {
+  if (!category) {
+    try {
+      execFileSync(
+        'xcrun',
+        ['simctl', 'spawn', udid, 'defaults', 'delete', '-g', 'UIPreferredContentSizeCategoryName'],
+        { stdio: 'ignore' },
+      );
+    } catch {
+      // Already at the system default.
+    }
+    return;
+  }
+  execFileSync(
+    'xcrun',
+    ['simctl', 'spawn', udid, 'defaults', 'write', '-g', 'UIPreferredContentSizeCategoryName', '-string', category],
+    { stdio: 'ignore' },
+  );
+}
+
+export function sleepMs(ms) {
+  execFileSync('sleep', [String(ms / 1000)]);
 }
 
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost']);

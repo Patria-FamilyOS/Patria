@@ -19,7 +19,9 @@ appId: app.patria.dev
           visible:
             id: "child-lily"
           timeout: 20000
-      - assertVisible: "No email needed"
+      - assertVisible:
+          id: "child-lily"
+      - assertNotVisible: "@gmail.com"
 - runFlow:
     when:
       true: ${PHASE == 'member'}

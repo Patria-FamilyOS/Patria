@@ -3,6 +3,11 @@ appId: app.patria.dev
 ---
 - runFlow:
     file: subflows/sign_in.yaml
+- scrollUntilVisible:
+    element:
+      id: "sign-out"
+    direction: DOWN
+    timeout: 20000
 - tapOn:
     id: "sign-out"
 - extendedWaitUntil:

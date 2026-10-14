@@ -7,6 +7,11 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - scrollUntilVisible:
+          element:
+            id: ${MEMBER_ID}
+          direction: DOWN
+          timeout: 20000
       - tapOn:
           id: ${MEMBER_ID}
       - tapOn:
@@ -47,6 +52,11 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - scrollUntilVisible:
+          element:
+            id: "member-test-3"
+          direction: DOWN
+          timeout: 20000
       - tapOn:
           id: "member-test-3"
       - tapOn:
@@ -59,6 +69,11 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - scrollUntilVisible:
+          element:
+            id: ${MEMBER_ID}
+          direction: DOWN
+          timeout: 20000
       - tapOn:
           id: ${MEMBER_ID}
       - tapOn:

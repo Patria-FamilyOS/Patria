@@ -1,6 +1,15 @@
 appId: app.patria.dev
 ---
 - launchApp
+- tapOn:
+    text: "Cancel"
+    optional: true
+- tapOn:
+    text: "Dismiss"
+    optional: true
+- tapOn:
+    text: "Reload"
+    optional: true
 - extendedWaitUntil:
     notVisible: "Just a moment…"
     timeout: 30000
@@ -16,6 +25,9 @@ appId: app.patria.dev
     when:
       notVisible: ${E2E_HELLO}
     file: sign_in_form.yaml
+- tapOn:
+    text: "Not Now"
+    optional: true
 - runFlow:
     when:
       true: ${EXPECT_HOME == '0'}

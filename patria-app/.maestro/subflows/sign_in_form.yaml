@@ -25,6 +25,9 @@ appId: app.patria.dev
           visible: "I already have an account"
           timeout: 30000
 - tapOn:
+    text: "Cancel"
+    optional: true
+- tapOn:
     id: "i-already-have-an-account"
     optional: true
 - hideKeyboard
@@ -45,3 +48,6 @@ appId: app.patria.dev
 - tapOn:
     id: "sign-in"
 - hideKeyboard
+- tapOn:
+    text: "Not Now"
+    optional: true

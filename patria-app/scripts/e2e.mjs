@@ -10,7 +10,10 @@ import {
   PHONE_TESTS,
   TEST_EMAILS,
   TEST_TIMEOUT_MS,
+  assertAppInstalledOn,
   assertLocalSupabaseUrl,
+  bootDevices,
+  e2eDeviceCount,
   ensureJavaHome,
   loadLocalFiles,
   parsePhoneTests,
@@ -24,7 +27,8 @@ const ARTIFACTS = join(APP_ROOT, 'e2e-artifacts');
 const RECORDINGS = join(APP_ROOT, 'e2e-recordings');
 
 function parseArgs(argv) {
-  const out = { test: null, record: null, devices: Number(process.env.E2E_DEVICES || '2') };
+  let devicesRaw = process.env.E2E_DEVICES || '2';
+  const out = { test: null, record: null, devices: 2 };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--test') {
@@ -35,12 +39,14 @@ function parseArgs(argv) {
     } else if (arg === '--no-record') {
       out.record = false;
     } else if (arg === '--devices') {
-      out.devices = Number(argv[i + 1]);
+      devicesRaw = argv[i + 1];
       i += 1;
     }
   }
-  if (![1, 2, 3].includes(out.devices)) {
-    console.error('E2E_DEVICES must be 1, 2 or 3.');
+  try {
+    out.devices = e2eDeviceCount(devicesRaw);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : 'E2E_DEVICES must be 1, 2 or 3.');
     process.exit(1);
   }
   return out;
@@ -137,37 +143,6 @@ function tryMaestro(opts) {
   }
 }
 
-function listIphones() {
-  const raw = execFileSync('xcrun', ['simctl', 'list', 'devices', 'available', '-j'], {
-    encoding: 'utf8',
-  });
-  const json = JSON.parse(raw);
-  const devices = [];
-  for (const runtime of Object.values(json.devices ?? {})) {
-    for (const device of runtime) {
-      if (device.isAvailable && /iPhone/i.test(device.name)) {
-        devices.push(device);
-      }
-    }
-  }
-  return devices;
-}
-
-function bootDevices(count) {
-  const available = listIphones();
-  const use = Math.min(count, available.length);
-  if (use === 0) {
-    throw new Error('No iPhone simulators available. Install an iOS runtime in Xcode.');
-  }
-  const picked = available.slice(0, use);
-  for (const device of picked) {
-    if (device.state !== 'Booted') {
-      execFileSync('xcrun', ['simctl', 'boot', device.udid], { stdio: 'ignore' });
-    }
-  }
-  return picked.map((device) => device.udid);
-}
-
 function startRecording(udid, name) {
   mkdirSync(RECORDINGS, { recursive: true });
   const path = join(RECORDINGS, `${name}.mp4`);
@@ -255,6 +230,14 @@ try {
 }
 
 const [deviceA, deviceB, deviceC] = devices;
+if (devices.length > 0) {
+  try {
+    assertAppInstalledOn(devices, SCRIPT);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
+}
 mkdirSync(ARTIFACTS, { recursive: true });
 const progressPath = join(ARTIFACTS, 'progress.txt');
 writeFileSync(progressPath, '', { encoding: 'utf8' });
@@ -280,10 +263,12 @@ function captureScreen(udid, name) {
 async function metroReady() {
   for (const host of ['127.0.0.1', 'localhost', '[::1]']) {
     try {
-      const response = await fetch(`http://${host}:8081/status`);
+      const response = await fetch(`http://${host}:8081/status`, {
+        signal: AbortSignal.timeout(2000),
+      });
       const text = await response.text();
       if (response.ok && /running/i.test(text)) {
-        return true;
+        return host;
       }
     } catch {
       // Try the next host; Metro may be IPv4-only or IPv6-only.
@@ -300,12 +285,17 @@ function openDevClient(udid) {
       { stdio: 'ignore' },
     );
   } catch {
-    // The next launchApp in Maestro still tries the last Metro URL.
+    try {
+      execFileSync('xcrun', ['simctl', 'openurl', udid, 'exp://127.0.0.1:8081'], { stdio: 'ignore' });
+    } catch {
+      // The next launchApp in Maestro still tries the last Metro URL.
+    }
   }
 }
 
 async function ensureMetro() {
-  if (!(await metroReady())) {
+  const readyHost = await metroReady();
+  if (!readyHost) {
     progress('Starting Metro in the background.');
     const log = join(ARTIFACTS, 'metro.log');
     const child = spawn('npx', ['expo', 'start', '--port', '8081'], {
@@ -314,15 +304,13 @@ async function ensureMetro() {
         ...process.env,
         ...publicExpoEnv(e2eEnv),
         EXPO_NO_DOTENV: '1',
+        REACT_NATIVE_PACKAGER_HOSTNAME: '127.0.0.1',
       },
-      stdio: ['ignore', 'pipe', 'pipe'],
+      stdio: ['ignore', 'ignore', 'ignore'],
+      detached: true,
     });
-    const stream = (chunk) => appendFileSync(log, chunk.toString());
-    child.stdout?.on('data', stream);
-    child.stderr?.on('data', stream);
-    child.on('exit', (code, signal) => {
-      appendFileSync(log, `\nmetro exited code=${code} signal=${signal}\n`);
-    });
+    child.unref();
+    appendFileSync(log, `spawned metro pid=${child.pid}\n`);
     const started = Date.now();
     while (Date.now() - started < 90000) {
       if (await metroReady()) {
@@ -337,7 +325,7 @@ async function ensureMetro() {
       throw new Error('Metro did not become ready on port 8081.');
     }
   } else {
-    progress('Metro already running on port 8081.');
+    progress(`Metro already running on port 8081 (${readyHost}).`);
   }
   progress('Metro is ready.');
   for (const udid of [deviceA, deviceB, deviceC].filter(Boolean)) {
@@ -359,6 +347,47 @@ const reports = [];
 
 function flow(name) {
   return join(MAESTRO_DIR, name);
+}
+
+function seedAdminKeys() {
+  maestro({
+    flow: flow('08_family_key_created.yaml'),
+    device: deviceA,
+    env: { ...signInEnv(secrets, 1), PHASE: 'home_keys' },
+  });
+}
+
+function seedLetIn(memberN, device) {
+  maestro({
+    flow: flow('09_let_in.yaml'),
+    device,
+    env: { ...signInEnv(secrets, memberN), PHASE: 'waiting' },
+  });
+  maestro({
+    flow: flow('09_let_in.yaml'),
+    device: deviceA,
+    env: { ...signInEnv(secrets, 1), PHASE: 'let_in' },
+  });
+  maestro({
+    flow: flow('09_let_in.yaml'),
+    device,
+    env: { ...signInEnv(secrets, memberN), PHASE: 'keys_ready' },
+  });
+}
+
+function seedBeforeYouStart(testNumber) {
+  if (![9, 10, 11, 13].includes(testNumber)) {
+    return;
+  }
+  seedAdminKeys();
+  if (testNumber === 11) {
+    seedLetIn(2, args.devices >= 2 && deviceB ? deviceB : deviceA);
+  }
+  if (testNumber === 13) {
+    const other = args.devices >= 2 && deviceB ? deviceB : deviceA;
+    seedLetIn(2, other);
+    seedLetIn(3, args.devices >= 3 && deviceC ? deviceC : other);
+  }
 }
 
 function step(testNumber, stepNumber, label, fn) {
@@ -448,6 +477,7 @@ try {
       `Test ${ordinal} of ${total}: ${test.title}, in progress (${deviceLabelFor(test.number)})`,
     );
     wipeSensitiveArtifacts(test.number);
+    await ensureMetro();
     testDeadline = Date.now() + TEST_TIMEOUT_MS;
     try {
       runNode('e2e-setup.mjs', ['--test', String(test.number)]);
@@ -471,6 +501,17 @@ try {
         console.log(`  ${item.number}. ${item.text}: SKIP (no iOS Simulator available)`);
       }
       continue;
+    }
+
+    if ([9, 10, 11, 13].includes(test.number)) {
+      try {
+        seedBeforeYouStart(test.number);
+      } catch (error) {
+        step(test.number, 1, 'Before you start: keys and let-in on devices', () => {
+          throw error instanceof Error ? error : new Error('let-in seed failed');
+        });
+        continue;
+      }
     }
 
     if (test.number === 1) {
@@ -605,7 +646,11 @@ try {
           device: deviceA,
           env: signInEnv(secrets, 1),
         });
-        return result('skip', 'manual: person decides pass or fail from screenshots');
+        captureScreen(deviceA, '07-after-flow');
+        return result(
+          'skip',
+          'manual: person sets Larger Text in Settings; writing UIPreferredContentSizeCategoryName redboxes RN before Welcome',
+        );
       });
       step(7, 2, 'Open Welcome, Home, Invite, Add a child', () =>
         result('skip', 'manual judgement'),
