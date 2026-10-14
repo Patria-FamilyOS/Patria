@@ -92,7 +92,7 @@ describe('rotate family key', () => {
       { spaceId: SPACE, userId: ADMIN, role: 'family_admin' },
       gateway,
     );
-    expect(rotated).toBe(true);
+    expect(rotated).toBe('rotated');
     expect(committed.expectedEpoch).toBe(1);
     expect(committed.deviceIds).toEqual([adminDevice.deviceId, 'd-elder']);
     const newAdmin = unwrapKeyFromDevice(
@@ -144,6 +144,46 @@ describe('rotate family key', () => {
     };
     await expect(
       rotateFamilyKeyIfNeeded({ spaceId: SPACE, userId: ELDER, role: 'elder' }, gateway),
-    ).resolves.toBe(false);
+    ).resolves.toBe('idle');
+  });
+
+  it('treats a lost compare-and-swap as already up to date', async () => {
+    const store = new Map<string, string>();
+    installMemoryStore(store);
+    resetFamilyKeyMemory();
+    const adminDevice = await ensureDeviceIdentity(ADMIN);
+    const oldKey = randomKey32();
+    const wrappedOld = wrapKeyToDevice(oldKey, adminDevice.publicKey, {
+      familySpaceId: SPACE,
+      keyEpoch: 1,
+      userId: ADMIN,
+      deviceId: adminDevice.deviceId,
+    });
+    (supabaseDeviceAccessGateway.fetchOwnWrap as jest.Mock).mockResolvedValue({
+      wrappedKey: wrappedOld,
+      keyEpoch: 1,
+    });
+    await cacheFamilySecrets(ADMIN, SPACE, oldKey);
+    const gateway: RotateFamilyKeyGateway = {
+      fetchRotationNeeded: jest
+        .fn()
+        .mockResolvedValueOnce({ needed: true, keyEpoch: 1 })
+        .mockResolvedValueOnce({ needed: false, keyEpoch: 2 }),
+      listWrapTargets: async () => [
+        {
+          userId: ADMIN,
+          deviceId: adminDevice.deviceId,
+          publicKey: adminDevice.publicKey,
+        },
+      ],
+      listSealTargets: async () => [],
+      commitRotation: async () => {
+        throw new Error('epoch mismatch');
+      },
+    };
+    await expect(
+      rotateFamilyKeyIfNeeded({ spaceId: SPACE, userId: ADMIN, role: 'family_admin' }, gateway),
+    ).resolves.toBe('alreadyCurrent');
+    wipe(oldKey);
   });
 });

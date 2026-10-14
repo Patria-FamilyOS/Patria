@@ -62,7 +62,7 @@ Automation may capture screenshots at large text for a person to review, but a p
 ## Family keys (CIR05 part B)
 
 ### 8. Family key created on this phone (Step 3)
-1. Sign in as Test 1 and create a new family, for example **Test Keys Family**.
+1. Sign in as Test 1 and create a new family, for example **Test Keys Family**. If you already have a space, tap **Create another family** on Home.
 2. Pass if Home shows that family keys are set up on this phone.
 3. Database: one row in `family_key_meta` for the new family with key epoch 1.
 4. Database: exactly one row in `family_key_wraps` for that family, and the wrapped key column is unreadable bytes.
@@ -121,7 +121,7 @@ Before: Test 1 (admin) and Test 2 (Elder) have let in devices; Test 3 joined as 
 4. As Test 3. Pass if they no longer see the family and no new wrap exists for them.
 5. If Test 3 was a recovery contact, pass if that member sees **Recovery needs attention** and is asked to choose a new contact.
 6. Database: `family_key_under_recovery` has one new row at the new epoch per remaining member with recovery set up, none for Test 3.
-7. Invite Test 3 back, let them in, then as Test 3 tap **Leave family**. Pass if the next time Test 1 opens the app the key is updated on its own (epoch up again).
+7. Invite Test 3 back, let them in, then as Test 3 open your own member row and tap **Leave family**. Confirm on the destructive **Leave family** button. Pass if the next time Test 1 opens the app the key is updated on its own (epoch up again).
 8. Change Test 2 from Elder to Extended relative. Pass if the key is updated and Test 2 no longer holds it. Change back and let Test 2 in again.
 9. Add and remove a Caregiver. Pass if the key epoch does not change.
 10. Optional: two admins remove someone at the same moment. Pass if only one new key version appears and both end up on it. (manual)

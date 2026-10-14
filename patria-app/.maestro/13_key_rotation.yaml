@@ -14,6 +14,9 @@ appId: app.patria.dev
       - tapOn:
           text: "Remove from this family"
           optional: true
+      - extendedWaitUntil:
+          visible: "The family key is up to date"
+          timeout: 30000
 - runFlow:
     when:
       true: ${PHASE == 'keys_ready'}
@@ -45,7 +48,11 @@ appId: app.patria.dev
       - runFlow:
           file: subflows/sign_in.yaml
       - tapOn:
+          id: "member-test-3"
+      - tapOn:
           id: "leave-family"
+      - tapOn:
+          text: "Leave family"
 - runFlow:
     when:
       true: ${PHASE == 'change_role'}

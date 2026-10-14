@@ -18,6 +18,7 @@ import { copy } from '../../lib/copy';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
 import { logFailedAction } from '../../lib/devLog';
 import { fetchAdminMemberEmail, fetchMembers } from '../../lib/family';
+import { leaveFamilySpace } from '../../lib/leaveFamily';
 import { countAdmins, INVITE_ROLES, isSpaceAdmin, type SpaceRole } from '../../lib/roles';
 import { supabase } from '../../lib/supabase';
 import { testIdFromLabel } from '../../lib/testId';
@@ -57,6 +58,8 @@ export function MemberScreen({ userId }: MemberScreenProps) {
   const admin = isSpaceAdmin(myRole);
   const adminCount = countAdmins((membersQuery.data ?? []).map((row) => row.role));
   const isLastAdmin = isSpaceAdmin(member?.role) && adminCount <= 1;
+  const isSelf = session?.user.id === userId;
+  const cannotLeave = Boolean(isSelf && isSpaceAdmin(myRole) && adminCount <= 1);
 
   if (membersQuery.isLoading || !member) {
     return (
@@ -116,6 +119,34 @@ export function MemberScreen({ userId }: MemberScreenProps) {
     ]);
   };
 
+  const leave = () => {
+    const myId = session?.user.id;
+    if (!spaceId || !myId || cannotLeave) {
+      return;
+    }
+    Alert.alert(
+      copy.member.leave,
+      copy.member.leaveConfirm,
+      [
+        { text: copy.common.cancel, style: 'cancel' },
+        {
+          text: copy.member.leave,
+          style: 'destructive',
+          onPress: () => {
+            void leaveFamilySpace({ spaceId, userId: myId }).then((result) => {
+              if (!result.ok) {
+                setError(copy.member.leaveFailed);
+                return;
+              }
+              router.replace('/(signed-in)/home');
+            });
+          },
+        },
+      ],
+      { cancelable: true },
+    );
+  };
+
   return (
     <Screen accessibilityLabel={member.displayName} withHeader>
       <Title>{member.displayName}</Title>
@@ -153,6 +184,12 @@ export function MemberScreen({ userId }: MemberScreenProps) {
             onPress={remove}
             disabled={isLastAdmin}
           />
+        </>
+      ) : null}
+      {isSelf && !cannotLeave ? (
+        <>
+          {error && !admin ? <ErrorState message={error} /> : null}
+          <Button label={copy.member.leave} variant="danger" onPress={leave} />
         </>
       ) : null}
     </Screen>

@@ -1,5 +1,14 @@
 # Phone test automation
 
+From `patria-app`:
+
+```bash
+npm run e2e:build
+npm run e2e
+```
+
+`e2e:build` compiles the iOS Simulator app with `.env.e2e.local` only (`EXPO_NO_DOTENV=1`, so `.env` and the hosted test project are not used). `e2e` then runs the Maestro flows.
+
 Maestro runs the numbered tests in `PHONE_TESTS.md` on iOS Simulator. Jest and pgTAP stay as they are.
 
 ## What talks to which backend
@@ -7,7 +16,7 @@ Maestro runs the numbered tests in `PHONE_TESTS.md` on iOS Simulator. Jest and p
 | Command | Env file | Backend |
 | --- | --- | --- |
 | `npx expo start` | `patria-app/.env` | Hosted test project (unchanged) |
-| `npm run e2e` / e2e native build | `patria-app/.env.e2e.local` | Local Docker only (`127.0.0.1` / `localhost`) |
+| `npm run e2e:build` / `npm run e2e` | `patria-app/.env.e2e.local` | Local Docker only (`127.0.0.1` / `localhost`) |
 
 `e2e-setup` and `e2e-db-check` refuse to run if the Supabase URL is not local. The local service role key stays in gitignored `.e2e-secrets` or is read from `npx supabase status`. It is never written to the app env and never logged.
 
@@ -18,13 +27,7 @@ Maestro runs the numbered tests in `PHONE_TESTS.md` on iOS Simulator. Jest and p
 3. Copy `.e2e-secrets.example` to `.e2e-secrets` and set the three test passwords, or let `e2e-setup` generate local-only passwords into that gitignored file (it never prints them). Optionally set `SUPABASE_SERVICE_ROLE_KEY` from `npx supabase status`; otherwise setup reads it from status.
 4. `npm run e2e:setup` (creates/updates Test 1–3, shortens recovery wait to 8 seconds locally, writes `.env.e2e.local` with the anon key only).
 5. Install Maestro (`curl -Ls "https://get.maestro.dev" | bash`).
-6. Build the e2e app once (does **not** load `.env`):
-
-```bash
-cd patria-app
-set -a && source .env.e2e.local && set +a
-EXPO_NO_DOTENV=1 npx expo run:ios
-```
+6. `npm run e2e:build` (first time, and after native or env changes).
 
 The development bundle id `app.patria.dev` is provisional (D28).
 

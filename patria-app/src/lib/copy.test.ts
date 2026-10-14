@@ -9,6 +9,9 @@ describe('copy', () => {
     expect(copy.relationships.mum).toBe('Mom');
     expect(copy.createFamily.failed.length).toBeGreaterThan(0);
     expect(copy.home.joinFamily).toBe('Join another family');
+    expect(copy.home.createAnotherFamily).toBe('Create another family');
+    expect(copy.member.leave).toBe('Leave family');
+    expect(copy.member.leaveConfirm).toMatch(/recovery contact/i);
     expect(copy.home.keysReady).toBe('Family keys: set up on this phone');
     expect(copy.home.keysWaiting).toBe('Waiting for a family admin to let this phone in');
     expect(copy.home.keysWaitingOwnPhone).toBe(

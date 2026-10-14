@@ -8,10 +8,7 @@ appId: app.patria.dev
       - runFlow:
           file: subflows/sign_in.yaml
       - tapOn:
-          id: "join-another-family"
-          optional: true
-      - tapOn:
-          id: "family-space-name"
+          id: "create-another-family"
           optional: true
       - tapOn:
           id: "family-space-name"

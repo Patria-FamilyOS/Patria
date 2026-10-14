@@ -18,7 +18,6 @@ import {
 } from './keyStore';
 import { fromPgBytea, toPgBytea } from './pgBytea';
 import { randomKey32 } from './random';
-import { rotateFamilyKeyIfNeeded } from './rotateFamilyKey';
 import { unwrapKeyFromDevice, wrapKeyToDevice } from './wrap';
 
 export {
@@ -205,11 +204,6 @@ export async function ensureKeysForOpenFamily(
   });
   if (familyKey) {
     wipe(familyKey);
-    await rotateFamilyKeyIfNeeded({
-      spaceId: input.spaceId,
-      userId: input.userId,
-      role: input.role,
-    });
     return 'ready';
   }
 

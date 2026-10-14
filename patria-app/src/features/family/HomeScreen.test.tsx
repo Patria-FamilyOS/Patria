@@ -17,6 +17,7 @@ import {
   rejectOwnExtraDevice,
 } from '../../lib/crypto/deviceAccess';
 import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
+import { rotateFamilyKeyIfNeeded } from '../../lib/crypto/rotateFamilyKey';
 import { supabase } from '../../lib/supabase';
 import { renderScreen } from '../../test/renderScreen';
 import { HomeScreen } from './HomeScreen';
@@ -56,6 +57,10 @@ jest.mock('../../lib/currentFamily', () => ({
 
 jest.mock('../../lib/crypto/familyCeremony', () => ({
   ensureKeysForOpenFamily: jest.fn(async () => 'ready'),
+}));
+
+jest.mock('../../lib/crypto/rotateFamilyKey', () => ({
+  rotateFamilyKeyIfNeeded: jest.fn(async () => 'idle'),
 }));
 
 jest.mock('../../lib/crypto/deviceAccess', () => ({
@@ -147,10 +152,25 @@ describe('HomeScreen invite entry', () => {
     (fetchPendingInvites as jest.Mock).mockResolvedValue([]);
     (fetchFirstDeviceNotices as jest.Mock).mockResolvedValue([]);
     (ensureKeysForOpenFamily as jest.Mock).mockResolvedValue('ready');
+    (rotateFamilyKeyIfNeeded as jest.Mock).mockResolvedValue('idle');
     (approveFirstDevice as jest.Mock).mockClear();
     (declineFirstDevice as jest.Mock).mockClear();
     (approveOwnExtraDevice as jest.Mock).mockClear();
     (rejectOwnExtraDevice as jest.Mock).mockClear();
+  });
+
+  it('offers Create another family next to Join another family', async () => {
+    const view = renderScreen(<HomeScreen />);
+    await view.findByLabelText(copy.home.createAnotherFamily);
+    fireEvent.press(view.getByLabelText(copy.home.createAnotherFamily));
+    expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/create');
+  });
+
+  it('shows the family key is up to date after a lost rotation race', async () => {
+    (rotateFamilyKeyIfNeeded as jest.Mock).mockResolvedValue('alreadyCurrent');
+    const { findByText, queryByText } = renderScreen(<HomeScreen />);
+    expect(await findByText(copy.home.rotationUpToDate)).toBeTruthy();
+    expect(queryByText(copy.home.rotationFailed)).toBeNull();
   });
 
   it('uses a Join another family link instead of a paste box', async () => {

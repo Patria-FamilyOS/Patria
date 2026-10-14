@@ -70,6 +70,8 @@ export async function discardLocalFamilySecrets(userId: string, spaceId: string)
   }
   await deleteSecret(familyKeyStoreKey(userId, spaceId));
   await deleteSecret(recoveryKeyStoreKey(userId, spaceId));
+  await deleteSecret(legacyFamilyKeyStoreKey(spaceId));
+  await deleteSecret(legacyRecoveryKeyStoreKey(spaceId));
 }
 
 export async function cacheFamilySecrets(

@@ -4,7 +4,8 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(284);
+SELECT plan(293);
+UPDATE public.patria_key_settings SET recovery_wait = interval '48 hours' WHERE singleton = 1;
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -2439,6 +2440,106 @@ SELECT is_empty(
   'other family cannot read device-removed notices'
 );
 RESET ROLE;
+
+UPDATE public.family_spaces
+SET rotation_needed = false
+WHERE id = (SELECT rivera FROM fx);
+INSERT INTO public.family_key_wraps (
+  family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+) SELECT rivera, '44444444-4444-4444-4444-444444444444',
+         'd4444444-4444-4444-4444-444444444441',
+         tests_dummy_box(), 2, '11111111-1111-1111-1111-111111111111'
+FROM fx;
+INSERT INTO public.device_keys (user_id, device_id, public_key)
+VALUES (
+  '44444444-4444-4444-4444-444444444444',
+  'd4444444-4444-4444-4444-444444444442',
+  tests_dummy_pub('elder-leave')
+)
+ON CONFLICT DO NOTHING;
+INSERT INTO public.device_approval_notices (family_space_id, user_id, device_id)
+SELECT rivera, '44444444-4444-4444-4444-444444444444',
+       'd4444444-4444-4444-4444-444444444441'
+FROM fx
+ON CONFLICT DO NOTHING;
+SELECT tests_jwt('44444444-4444-4444-4444-444444444444');
+SET LOCAL ROLE authenticated;
+INSERT INTO public.recovery_requests (family_space_id, user_id, new_device_id)
+SELECT rivera, '44444444-4444-4444-4444-444444444444',
+       'd4444444-4444-4444-4444-444444444442'
+FROM fx;
+SELECT lives_ok(
+  $sql$DELETE FROM public.space_members WHERE user_id = '44444444-4444-4444-4444-444444444444'$sql$,
+  'elder can self-leave'
+);
+RESET ROLE;
+SELECT is_empty(
+  $sql$SELECT 1 FROM public.family_key_wraps
+       WHERE user_id = '44444444-4444-4444-4444-444444444444'$sql$,
+  'self-leave deletes wraps at every epoch'
+);
+SELECT isnt_empty(
+  $sql$SELECT 1 FROM public.device_keys
+       WHERE user_id = '44444444-4444-4444-4444-444444444444'$sql$,
+  'self-leave keeps the account device key pair'
+);
+SELECT is_empty(
+  $sql$SELECT 1 FROM public.device_approval_notices
+       WHERE user_id = '44444444-4444-4444-4444-444444444444'$sql$,
+  'self-leave removes this family device notices'
+);
+SELECT is_empty(
+  $sql$SELECT 1 FROM public.recovery_contacts
+       WHERE user_id = '44444444-4444-4444-4444-444444444444'
+          OR member_id = '44444444-4444-4444-4444-444444444444'$sql$,
+  'self-leave drops the person as a recovery contact'
+);
+SELECT is(
+  (
+    SELECT count(*)::integer FROM public.recovery_requests
+    WHERE user_id = '44444444-4444-4444-4444-444444444444'
+      AND cancelled_at IS NOT NULL
+      AND completed_at IS NULL
+  ),
+  1,
+  'self-leave cancels open recovery requests'
+);
+SELECT is(
+  (SELECT rotation_needed FROM public.family_spaces WHERE id = (SELECT rivera FROM fx)),
+  true,
+  'self-leave of a key holder flags rotation'
+);
+INSERT INTO public.space_members (family_space_id, user_id, role)
+SELECT rivera, '44444444-4444-4444-4444-444444444444', 'elder' FROM fx;
+INSERT INTO public.family_key_wraps (
+  family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
+) SELECT rivera, '44444444-4444-4444-4444-444444444444',
+         'd4444444-4444-4444-4444-444444444441',
+         tests_dummy_box(), 1, '11111111-1111-1111-1111-111111111111'
+FROM fx;
+INSERT INTO public.recovery_contacts (
+  family_space_id, member_id, user_id, slot, created_by, status
+) SELECT rivera, '11111111-1111-1111-1111-111111111111',
+         '44444444-4444-4444-4444-444444444444',
+         'b', '11111111-1111-1111-1111-111111111111', 'accepted'
+FROM fx;
+UPDATE public.family_spaces
+SET rotation_needed = false
+WHERE id = (SELECT rivera FROM fx);
+SELECT tests_jwt('55555555-5555-5555-5555-555555555555');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $sql$DELETE FROM public.space_members WHERE user_id = '55555555-5555-5555-5555-555555555555'$sql$,
+  'extended relative can self-leave'
+);
+RESET ROLE;
+SELECT is(
+  (SELECT rotation_needed FROM public.family_spaces WHERE id = (SELECT rivera FROM fx)),
+  false,
+  'self-leave of a non key holder does not flag rotation'
+);
+INSERT INTO public.space_members (family_space_id, user_id, role)
+SELECT rivera, '55555555-5555-5555-5555-555555555555', 'extended_relative' FROM fx;
 
 UPDATE public.family_spaces
 SET rotation_needed = false

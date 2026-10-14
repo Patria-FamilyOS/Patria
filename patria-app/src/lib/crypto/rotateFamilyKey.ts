@@ -118,17 +118,40 @@ export const supabaseRotateFamilyKeyGateway: RotateFamilyKeyGateway = {
   },
 };
 
+export type RotationOutcome = 'idle' | 'rotated' | 'alreadyCurrent' | 'failed';
+
+async function lostCompareAndSwap(
+  gateway: RotateFamilyKeyGateway,
+  spaceId: string,
+  expectedEpoch: number,
+): Promise<boolean> {
+  try {
+    const latest = await gateway.fetchRotationNeeded(spaceId);
+    if (!latest) {
+      return true;
+    }
+    if (!latest.needed) {
+      return true;
+    }
+    return latest.keyEpoch !== expectedEpoch;
+  } catch {
+    return false;
+  }
+}
+
 export async function rotateFamilyKeyIfNeeded(
   input: { spaceId: string; userId: string; role: string | null | undefined },
   gateway: RotateFamilyKeyGateway = supabaseRotateFamilyKeyGateway,
-): Promise<boolean> {
+  onWorking?: () => void,
+): Promise<RotationOutcome> {
   if (!isSpaceAdmin(input.role)) {
-    return false;
+    return 'idle';
   }
   const state = await gateway.fetchRotationNeeded(input.spaceId);
   if (!state?.needed) {
-    return false;
+    return 'idle';
   }
+  onWorking?.();
   const device = await ensureDeviceIdentity(input.userId);
   const oldKey = await obtainFamilyKey({
     userId: input.userId,
@@ -138,7 +161,7 @@ export async function rotateFamilyKeyIfNeeded(
     fetchOwnWrap: supabaseDeviceAccessGateway.fetchOwnWrap,
   });
   if (!oldKey) {
-    return false;
+    return 'failed';
   }
   const nextEpoch = state.keyEpoch + 1;
   const newKey = randomKey32();
@@ -161,18 +184,28 @@ export async function rotateFamilyKeyIfNeeded(
         userId: row.userId,
       }),
     );
-    await gateway.commitRotation({
-      spaceId: input.spaceId,
-      expectedEpoch: state.keyEpoch,
-      userIds: targets.map((row) => row.userId),
-      deviceIds: targets.map((row) => row.deviceId),
-      wrappedKeys,
-      sealUserIds: seals.map((row) => row.userId),
-      sealedKeys,
-    });
+    try {
+      await gateway.commitRotation({
+        spaceId: input.spaceId,
+        expectedEpoch: state.keyEpoch,
+        userIds: targets.map((row) => row.userId),
+        deviceIds: targets.map((row) => row.deviceId),
+        wrappedKeys,
+        sealUserIds: seals.map((row) => row.userId),
+        sealedKeys,
+      });
+    } catch (error) {
+      logKeyStep('rotate_family_key', 'commit');
+      if (await lostCompareAndSwap(gateway, input.spaceId, state.keyEpoch)) {
+        return 'alreadyCurrent';
+      }
+      throw error;
+    }
     await cacheFamilySecrets(input.userId, input.spaceId, newKey);
     logKeyStep('rotate_family_key', `${input.spaceId} ${nextEpoch}`);
-    return true;
+    return 'rotated';
+  } catch {
+    return 'failed';
   } finally {
     for (const secret of opened) {
       wipe(secret);

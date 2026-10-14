@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-13 — Leave family, create another family, rotation status
+
+Leave family lives on your own member row with Cancel as the default and a destructive confirm. Leaving deletes this phone’s cached family key for that space and keeps the device key pair. Create another family sits next to Join another family and reuses the existing create screen. Admin phones show Updating the family key, then a short confirmation; a lost rotation race is treated as already up to date. Self-leave cleanup matches admin removal in pgTAP.
+
+---
+
 ## 2026-10-13 — Maestro phone tests from PHONE_TESTS.md
 
 Phone tests 1–13 now have Maestro flows under `patria-app/.maestro/`. Local Docker Supabase only: `e2e-setup` and `e2e-db-check` refuse any URL that is not `127.0.0.1` or `localhost`. The service role key stays in gitignored files and is never in the app env. Default is two simulators; `E2E_DEVICES=3` runs all of test 12 at once. Share-sheet Copy is tried then marked manual if the sheet is not automatable. `npm run e2e:check` fails when a numbered test has no flow (unless the heading is marked manual) or a flow points at a missing test. Production App Store bundle id is still open (D28). Jest and pgTAP are unchanged.

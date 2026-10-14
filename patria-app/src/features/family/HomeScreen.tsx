@@ -35,6 +35,10 @@ import {
 import { ensureDeviceIdentity } from '../../lib/crypto/deviceIdentity';
 import { ensureKeysForOpenFamily, type FamilyKeyStatus } from '../../lib/crypto/familyCeremony';
 import {
+  rotateFamilyKeyIfNeeded,
+  type RotationOutcome,
+} from '../../lib/crypto/rotateFamilyKey';
+import {
   approveRecoveryAsContact,
   cancelledCopyKind,
   cancelRecoveryRequest,
@@ -66,6 +70,10 @@ export function HomeScreen() {
   const [signingOut, setSigningOut] = useState(false);
   const [busyNoticeId, setBusyNoticeId] = useState<string | null>(null);
   const [noticeError, setNoticeError] = useState<string | null>(null);
+  const [rotationUi, setRotationUi] = useState<'hidden' | 'updating' | 'upToDate' | 'failed'>(
+    'hidden',
+  );
+  const [rotationAttempt, setRotationAttempt] = useState(0);
 
   const membershipsQuery = useQuery({
     queryKey: ['memberships', userId],
@@ -175,6 +183,42 @@ export function HomeScreen() {
     });
     return unsubscribe;
   }, [navigation, onRefresh]);
+
+  useEffect(() => {
+    if (!admin || !spaceId || !userId || keyStatusQuery.data !== 'ready') {
+      return;
+    }
+    let cancelled = false;
+    void rotateFamilyKeyIfNeeded(
+      {
+        spaceId,
+        userId,
+        role: current?.role,
+      },
+      undefined,
+      () => {
+        if (!cancelled) {
+          setRotationUi('updating');
+        }
+      },
+    ).then((outcome: RotationOutcome) => {
+      if (cancelled) {
+        return;
+      }
+      if (outcome === 'idle') {
+        setRotationUi('hidden');
+        return;
+      }
+      if (outcome === 'failed') {
+        setRotationUi('failed');
+        return;
+      }
+      setRotationUi('upToDate');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [admin, spaceId, userId, keyStatusQuery.data, current?.role, rotationAttempt]);
 
   const refreshing =
     membershipsQuery.isRefetching ||
@@ -383,6 +427,17 @@ export function HomeScreen() {
       <AppText style={styles.joinLinkText}>{copy.home.joinFamily}</AppText>
     </Pressable>
   );
+  const createAnotherFamilyLink = (
+    <Pressable
+      testID={testIdFromLabel(copy.home.createAnotherFamily)}
+      accessibilityRole="link"
+      accessibilityLabel={copy.home.createAnotherFamily}
+      onPress={() => router.push(routes.createFamily)}
+      style={styles.joinLink}
+    >
+      <AppText style={styles.joinLinkText}>{copy.home.createAnotherFamily}</AppText>
+    </Pressable>
+  );
 
   if (membershipsQuery.isLoading) {
     return (
@@ -446,6 +501,22 @@ export function HomeScreen() {
       <Muted>{copy.home.todoMemories}</Muted>
       {keyStatusQuery.data ? (
         <Muted testID="home-keys-status">{keyStatusCopy(keyStatusQuery.data)}</Muted>
+      ) : null}
+      {rotationUi === 'updating' ? (
+        <Muted testID="home-rotation-status">{copy.home.rotationUpdating}</Muted>
+      ) : null}
+      {rotationUi === 'upToDate' ? (
+        <Muted testID="home-rotation-status">{copy.home.rotationUpToDate}</Muted>
+      ) : null}
+      {rotationUi === 'failed' ? (
+        <View>
+          <Muted testID="home-rotation-status">{copy.home.rotationFailed}</Muted>
+          <Button
+            label={copy.home.rotationRetry}
+            variant="secondary"
+            onPress={() => setRotationAttempt((n) => n + 1)}
+          />
+        </View>
       ) : null}
       {keyHolder && recoveryQuery.data?.status === 'not_setup' ? (
         <Muted testID="home-recovery-status">{copy.home.recoveryNotSetup}</Muted>
@@ -714,7 +785,7 @@ export function HomeScreen() {
           testID={`member-${testIdFromLabel(row.displayName)}`}
           accessibilityRole="button"
           accessibilityLabel={`${row.displayName}, ${copy.roles[row.role]}`}
-          disabled={!admin}
+          disabled={!admin && row.userId !== userId}
           onPress={() => router.push(routes.member(row.userId))}
           style={styles.row}
         >
@@ -780,6 +851,7 @@ export function HomeScreen() {
       {adminCount <= 1 && userId ? (
         <Muted>{copy.member.lastAdmin}</Muted>
       ) : null}
+      {createAnotherFamilyLink}
       {joinFamilyLink}
     </Screen>
   );
