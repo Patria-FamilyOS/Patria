@@ -62,6 +62,9 @@ jest.mock('../../lib/crypto/familyCeremony', () => ({
 
 jest.mock('../../lib/crypto/rotateFamilyKey', () => ({
   rotateFamilyKeyIfNeeded: jest.fn(async () => 'idle'),
+  homeRotationQueryKey: (spaceId: string) => ['homeRotationUi', spaceId],
+  homeRotationUiFromOutcome: (outcome: string) =>
+    outcome === 'failed' ? 'failed' : outcome === 'idle' ? 'hidden' : 'upToDate',
 }));
 
 jest.mock('../../lib/crypto/deviceAccess', () => ({
@@ -184,6 +187,17 @@ describe('HomeScreen invite entry', () => {
     const { findByText, queryByText } = renderScreen(<HomeScreen />);
     expect(await findByText(copy.home.rotationUpToDate)).toBeTruthy();
     expect(queryByText(copy.home.rotationFailed)).toBeNull();
+  });
+
+  it('shows the family key is up to date after a completed rotation', async () => {
+    (rotateFamilyKeyIfNeeded as jest.Mock).mockImplementation(
+      async (_input: unknown, _gateway: unknown, onWorking?: () => void) => {
+        onWorking?.();
+        return 'rotated';
+      },
+    );
+    const { findByText } = renderScreen(<HomeScreen />);
+    expect(await findByText(copy.home.rotationUpToDate)).toBeTruthy();
   });
 
   it('uses a Join another family link instead of a paste box', async () => {

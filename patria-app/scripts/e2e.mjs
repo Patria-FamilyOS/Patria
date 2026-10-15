@@ -4,6 +4,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileS
 import { join } from 'node:path';
 
 import {
+  APP_BUNDLE_ID,
   APP_ROOT,
   E2E_FAMILY_NAME,
   MAESTRO_DIR,
@@ -109,6 +110,37 @@ function remainingMs() {
   return testDeadline - Date.now();
 }
 
+let driverUnreachable = false;
+
+function isDriverUnreachable(text) {
+  return /Device became unreachable|Transport unreachable|XCUITestServerError\$Unreachable|Failed to connect to \/127\.0\.0\.1/i.test(
+    text,
+  );
+}
+
+function restartMaestroDriver(udid) {
+  if (!udid) {
+    return;
+  }
+  progress(`Restarting Maestro iOS driver on ${udid}`);
+  try {
+    execFileSync('xcrun', ['simctl', 'terminate', udid, APP_BUNDLE_ID], { stdio: 'ignore' });
+  } catch {
+    // App may already be stopped.
+  }
+  try {
+    execFileSync('killall', ['-9', 'xctest'], { stdio: 'ignore' });
+  } catch {
+    // No xctest process is fine.
+  }
+}
+
+function restartAllMaestroDrivers() {
+  for (const udid of devices) {
+    restartMaestroDriver(udid);
+  }
+}
+
 function maestro({ flow, device, env }) {
   const args = ['test', '--no-ansi', '--platform', 'ios'];
   if (device) {
@@ -126,11 +158,19 @@ function maestro({ flow, device, env }) {
   }
   const result = spawnSync('maestro', args, {
     cwd: APP_ROOT,
-    stdio: 'inherit',
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env },
     timeout,
     killSignal: 'SIGTERM',
   });
+  const out = `${result.stdout ?? ''}${result.stderr ?? ''}`;
+  if (out) {
+    process.stdout.write(out);
+  }
+  if (isDriverUnreachable(out)) {
+    driverUnreachable = true;
+  }
   if (result.error && result.error.code === 'ETIMEDOUT') {
     throw new Error('timed out');
   }
@@ -382,15 +422,59 @@ function seedLetIn(memberN, device) {
   });
 }
 
+function seedRecoveryPrinted() {
+  maestro({
+    flow: flow('11_recovery_setup.yaml'),
+    device: deviceA,
+    env: { ...signInEnv(secrets, 1), PHASE: 'open_card' },
+  });
+  maestro({
+    flow: flow('11_recovery_setup.yaml'),
+    device: deviceA,
+    env: {
+      ...signInEnv(secrets, 1),
+      PHASE: 'pick_contact',
+      CONTACT_ID: 'recovery-contact-test-2',
+    },
+  });
+  maestro({
+    flow: flow('11_recovery_setup.yaml'),
+    device: args.devices >= 2 && deviceB ? deviceB : deviceA,
+    env: { ...signInEnv(secrets, 2), PHASE: 'accept_contact' },
+  });
+  maestro({
+    flow: flow('11_recovery_setup.yaml'),
+    device: deviceA,
+    env: {
+      ...signInEnv(secrets, 1),
+      PHASE: 'pick_contact',
+      CONTACT_ID: 'recovery-contact-test-3',
+    },
+  });
+  maestro({
+    flow: flow('11_recovery_setup.yaml'),
+    device: args.devices >= 2 && deviceB ? deviceB : deviceA,
+    env: { ...signInEnv(secrets, 3), PHASE: 'accept_contact' },
+  });
+  maestro({
+    flow: flow('11_recovery_setup.yaml'),
+    device: deviceA,
+    env: { ...signInEnv(secrets, 1), PHASE: 'printed_code' },
+  });
+}
+
 function seedBeforeYouStart(testNumber) {
-  if (![9, 10, 11, 13].includes(testNumber)) {
+  if (![9, 10, 11, 12, 13].includes(testNumber)) {
     return;
   }
   seedAdminKeys();
-  if (testNumber === 11) {
+  if (testNumber === 11 || testNumber === 12) {
     const other = args.devices >= 2 && deviceB ? deviceB : deviceA;
     seedLetIn(2, other);
     seedLetIn(3, other);
+  }
+  if (testNumber === 12) {
+    seedRecoveryPrinted();
   }
   if (testNumber === 13) {
     const other = args.devices >= 2 && deviceB ? deviceB : deviceA;
@@ -477,11 +561,13 @@ function endTestLine(test, index, started) {
   }
 }
 
+const retriedTests = new Set();
 try {
   for (let index = 0; index < selected.length; index += 1) {
     const test = selected[index];
     const started = Date.now();
     const ordinal = index + 1;
+    driverUnreachable = false;
     progress(
       `Test ${ordinal} of ${total}: ${test.title}, in progress (${deviceLabelFor(test.number)})`,
     );
@@ -509,6 +595,18 @@ try {
       step(test.number, 1, 'Clear app state on each device', () => {
         throw error instanceof Error ? error : new Error('clearState failed');
       });
+      if (driverUnreachable && !retriedTests.has(test.number)) {
+        retriedTests.add(test.number);
+        progress(
+          `RETRY Test ${test.number}: Maestro driver unreachable; restarted the driver and retrying this test once.`,
+        );
+        const kept = reports.filter((row) => row.testNumber !== test.number);
+        reports.length = 0;
+        reports.push(...kept);
+        restartAllMaestroDrivers();
+        index -= 1;
+        continue;
+      }
       endTestLine(test, ordinal, started);
       continue;
     }
@@ -527,7 +625,7 @@ try {
       continue;
     }
 
-    if ([9, 10, 11, 13].includes(test.number)) {
+    if ([9, 10, 11, 12, 13].includes(test.number)) {
       try {
         seedBeforeYouStart(test.number);
       } catch (error) {
@@ -1138,7 +1236,19 @@ try {
         captureScreen(deviceA, `timeout-test-${test.number}`);
       }
     } finally {
-      endTestLine(test, ordinal, started);
+      if (driverUnreachable && !retriedTests.has(test.number)) {
+        retriedTests.add(test.number);
+        progress(
+          `RETRY Test ${test.number}: Maestro driver unreachable; restarted the driver and retrying this test once.`,
+        );
+        const kept = reports.filter((row) => row.testNumber !== test.number);
+        reports.length = 0;
+        reports.push(...kept);
+        restartAllMaestroDrivers();
+        index -= 1;
+      } else {
+        endTestLine(test, ordinal, started);
+      }
     }
   }
 } finally {

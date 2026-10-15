@@ -10,6 +10,10 @@ appId: app.patria.dev
       - launchApp
       - runFlow:
           file: subflows/sign_in.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "screen-waiting-own-phone"
+          timeout: 30000
       - assertVisible: "Waiting for"
       - tapOn:
           id: "i-lost-my-phone"

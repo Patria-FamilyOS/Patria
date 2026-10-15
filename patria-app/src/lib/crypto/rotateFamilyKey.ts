@@ -120,6 +120,22 @@ export const supabaseRotateFamilyKeyGateway: RotateFamilyKeyGateway = {
 
 export type RotationOutcome = 'idle' | 'rotated' | 'alreadyCurrent' | 'failed';
 
+export type HomeRotationUi = 'hidden' | 'updating' | 'upToDate' | 'failed';
+
+export function homeRotationQueryKey(spaceId: string): ['homeRotationUi', string] {
+  return ['homeRotationUi', spaceId];
+}
+
+export function homeRotationUiFromOutcome(outcome: RotationOutcome): HomeRotationUi {
+  if (outcome === 'failed') {
+    return 'failed';
+  }
+  if (outcome === 'rotated' || outcome === 'alreadyCurrent') {
+    return 'upToDate';
+  }
+  return 'hidden';
+}
+
 async function lostCompareAndSwap(
   gateway: RotateFamilyKeyGateway,
   spaceId: string,

@@ -5,7 +5,11 @@ import { secretsEqual, wipe } from './bytes';
 import { ensureDeviceIdentity } from './deviceIdentity';
 import { cacheFamilySecrets, familyKeyStoreKey, resetFamilyKeyMemory } from './keyStore';
 import { randomKey32 } from './random';
-import { rotateFamilyKeyIfNeeded, type RotateFamilyKeyGateway } from './rotateFamilyKey';
+import {
+  homeRotationUiFromOutcome,
+  rotateFamilyKeyIfNeeded,
+  type RotateFamilyKeyGateway,
+} from './rotateFamilyKey';
 import { unwrapFamilyKeyFromRecoveryPrivate, unwrapKeyFromDevice, wrapKeyToDevice } from './wrap';
 import { generateDeviceKeyPair } from './x25519';
 import { getSecretBytes } from './secureKeys';
@@ -35,6 +39,13 @@ function installMemoryStore(store: Map<string, string>): void {
 }
 
 describe('rotate family key', () => {
+  it('maps rotation outcomes to Home copy states', () => {
+    expect(homeRotationUiFromOutcome('rotated')).toBe('upToDate');
+    expect(homeRotationUiFromOutcome('alreadyCurrent')).toBe('upToDate');
+    expect(homeRotationUiFromOutcome('failed')).toBe('failed');
+    expect(homeRotationUiFromOutcome('idle')).toBe('hidden');
+  });
+
   it('wraps remaining devices and seals remaining recovery public keys at the next epoch', async () => {
     const store = new Map<string, string>();
     installMemoryStore(store);

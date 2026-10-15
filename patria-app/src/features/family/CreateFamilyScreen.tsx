@@ -73,7 +73,11 @@ export function CreateFamilyScreen() {
   });
 
   return (
-    <Screen accessibilityLabel={copy.createFamily.title} withHeader={withHeader}>
+    <Screen
+      testID="screen-create-family"
+      accessibilityLabel={copy.createFamily.title}
+      withHeader={withHeader}
+    >
       <Title>{copy.createFamily.title}</Title>
       <Body>{copy.createFamily.subtitle}</Body>
       <PasteInviteField onOpen={(token) => router.push(routes.inviteAccept(token))} />

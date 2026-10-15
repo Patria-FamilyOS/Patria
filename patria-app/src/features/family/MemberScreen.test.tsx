@@ -2,13 +2,41 @@ import { fireEvent, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 
 import { copy } from '../../lib/copy';
+import { rotateFamilyKeyIfNeeded } from '../../lib/crypto/rotateFamilyKey';
 import { fetchAdminMemberEmail, fetchMembers } from '../../lib/family';
 import { leaveFamilySpace } from '../../lib/leaveFamily';
+import { supabase } from '../../lib/supabase';
 import { renderScreen } from '../../test/renderScreen';
 import { MemberScreen } from './MemberScreen';
 
+const authState = { id: 'u2' };
+
 jest.mock('../../lib/auth-context', () => ({
-  useAuth: () => ({ session: { user: { id: 'u2' } }, loading: false }),
+  useAuth: () => ({ session: { user: { id: authState.id } }, loading: false }),
+}));
+
+jest.mock('../../lib/crypto/rotateFamilyKey', () => ({
+  rotateFamilyKeyIfNeeded: jest.fn(async () => 'rotated'),
+  homeRotationQueryKey: (spaceId: string) => ['homeRotationUi', spaceId],
+  homeRotationUiFromOutcome: (outcome: string) =>
+    outcome === 'failed' ? 'failed' : outcome === 'idle' ? 'hidden' : 'upToDate',
+}));
+
+jest.mock('../../lib/supabase', () => ({
+  supabase: {
+    from: jest.fn(() => ({
+      delete: () => ({
+        eq: () => ({
+          eq: async () => ({ error: null }),
+        }),
+      }),
+      update: () => ({
+        eq: () => ({
+          eq: async () => ({ error: null }),
+        }),
+      }),
+    })),
+  },
 }));
 
 jest.mock('../../lib/currentFamily', () => ({
@@ -43,9 +71,13 @@ const members = [
 
 describe('MemberScreen leave family', () => {
   beforeEach(() => {
+    authState.id = 'u2';
     (fetchMembers as jest.Mock).mockResolvedValue(members);
     (fetchAdminMemberEmail as jest.Mock).mockResolvedValue(null);
     (leaveFamilySpace as jest.Mock).mockResolvedValue({ ok: true });
+    (rotateFamilyKeyIfNeeded as jest.Mock).mockClear();
+    (rotateFamilyKeyIfNeeded as jest.Mock).mockResolvedValue('rotated');
+    (supabase.from as jest.Mock).mockClear();
   });
 
   it('lets a member leave from their own row after a destructive confirm', async () => {
@@ -59,6 +91,26 @@ describe('MemberScreen leave family', () => {
     fireEvent.press(await findByText(copy.member.leave));
     await waitFor(() => {
       expect(leaveFamilySpace).toHaveBeenCalledWith({ spaceId: 's1', userId: 'u2' });
+    });
+    alertSpy.mockRestore();
+  });
+
+  it('rotates the family key after an admin confirms Remove from this family', async () => {
+    authState.id = 'u1';
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+      const remove = buttons?.find((item) => item.style === 'destructive');
+      remove?.onPress?.();
+    });
+    const { findByText } = renderScreen(<MemberScreen userId="u2" />);
+    fireEvent.press(await findByText(copy.member.remove));
+    await waitFor(() => {
+      expect(rotateFamilyKeyIfNeeded).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spaceId: 's1',
+          userId: 'u1',
+          role: 'family_admin',
+        }),
+      );
     });
     alertSpy.mockRestore();
   });

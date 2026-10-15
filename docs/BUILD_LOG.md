@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-15 — Rotate immediately after Remove, then say so on Home
+
+Local E2E Family after the last Test 13 run was still epoch 1, Test 3 still a member with a wrap, and `rotation_needed` false — the admin phone had not rotated. Confirming **Remove from this family** now flags Home as updating, navigates back, and the admin phone calls `rotateFamilyKeyIfNeeded` right away (retry once if the first pass is idle). Home keeps **Updating the family key** then **The family key is up to date** even if a later idle pass runs. Test 12 seeds the same let-in Elders as Test 11 plus a printed code; a new phone that is not let in uses `screen-waiting-own-phone`. If Maestro’s XCTest driver drops, the runner restarts it and retries that test once.
+
+---
+
 ## 2026-10-14 — Your phones, printed code, Remove alert, e2e LogBox
 
 Home already had **Your phones** (below the fold) and **Write down a printed code** (after two recovery contacts accept, near the top, also on Recovery contacts). Flows now scroll to those testIDs (`your-phones`, `create-printed-code`, `remove-phone`). Test 11 seeds Test 3 as a let-in Elder so the printed-code step is actually on screen. Removing a member taps the native alert confirm **Remove from this family**. E2E only: `EXPO_PUBLIC_E2E=1` calls `LogBox.ignoreAllLogs` so yellow banners cannot cover buttons. `clearKeychain` stays on the simulator `clear_state` subflow. After a successful remove, Home still often never shows “Updating the family key” / “The family key is up to date” (app bug; rotation may still happen in the background).

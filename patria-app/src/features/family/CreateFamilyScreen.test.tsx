@@ -37,8 +37,9 @@ describe('CreateFamilyScreen', () => {
   });
 
   it('opens a pasted invite on the accept screen instead of creating a family', () => {
-    const { getByLabelText, getByText } = renderScreen(<CreateFamilyScreen />);
+    const { getByLabelText, getByText, getByTestId } = renderScreen(<CreateFamilyScreen />);
 
+    expect(getByTestId('screen-create-family')).toBeTruthy();
     expect(getByText(copy.invite.pastePrompt)).toBeTruthy();
     fireEvent.changeText(
       getByLabelText(copy.invite.pasteLabel),

@@ -18,8 +18,19 @@ import { copy } from '../../lib/copy';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
 import { logFailedAction } from '../../lib/devLog';
 import { fetchAdminMemberEmail, fetchMembers } from '../../lib/family';
+import {
+  homeRotationQueryKey,
+  homeRotationUiFromOutcome,
+  rotateFamilyKeyIfNeeded,
+} from '../../lib/crypto/rotateFamilyKey';
 import { leaveFamilySpace } from '../../lib/leaveFamily';
-import { countAdmins, INVITE_ROLES, isSpaceAdmin, type SpaceRole } from '../../lib/roles';
+import {
+  countAdmins,
+  INVITE_ROLES,
+  isKeyEligibleRole,
+  isSpaceAdmin,
+  type SpaceRole,
+} from '../../lib/roles';
 import { supabase } from '../../lib/supabase';
 import { testIdFromLabel } from '../../lib/testId';
 import { colors, spacing, type } from '../../theme';
@@ -102,20 +113,42 @@ export function MemberScreen({ userId }: MemberScreenProps) {
         text: copy.member.remove,
         style: 'destructive',
         onPress: () => {
-          void supabase
-            .from('space_members')
-            .delete()
-            .eq('family_space_id', spaceId)
-            .eq('user_id', userId)
-            .then(({ error: deleteError }) => {
-              if (deleteError) {
-                logFailedAction(deleteError);
-                setError(copy.member.removeFailed);
-                return;
-              }
-              void queryClient.invalidateQueries({ queryKey: ['members', spaceId] });
-              router.replace('/(signed-in)/home');
+          void (async () => {
+            const { error: deleteError } = await supabase
+              .from('space_members')
+              .delete()
+              .eq('family_space_id', spaceId)
+              .eq('user_id', userId);
+            if (deleteError) {
+              logFailedAction(deleteError);
+              setError(copy.member.removeFailed);
+              return;
+            }
+            void queryClient.invalidateQueries({ queryKey: ['members', spaceId] });
+            queryClient.setQueryData(homeRotationQueryKey(spaceId), 'updating');
+            router.replace('/(signed-in)/home');
+            const adminId = session?.user.id;
+            let outcome = await rotateFamilyKeyIfNeeded({
+              spaceId,
+              userId: adminId ?? '',
+              role: myRole,
             });
+            if (outcome === 'idle' && isKeyEligibleRole(member.role)) {
+              outcome = await rotateFamilyKeyIfNeeded({
+                spaceId,
+                userId: adminId ?? '',
+                role: myRole,
+              });
+            }
+            if (outcome !== 'idle') {
+              queryClient.setQueryData(
+                homeRotationQueryKey(spaceId),
+                homeRotationUiFromOutcome(outcome),
+              );
+            } else if (!isKeyEligibleRole(member.role)) {
+              queryClient.setQueryData(homeRotationQueryKey(spaceId), 'hidden');
+            }
+          })();
         },
       },
     ]);

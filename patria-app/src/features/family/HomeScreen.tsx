@@ -35,7 +35,10 @@ import {
 import { ensureDeviceIdentity } from '../../lib/crypto/deviceIdentity';
 import { ensureKeysForOpenFamily, type FamilyKeyStatus } from '../../lib/crypto/familyCeremony';
 import {
+  homeRotationQueryKey,
+  homeRotationUiFromOutcome,
   rotateFamilyKeyIfNeeded,
+  type HomeRotationUi,
   type RotationOutcome,
 } from '../../lib/crypto/rotateFamilyKey';
 import {
@@ -70,9 +73,7 @@ export function HomeScreen() {
   const [signingOut, setSigningOut] = useState(false);
   const [busyNoticeId, setBusyNoticeId] = useState<string | null>(null);
   const [noticeError, setNoticeError] = useState<string | null>(null);
-  const [rotationUi, setRotationUi] = useState<'hidden' | 'updating' | 'upToDate' | 'failed'>(
-    'hidden',
-  );
+  const [rotationUi, setRotationUi] = useState<HomeRotationUi>('hidden');
   const [rotationAttempt, setRotationAttempt] = useState(0);
 
   const membershipsQuery = useQuery({
@@ -184,11 +185,23 @@ export function HomeScreen() {
     return unsubscribe;
   }, [navigation, onRefresh]);
 
+  const cachedRotationQuery = useQuery({
+    queryKey: homeRotationQueryKey(spaceId ?? ''),
+    queryFn: async (): Promise<HomeRotationUi> => 'hidden',
+    enabled: Boolean(spaceId),
+    staleTime: Infinity,
+  });
+  const shownRotation =
+    cachedRotationQuery.data === 'updating' ||
+    cachedRotationQuery.data === 'upToDate' ||
+    cachedRotationQuery.data === 'failed'
+      ? cachedRotationQuery.data
+      : rotationUi;
+
   useEffect(() => {
     if (!admin || !spaceId || !userId || keyStatusQuery.data !== 'ready') {
       return;
     }
-    let cancelled = false;
     void rotateFamilyKeyIfNeeded(
       {
         spaceId,
@@ -197,27 +210,27 @@ export function HomeScreen() {
       },
       undefined,
       () => {
-        if (!cancelled) {
-          setRotationUi('updating');
-        }
+        setRotationUi('updating');
+        queryClient.setQueryData(homeRotationQueryKey(spaceId), 'updating');
       },
     ).then((outcome: RotationOutcome) => {
-      if (cancelled) {
-        return;
-      }
-      if (outcome === 'idle') {
-        setRotationUi((prev) => (prev === 'updating' ? prev : 'hidden'));
+      if (outcome === 'rotated' || outcome === 'alreadyCurrent') {
+        setRotationUi('upToDate');
+        queryClient.setQueryData(homeRotationQueryKey(spaceId), 'upToDate');
         return;
       }
       if (outcome === 'failed') {
         setRotationUi('failed');
+        queryClient.setQueryData(homeRotationQueryKey(spaceId), 'failed');
         return;
       }
-      setRotationUi('upToDate');
+      setRotationUi((prev) => {
+        if (prev === 'updating' || prev === 'upToDate' || prev === 'failed') {
+          return prev;
+        }
+        return homeRotationUiFromOutcome(outcome);
+      });
     });
-    return () => {
-      cancelled = true;
-    };
   }, [
     admin,
     spaceId,
@@ -225,7 +238,7 @@ export function HomeScreen() {
     keyStatusQuery.data,
     current?.role,
     rotationAttempt,
-    membersQuery.data?.length,
+    queryClient,
   ]);
 
   const refreshing =
@@ -509,15 +522,21 @@ export function HomeScreen() {
       <Title>{current.space.name}</Title>
       <Muted>{copy.home.todoMemories}</Muted>
       {keyStatusQuery.data ? (
-        <Muted testID="home-keys-status">{keyStatusCopy(keyStatusQuery.data)}</Muted>
+        <View
+          testID={
+            keyStatusQuery.data === 'waitingOwnPhone' ? 'screen-waiting-own-phone' : undefined
+          }
+        >
+          <Muted testID="home-keys-status">{keyStatusCopy(keyStatusQuery.data)}</Muted>
+        </View>
       ) : null}
-      {rotationUi === 'updating' ? (
+      {shownRotation === 'updating' ? (
         <Muted testID="home-rotation-status">{copy.home.rotationUpdating}</Muted>
       ) : null}
-      {rotationUi === 'upToDate' ? (
+      {shownRotation === 'upToDate' ? (
         <Muted testID="home-rotation-status">{copy.home.rotationUpToDate}</Muted>
       ) : null}
-      {rotationUi === 'failed' ? (
+      {shownRotation === 'failed' ? (
         <View>
           <Muted testID="home-rotation-status">{copy.home.rotationFailed}</Muted>
           <Button
