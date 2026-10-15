@@ -71,6 +71,7 @@ const child = spawn('npx', ['expo', 'run:ios', ...expoArgs], {
   env: {
     ...process.env,
     ...publicEnv,
+    EXPO_PUBLIC_E2E: '1',
     EXPO_NO_DOTENV: '1',
   },
 });

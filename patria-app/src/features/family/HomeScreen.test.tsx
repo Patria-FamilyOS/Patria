@@ -18,6 +18,7 @@ import {
 } from '../../lib/crypto/deviceAccess';
 import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
 import { rotateFamilyKeyIfNeeded } from '../../lib/crypto/rotateFamilyKey';
+import { loadRecoverySnapshot } from '../../lib/crypto/recoverySetup';
 import { supabase } from '../../lib/supabase';
 import { renderScreen } from '../../test/renderScreen';
 import { HomeScreen } from './HomeScreen';
@@ -90,6 +91,7 @@ jest.mock('../../lib/crypto/recoverySetup', () => ({
     accepted: 0,
     pending: [],
     hasPaper: false,
+    hasRecoveryPublic: false,
     recoveryKeyEpoch: 1,
     keyEpoch: 1,
     status: 'not_setup',
@@ -157,6 +159,17 @@ describe('HomeScreen invite entry', () => {
     (declineFirstDevice as jest.Mock).mockClear();
     (approveOwnExtraDevice as jest.Mock).mockClear();
     (rejectOwnExtraDevice as jest.Mock).mockClear();
+    (loadRecoverySnapshot as jest.Mock).mockResolvedValue({
+      contacts: [],
+      ownContacts: [],
+      accepted: 0,
+      pending: [],
+      hasPaper: false,
+      hasRecoveryPublic: false,
+      recoveryKeyEpoch: 1,
+      keyEpoch: 1,
+      status: 'not_setup',
+    });
   });
 
   it('offers Create another family next to Join another family', async () => {
@@ -299,6 +312,23 @@ describe('HomeScreen invite entry', () => {
     const { findByText } = renderScreen(<HomeScreen />);
     fireEvent.press(await findByText(copy.home.yourPhones));
     expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/your-phones');
+  });
+
+  it('offers a printed-code step from Home after two contacts accept', async () => {
+    (loadRecoverySnapshot as jest.Mock).mockResolvedValue({
+      contacts: [],
+      ownContacts: [],
+      accepted: 2,
+      pending: [],
+      hasPaper: false,
+      hasRecoveryPublic: true,
+      recoveryKeyEpoch: 1,
+      keyEpoch: 1,
+      status: 'setup',
+    });
+    const { findByTestId } = renderScreen(<HomeScreen />);
+    fireEvent.press(await findByTestId('create-printed-code'));
+    expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/printed-code');
   });
 
   it('lists a child with a subtitle test id for kid profile and no email', async () => {

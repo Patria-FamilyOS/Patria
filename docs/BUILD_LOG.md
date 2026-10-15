@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-14 — Your phones, printed code, Remove alert, e2e LogBox
+
+Home already had **Your phones** (below the fold) and **Write down a printed code** (after two recovery contacts accept, near the top, also on Recovery contacts). Flows now scroll to those testIDs (`your-phones`, `create-printed-code`, `remove-phone`). Test 11 seeds Test 3 as a let-in Elder so the printed-code step is actually on screen. Removing a member taps the native alert confirm **Remove from this family**. E2E only: `EXPO_PUBLIC_E2E=1` calls `LogBox.ignoreAllLogs` so yellow banners cannot cover buttons. `clearKeychain` stays on the simulator `clear_state` subflow. After a successful remove, Home still often never shows “Updating the family key” / “The family key is up to date” (app bug; rotation may still happen in the background).
+
+---
+
 ## 2026-10-14 — Sign in stays usable with the keyboard open
 
 Sign in and Create account lift with `KeyboardAvoidingView` so the main button stays reachable on small phones. The password field’s keyboard key is **Go** and submits the form (`returnKeyType` + `onSubmitEditing`); iOS AutoFill stays on (`textContentType` password / newPassword). Phone tests identify Welcome / Sign in / Create account by `screen-welcome`, `screen-sign-in` and `screen-sign-up`, leave Create account if a device lands there, and submit with `pressKey: Enter`. Each test starts by `launchApp` with `clearState` and `clearKeychain` on every simulator it will use (SecureStore sessions live in the keychain, so `clearState` alone left Test 1 signed in on device B). It never clears again mid-test so family keys created during the run survive.

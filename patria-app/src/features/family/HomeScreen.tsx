@@ -206,7 +206,7 @@ export function HomeScreen() {
         return;
       }
       if (outcome === 'idle') {
-        setRotationUi('hidden');
+        setRotationUi((prev) => (prev === 'updating' ? prev : 'hidden'));
         return;
       }
       if (outcome === 'failed') {
@@ -218,7 +218,15 @@ export function HomeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [admin, spaceId, userId, keyStatusQuery.data, current?.role, rotationAttempt]);
+  }, [
+    admin,
+    spaceId,
+    userId,
+    keyStatusQuery.data,
+    current?.role,
+    rotationAttempt,
+    membersQuery.data?.length,
+  ]);
 
   const refreshing =
     membershipsQuery.isRefetching ||
@@ -553,6 +561,7 @@ export function HomeScreen() {
         <Button
           label={copy.home.recoveryPrintedAction}
           variant="secondary"
+          testID="create-printed-code"
           onPress={() => router.push(routes.printedCode)}
         />
       ) : null}
@@ -837,12 +846,14 @@ export function HomeScreen() {
         <Button
           label={copy.recovery.title}
           variant="secondary"
+          testID="recovery-contacts"
           onPress={() => router.push(routes.recoverySetup)}
         />
       ) : null}
       <Button
         label={copy.home.yourPhones}
         variant="secondary"
+        testID="your-phones"
         onPress={() => router.push(routes.yourPhones)}
       />
       <Button

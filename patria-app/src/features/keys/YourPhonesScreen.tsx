@@ -101,7 +101,7 @@ export function YourPhonesScreen() {
   const phones = phonesQuery.data ?? [];
 
   return (
-    <Screen withHeader accessibilityLabel={copy.phones.title}>
+    <Screen withHeader accessibilityLabel={copy.phones.title} testID="screen-your-phones">
       <Title>{copy.phones.title}</Title>
       {error ? <ErrorState message={error} /> : null}
       {phones.length === 0 ? <EmptyState message={copy.phones.empty} /> : null}
@@ -124,6 +124,7 @@ export function YourPhonesScreen() {
               <Button
                 label={copy.phones.remove}
                 variant="secondary"
+                testID="remove-phone"
                 busy={busyId === phone.deviceId}
                 disabled={busyId !== null && busyId !== phone.deviceId}
                 onPress={() => onRemove(phone)}

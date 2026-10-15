@@ -312,6 +312,7 @@ async function ensureMetro() {
       env: {
         ...process.env,
         ...publicExpoEnv(e2eEnv),
+        EXPO_PUBLIC_E2E: '1',
         EXPO_NO_DOTENV: '1',
         REACT_NATIVE_PACKAGER_HOSTNAME: '127.0.0.1',
       },
@@ -387,7 +388,9 @@ function seedBeforeYouStart(testNumber) {
   }
   seedAdminKeys();
   if (testNumber === 11) {
-    seedLetIn(2, args.devices >= 2 && deviceB ? deviceB : deviceA);
+    const other = args.devices >= 2 && deviceB ? deviceB : deviceA;
+    seedLetIn(2, other);
+    seedLetIn(3, other);
   }
   if (testNumber === 13) {
     const other = args.devices >= 2 && deviceB ? deviceB : deviceA;
@@ -887,9 +890,22 @@ try {
           env: { ...signInEnv(secrets, 2), PHASE: 'accept_contact' },
         });
       });
-      step(11, 4, 'Second contact Test 3', () =>
-        result('skip', 'Test 3 must already be Elder and let in; remaining if invite/let-in failed'),
-      );
+      step(11, 4, 'Second contact Test 3', () => {
+        maestro({
+          flow: flow('11_recovery_setup.yaml'),
+          device: deviceA,
+          env: {
+            ...signInEnv(secrets, 1),
+            PHASE: 'pick_contact',
+            CONTACT_ID: 'recovery-contact-test-3',
+          },
+        });
+        maestro({
+          flow: flow('11_recovery_setup.yaml'),
+          device: args.devices >= 2 ? deviceB : deviceA,
+          env: { ...signInEnv(secrets, 3), PHASE: 'accept_contact' },
+        });
+      });
       step(11, 5, 'Printed code on screen, words kept in clipboard', () => {
         maestro({
           flow: flow('11_recovery_setup.yaml'),

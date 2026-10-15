@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
@@ -30,6 +30,7 @@ type MemberScreenProps = {
 
 export function MemberScreen({ userId }: MemberScreenProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { session } = useAuth();
   const [spaceId, setSpaceId] = useState<string | null>(null);
   const [roleOverride, setRoleOverride] = useState<SpaceRole | null>(null);
@@ -112,6 +113,7 @@ export function MemberScreen({ userId }: MemberScreenProps) {
                 setError(copy.member.removeFailed);
                 return;
               }
+              void queryClient.invalidateQueries({ queryKey: ['members', spaceId] });
               router.replace('/(signed-in)/home');
             });
         },

@@ -50,10 +50,22 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - scrollUntilVisible:
+          element:
+            id: "^your-phones$"
+          direction: DOWN
+          timeout: 20000
       - tapOn:
-          id: "your-phones"
+          id: "^your-phones$"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-your-phones"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "^remove-phone$"
+          direction: DOWN
+          timeout: 10000
       - tapOn:
-          id: "remove"
-      - tapOn:
-          text: "Remove"
-          optional: true
+          id: "^remove-phone$"
+      - tapOn: "Remove"

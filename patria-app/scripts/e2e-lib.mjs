@@ -13,10 +13,10 @@ export const APP_BUNDLE_ID = 'app.patria.dev';
 export const LARGE_TEXT_CATEGORY = 'UIContentSizeCategoryAccessibilityXXL';
 
 export function scenarioForTest(testNumber) {
-  if (testNumber === 6 || testNumber === 8 || testNumber === 9 || testNumber === 11) {
+  if (testNumber === 6 || testNumber === 8 || testNumber === 9) {
     return 'admin-elder';
   }
-  if (testNumber === 13) {
+  if (testNumber === 11 || testNumber === 13) {
     return 'admin-elders';
   }
   return 'admin';

@@ -97,7 +97,7 @@ Needs a second device for the same account (device B). Device A is where Test 1 
 3. Make Test 2 a Co admin, sign in as Test 2. Pass if they see an information notice about Test 1's new phone with no button to let it in.
 4. On device A tap **Yes, this is my phone**. Pass if B now says family keys are set up and a new row for Test 1 and device B appears in `family_key_wraps`.
 5. Sign in as Test 1 on a fresh device (or B after clearing app data), then on device A tap **This wasn't me**. Pass if that device never gets keys and admins are told.
-6. On device A open **Your phones** and remove device B. Pass if B goes back to waiting and its row disappears from `family_key_wraps`.
+6. On device A, from Home, scroll past invite, add a child, and Recovery contacts, then open **Your phones**. Remove device B and confirm **Remove**. Pass if B goes back to waiting and its row disappears from `family_key_wraps`.
 
 ### 11. Set up recovery contacts and printed code (Step 6)
 Areas: recovery, keys
@@ -106,7 +106,7 @@ Device A: Test 1 (Family admin). Device B: Test 2, Elder or Co admin, already le
 2. Tap it and choose Test 2 as the first contact. Pass if only adult family members whose phones are let in can be chosen.
 3. On B as Test 2, pull to refresh. Pass if a notice explains what being a recovery contact means, with **Accept** and **Decline**. Tap **Accept**.
 4. Back on A, add a second contact the same way (make Test 3 an Elder, let them in, have them accept). Pass if the card says recovery is set up with two contacts.
-5. On A choose **Create printed code**. Pass if 24 words appear once with a clear "write this down" warning, and the app asks you to type a few back before finishing. (Automation: read the words from the screen and keep them in memory for test 12; never write them to a file or log.)
+5. On A, after two contacts have accepted, Home (and Recovery contacts) shows **Write down a printed code**. Tap it. Pass if 24 words appear once with a clear "write this down" warning, and the app asks you to type a few back before finishing. (Automation: read the words from the screen and keep them in memory for test 12; never write them to a file or log.)
 6. Database: locked boxes, contact rows, one row per member in `recovery_public_keys` (a public key only), no `recovery_key_wraps` table, and nothing that looks like the 24 words or a readable key.
 7. Remove Test 3 as a contact. Pass if that member sees **Recovery needs attention** and is asked to choose a new contact. Remaining contact and paper stay valid until they redo (D27). Redo offers a new printed code; the old code then no longer works.
 
@@ -128,7 +128,7 @@ Pass when steps 2 to 8 behave as written, no screen shows the code words after t
 ### 13. A new family key when someone leaves (Step 8)
 Areas: rotation, membership, keys
 Before: Test 1 (admin) and Test 2 (Elder) have let in devices; Test 3 joined as Teen or Elder with a let in device. Note the highest key epoch for the family.
-1. On device 1 (Test 1) remove Test 3. Pass if it briefly shows it is updating the family key, then confirms.
+1. On device 1 (Test 1) remove Test 3. Confirm the native alert **Remove from this family**. Pass if Home briefly shows **Updating the family key**, then **The family key is up to date**.
 2. Database: key epoch up by one; new wraps only for Test 1's and Test 2's let in devices; none for Test 3 at any epoch.
 3. On Test 2's device pull to refresh. Pass if keys are still set up with no approval needed.
 4. As Test 3. Pass if they no longer see the family and no new wrap exists for them.

@@ -16,10 +16,13 @@ appId: app.patria.dev
       - tapOn:
           id: ${MEMBER_ID}
       - tapOn:
-          id: "remove-from-this-family"
+          id: "^remove-from-this-family$"
       - tapOn:
           text: "Remove from this family"
-          optional: true
+          index: 1
+      - extendedWaitUntil:
+          visible: "Updating the family key"
+          timeout: 20000
       - extendedWaitUntil:
           visible: "The family key is up to date"
           timeout: 30000

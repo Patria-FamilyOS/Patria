@@ -57,9 +57,10 @@ describe('YourPhonesScreen', () => {
       const remove = buttons?.find((item) => item.text === copy.phones.remove);
       remove?.onPress?.();
     });
-    const { findByText, getAllByText } = renderScreen(<YourPhonesScreen />);
+    const { findByText, findByTestId } = renderScreen(<YourPhonesScreen />);
+    expect(await findByTestId('screen-your-phones')).toBeTruthy();
     expect(await findByText(copy.phones.thisPhone)).toBeTruthy();
-    fireEvent.press(getAllByText(copy.phones.remove)[0]);
+    fireEvent.press(await findByTestId('remove-phone'));
     await waitFor(() => {
       expect(removeOwnPhone).toHaveBeenCalledWith(
         expect.objectContaining({

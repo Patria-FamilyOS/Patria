@@ -228,6 +228,7 @@ export function RecoverySetupScreen() {
         <Button
           label={copy.home.recoveryPrintedAction}
           variant="secondary"
+          testID="create-printed-code"
           onPress={() => router.push(routes.printedCode)}
         />
       ) : null}
