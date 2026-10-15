@@ -42,6 +42,9 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - swipe:
+          start: 50%, 25%
+          end: 50%, 80%
       - assertNotVisible: ${FAMILY_NAME}
 - runFlow:
     when:
@@ -64,9 +67,10 @@ appId: app.patria.dev
       - tapOn:
           id: "member-test-3"
       - tapOn:
-          id: "leave-family"
+          id: "^leave-family$"
       - tapOn:
           text: "Leave family"
+          index: 1
 - runFlow:
     when:
       true: ${PHASE == 'change_role'}
@@ -83,4 +87,11 @@ appId: app.patria.dev
       - tapOn:
           id: ${ROLE_ID}
       - tapOn:
-          id: "save-role"
+          id: "^save-role$"
+      - extendedWaitUntil:
+          visible:
+            id: "^home$"
+          timeout: 20000
+      - extendedWaitUntil:
+          visible: "The family key is up to date"
+          timeout: 30000

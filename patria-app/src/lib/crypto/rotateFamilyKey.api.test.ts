@@ -140,6 +140,37 @@ describe('rotate family key after a key holder is removed', () => {
         throw removed.error;
       }
 
+      const stillMember = await service
+        .from('space_members')
+        .select('user_id')
+        .eq('family_space_id', spaceId)
+        .eq('user_id', elderId)
+        .maybeSingle();
+      expect(stillMember.data).toBeNull();
+
+      const elder = userClient();
+      const elderSession = await elder.auth.signInWithPassword({
+        email: `elder-rotate-${stamp}@patria.local`,
+        password,
+      });
+      if (elderSession.error) {
+        throw elderSession.error;
+      }
+      elder.auth.stopAutoRefresh();
+      const asRemoved = await Promise.all([
+        elder
+          .from('space_members')
+          .select('role, family_spaces ( id, name )')
+          .eq('user_id', elderId),
+        elder
+          .from('space_members')
+          .select('id, user_id, role, relationship_label, profiles ( display_name )')
+          .eq('family_space_id', spaceId),
+        elder.from('family_key_wraps').select('device_id').eq('family_space_id', spaceId),
+      ]);
+      expect(asRemoved.every((row) => !row.error && (row.data?.length ?? 0) === 0)).toBe(true);
+      await elder.auth.signOut();
+
       const flagged = await service
         .from('family_spaces')
         .select('rotation_needed')

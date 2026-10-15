@@ -54,6 +54,10 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "screen-create-family"
+          timeout: 20000
       - tapOn:
           id: "invite-link"
       - eraseText

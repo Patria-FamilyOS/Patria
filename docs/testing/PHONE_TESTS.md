@@ -131,7 +131,7 @@ Before: Test 1 (admin) and Test 2 (Elder) have let in devices; Test 3 joined as 
 1. On device 1 (Test 1) remove Test 3. Confirm the native alert **Remove from this family**. Pass if Home briefly shows **Updating the family key**, then **The family key is up to date**.
 2. Database: key epoch up by one; new wraps only for Test 1's and Test 2's let in devices; none for Test 3 at any epoch.
 3. On Test 2's device pull to refresh. Pass if keys are still set up with no approval needed.
-4. As Test 3. Pass if they no longer see the family and no new wrap exists for them.
+4. As Test 3, bring the app to the foreground (or pull to refresh). Pass if they no longer see the family and no new wrap exists for them; they should not need to sign out.
 5. If Test 3 was a recovery contact, pass if that member sees **Recovery needs attention** and is asked to choose a new contact.
 6. Database: `family_key_under_recovery` has one new row at the new epoch per remaining member with recovery set up, none for Test 3.
 7. Invite Test 3 back, let them in, then as Test 3 open your own member row and tap **Leave family**. Confirm on the destructive **Leave family** button. Pass if the next time Test 1 opens the app the key is updated on its own (epoch up again).

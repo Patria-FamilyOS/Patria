@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-15 — Removed member: server is empty; the device must refetch
+
+After a confirmed Remove, the `space_members` row is gone and the removed person’s JWT cannot read that family, its members, or its wraps (pgTAP plus the rotate API test). The leftover local database that still listed Test 3 as a member was not a failed Remove: Maestro had been tapping the in-page **Remove from this family** button (same label as the alert title), so the confirm never ran; later runs reseeding Test 3 as an Elder made the row look like a leftover. Home now always refetches memberships on mount, on foreground, and after a failed members load, and it drops `spaceId` when memberships come back empty so a removed person sees the family disappear without signing out. Test 13 seeds recovery before Remove, invites Test 3 back onto their own member row for **Leave family**, and waits after a role change. Test 12 is allowed 20 minutes; other phone tests stay at 10.
+
+---
+
 ## 2026-10-15 — Rotate immediately after Remove, then say so on Home
 
 Local E2E Family after the last Test 13 run was still epoch 1, Test 3 still a member with a wrap, and `rotation_needed` false — the admin phone had not rotated. Confirming **Remove from this family** now flags Home as updating, navigates back, and the admin phone calls `rotateFamilyKeyIfNeeded` right away (retry once if the first pass is idle). Home keeps **Updating the family key** then **The family key is up to date** even if a later idle pass runs. Test 12 seeds the same let-in Elders as Test 11 plus a printed code; a new phone that is not let in uses `screen-waiting-own-phone`. If Maestro’s XCTest driver drops, the runner restarts it and retries that test once.

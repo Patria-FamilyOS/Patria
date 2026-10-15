@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(293);
+SELECT plan(297);
 UPDATE public.patria_key_settings SET recovery_wait = interval '48 hours' WHERE singleton = 1;
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
@@ -2576,6 +2576,27 @@ SELECT is_empty(
        WHERE user_id = '22222222-2222-2222-2222-222222222222'$sql$,
   'removed key holder wraps are deleted'
 );
+SELECT is_empty(
+  $sql$SELECT 1 FROM public.space_members
+       WHERE family_space_id = (SELECT rivera FROM fx)
+         AND user_id = '22222222-2222-2222-2222-222222222222'$sql$,
+  'removed key holder membership row is gone'
+);
+SELECT tests_jwt('22222222-2222-2222-2222-222222222222');
+SET LOCAL ROLE authenticated;
+SELECT is_empty(
+  $sql$SELECT 1 FROM public.family_spaces WHERE id = (SELECT rivera FROM fx)$sql$,
+  'removed member cannot read the family space'
+);
+SELECT is_empty(
+  $sql$SELECT 1 FROM public.space_members WHERE family_space_id = (SELECT rivera FROM fx)$sql$,
+  'removed member cannot read family members'
+);
+SELECT is_empty(
+  $sql$SELECT 1 FROM public.family_key_wraps WHERE family_space_id = (SELECT rivera FROM fx)$sql$,
+  'removed member cannot read family wraps'
+);
+RESET ROLE;
 SELECT is_empty(
   $sql$SELECT 1 FROM public.recovery_contacts
        WHERE user_id = '22222222-2222-2222-2222-222222222222'

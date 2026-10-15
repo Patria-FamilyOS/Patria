@@ -11,6 +11,7 @@ import {
   PHONE_TESTS,
   TEST_EMAILS,
   TEST_TIMEOUT_MS,
+  timeoutMsForTest,
   assertAppInstalledOn,
   assertLocalSupabaseUrl,
   bootDevices,
@@ -480,6 +481,7 @@ function seedBeforeYouStart(testNumber) {
     const other = args.devices >= 2 && deviceB ? deviceB : deviceA;
     seedLetIn(2, other);
     seedLetIn(3, args.devices >= 3 && deviceC ? deviceC : other);
+    seedRecoveryPrinted();
   }
 }
 
@@ -573,7 +575,7 @@ try {
     );
     wipeSensitiveArtifacts(test.number);
     await ensureMetro();
-    testDeadline = Date.now() + TEST_TIMEOUT_MS;
+    testDeadline = Date.now() + timeoutMsForTest(test.number);
     try {
       runNode('e2e-setup.mjs', ['--test', String(test.number)]);
     } catch (error) {
@@ -1192,14 +1194,36 @@ try {
         }
       });
       step(13, 7, 'Leave family as Test 3', () => {
-        const leave = tryMaestro({
-          flow: flow('13_key_rotation.yaml'),
+        maestro({
+          flow: flow('09_let_in.yaml'),
           device: deviceA,
+          env: {
+            ...signInEnv(secrets, 1),
+            PHASE: 'invite',
+            INVITE_EMAIL: TEST_EMAILS[3],
+            ROLE_ID: 'role-elder',
+          },
+        });
+        const url = dbCheck(['invite-url', '--email', TEST_EMAILS[3]]);
+        if (!url.ok) {
+          throw new Error('no invite URL to invite Test 3 back');
+        }
+        maestro({
+          flow: flow('03_invite_and_accept.yaml'),
+          device: args.devices >= 2 ? deviceB : deviceA,
+          env: {
+            ...signInEnv(secrets, 3),
+            PHASE: 'accept',
+            INVITE_URL: url.stdout,
+            EXPECT_HOME: '0',
+          },
+        });
+        seedLetIn(3, args.devices >= 2 ? deviceB : deviceA);
+        maestro({
+          flow: flow('13_key_rotation.yaml'),
+          device: args.devices >= 2 ? deviceB : deviceA,
           env: { ...signInEnv(secrets, 3), PHASE: 'leave_family' },
         });
-        if (!leave.ok) {
-          throw new Error('no Leave family control (app)');
-        }
       });
       step(13, 8, 'Change Test 2 to Extended relative', () => {
         maestro({

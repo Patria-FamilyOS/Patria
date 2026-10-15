@@ -8,6 +8,7 @@ import {
 } from 'react';
 import type { Session } from '@supabase/supabase-js';
 
+import { queryClient } from './queryClient';
 import { supabase } from './supabase';
 
 type AuthContextValue = {
@@ -26,18 +27,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
+    let lastUserId: string | undefined;
+
+    const applySession = (next: Session | null) => {
+      const nextId = next?.user.id;
+      if (nextId !== lastUserId) {
+        queryClient.clear();
+        lastUserId = nextId;
+      }
+      setSession(next);
+      setLoading(false);
+    };
 
     supabase.auth.getSession().then(({ data }) => {
       if (!active) {
         return;
       }
-      setSession(data.session);
-      setLoading(false);
+      applySession(data.session);
     });
 
     const { data } = supabase.auth.onAuthStateChange((_event, next) => {
-      setSession(next);
-      setLoading(false);
+      applySession(next);
     });
 
     return () => {

@@ -22,6 +22,7 @@ export default function Index() {
   const membershipsQuery = useQuery({
     queryKey: ['memberships-gate', userId],
     enabled: Boolean(userId),
+    refetchOnMount: 'always',
     queryFn: () => fetchMemberships(userId as string),
   });
   const nameQuery = useQuery({

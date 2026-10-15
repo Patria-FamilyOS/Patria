@@ -79,11 +79,16 @@ export function HomeScreen() {
   const membershipsQuery = useQuery({
     queryKey: ['memberships', userId],
     enabled: Boolean(userId),
+    refetchOnMount: 'always',
     queryFn: () => fetchMemberships(userId as string),
   });
 
   useEffect(() => {
-    if (!membershipsQuery.data || membershipsQuery.data.length === 0) {
+    if (!membershipsQuery.data) {
+      return;
+    }
+    if (membershipsQuery.data.length === 0) {
+      void Promise.resolve().then(() => setSpaceId(null));
       return;
     }
     void readCurrentFamilyId().then((stored) => {
@@ -99,6 +104,7 @@ export function HomeScreen() {
   const membersQuery = useQuery({
     queryKey: ['members', spaceId],
     enabled: Boolean(spaceId),
+    refetchOnMount: 'always',
     queryFn: () => fetchMembers(spaceId as string),
   });
   const childrenQuery = useQuery({
@@ -156,6 +162,7 @@ export function HomeScreen() {
   const onRefresh = useCallback(() => {
     if (userId) {
       void queryClient.invalidateQueries({ queryKey: ['memberships', userId] });
+      void queryClient.invalidateQueries({ queryKey: ['memberships-gate', userId] });
     }
     if (spaceId) {
       void queryClient.invalidateQueries({ queryKey: ['members', spaceId] });
@@ -472,6 +479,14 @@ export function HomeScreen() {
     return (
       <Screen>
         <ErrorState message={copy.common.error} />
+        <Button
+          label={copy.home.rotationRetry}
+          variant="secondary"
+          onPress={() => {
+            void membershipsQuery.refetch();
+            onRefresh();
+          }}
+        />
       </Screen>
     );
   }
@@ -487,6 +502,22 @@ export function HomeScreen() {
         <Body>{copy.home.noFamilyBody}</Body>
         <Button label={copy.createFamily.submit} onPress={() => router.push(routes.createFamily)} />
         {joinFamilyLink}
+      </Screen>
+    );
+  }
+
+  if (membersQuery.error) {
+    return (
+      <Screen>
+        <ErrorState message={copy.common.error} />
+        <Button
+          label={copy.home.rotationRetry}
+          variant="secondary"
+          onPress={() => {
+            void membersQuery.refetch();
+            onRefresh();
+          }}
+        />
       </Screen>
     );
   }

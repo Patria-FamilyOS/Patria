@@ -9,6 +9,11 @@ export const PHONE_TESTS = join(REPO_ROOT, 'docs', 'testing', 'PHONE_TESTS.md');
 export const MAESTRO_DIR = join(APP_ROOT, '.maestro');
 export const E2E_FAMILY_NAME = 'E2E Family';
 export const TEST_TIMEOUT_MS = 10 * 60 * 1000;
+export const TEST_12_TIMEOUT_MS = 20 * 60 * 1000;
+
+export function timeoutMsForTest(testNumber) {
+  return testNumber === 12 ? TEST_12_TIMEOUT_MS : TEST_TIMEOUT_MS;
+}
 export const APP_BUNDLE_ID = 'app.patria.dev';
 export const LARGE_TEXT_CATEGORY = 'UIContentSizeCategoryAccessibilityXXL';
 

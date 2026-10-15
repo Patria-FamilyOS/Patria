@@ -43,8 +43,18 @@ appId: app.patria.dev
       true: ${EXPECT_HOME == '0'}
     commands:
       - extendedWaitUntil:
-          visible: "Create our family"
+          visible:
+            id: "^screen-create-family$|^home$"
           timeout: 45000
+      - runFlow:
+          when:
+            visible: "Create a family space"
+          commands:
+            - tapOn: "Create our family"
+            - extendedWaitUntil:
+                visible:
+                  id: "screen-create-family"
+                timeout: 20000
 - runFlow:
     when:
       true: ${EXPECT_HOME != '0'}

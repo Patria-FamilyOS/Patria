@@ -355,6 +355,23 @@ describe('HomeScreen invite entry', () => {
     expect(String(subtitle.props.children)).toMatch(/no email/i);
   });
 
+  it('refetches memberships when family members fail to load', async () => {
+    (fetchMembers as jest.Mock).mockRejectedValue(new Error('rls'));
+    const view = renderScreen(<HomeScreen />);
+    expect(await view.findByText(copy.common.error)).toBeTruthy();
+    const membershipsBefore = (fetchMemberships as jest.Mock).mock.calls.length;
+    fireEvent.press(view.getByText(copy.home.rotationRetry));
+    await waitFor(() => {
+      expect((fetchMemberships as jest.Mock).mock.calls.length).toBeGreaterThan(membershipsBefore);
+    });
+  });
+
+  it('drops the family from Home when memberships become empty', async () => {
+    (fetchMemberships as jest.Mock).mockResolvedValue([]);
+    const { findByText } = renderScreen(<HomeScreen />);
+    expect(await findByText(copy.home.noFamilyTitle)).toBeTruthy();
+  });
+
   it('never shows a blank member card', async () => {
     const { findAllByText, getAllByText } = renderScreen(<HomeScreen />);
 

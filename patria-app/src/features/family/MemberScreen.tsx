@@ -210,6 +210,7 @@ export function MemberScreen({ userId }: MemberScreenProps) {
           {error ? <ErrorState message={error} /> : null}
           <Button
             label={copy.member.changeRole}
+            testID="save-role"
             onPress={() => void saveRole()}
             disabled={isLastAdmin}
           />
@@ -224,7 +225,12 @@ export function MemberScreen({ userId }: MemberScreenProps) {
       {isSelf && !cannotLeave ? (
         <>
           {error && !admin ? <ErrorState message={error} /> : null}
-          <Button label={copy.member.leave} variant="danger" onPress={leave} />
+          <Button
+            label={copy.member.leave}
+            variant="danger"
+            testID="leave-family"
+            onPress={leave}
+          />
         </>
       ) : null}
     </Screen>
