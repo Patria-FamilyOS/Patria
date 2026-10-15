@@ -10,7 +10,7 @@ export function WelcomeScreen() {
   const router = useRouter();
 
   return (
-    <Screen accessibilityLabel={copy.welcome.title}>
+    <Screen accessibilityLabel={copy.welcome.title} testID="screen-welcome">
       <Muted>{copy.appName}</Muted>
       <Title>{copy.welcome.title}</Title>
       <Title>{copy.welcome.subtitle}</Title>

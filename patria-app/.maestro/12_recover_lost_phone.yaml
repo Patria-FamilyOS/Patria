@@ -72,7 +72,7 @@ appId: app.patria.dev
       - tapOn:
           id: "printed-code-24-words"
       - eraseText
-      - pasteFromClipboard
+      - pasteText
       - tapOn:
           id: "finish-recovery"
       - extendedWaitUntil:

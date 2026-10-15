@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-14 — Sign in stays usable with the keyboard open
+
+Sign in and Create account lift with `KeyboardAvoidingView` so the main button stays reachable on small phones. The password field’s keyboard key is **Go** and submits the form (`returnKeyType` + `onSubmitEditing`); iOS AutoFill stays on (`textContentType` password / newPassword). Phone tests identify Welcome / Sign in / Create account by `screen-welcome`, `screen-sign-in` and `screen-sign-up`, leave Create account if a device lands there, and submit with `pressKey: Enter`. Each test starts by `launchApp` with `clearState` and `clearKeychain` on every simulator it will use (SecureStore sessions live in the keychain, so `clearState` alone left Test 1 signed in on device B). It never clears again mid-test so family keys created during the run survive.
+
+---
+
 ## 2026-10-14 — Phone test sizes, Open sheet, invite/child testIDs
 
 Sign-in uses `launchApp` only (no `simctl openurl`); a shared subflow taps **Open** if the iOS “Open in patria-app?” sheet still appears. After the password field, the form taps **Sign in** without `hideKeyboard` (device B’s Passwords keyboard has no dismiss). Invalid invite copy, the child-row subtitle, and the let-in notice have testIDs so Maestro can match “no longer valid”, “Kid profile” / “no email”, and “wants this phone let in” with a contains regex. Invite from Home scrolls to the button when recovery and let-in cards push it below the fold. Phone tests list `Areas:`; `e2e:smoke` runs 1, 3 and 8, `e2e:affected` diffs against main and picks tests by area plus new tests, `e2e:full` is the whole suite.

@@ -1,6 +1,8 @@
 import { type ComponentProps, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -42,6 +44,7 @@ type ScreenProps = {
   accessibilityLabel?: string;
   testID?: string;
   withHeader?: boolean;
+  keyboardAware?: boolean;
   refreshing?: boolean;
   onRefresh?: () => void;
 };
@@ -51,9 +54,26 @@ export function Screen({
   accessibilityLabel,
   testID,
   withHeader = false,
+  keyboardAware = false,
   refreshing = false,
   onRefresh,
 }: ScreenProps) {
+  const scroll = (
+    <ScrollView
+      contentContainerStyle={styles.scroll}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
+      alwaysBounceVertical={Boolean(onRefresh)}
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        ) : undefined
+      }
+    >
+      {children}
+    </ScrollView>
+  );
+
   return (
     <SafeAreaView
       style={styles.safe}
@@ -61,18 +81,17 @@ export function Screen({
       accessibilityLabel={accessibilityLabel}
       testID={testID}
     >
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-        alwaysBounceVertical={Boolean(onRefresh)}
-        refreshControl={
-          onRefresh ? (
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          ) : undefined
-        }
-      >
-        {children}
-      </ScrollView>
+      {keyboardAware ? (
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={withHeader ? 64 : 0}
+        >
+          {scroll}
+        </KeyboardAvoidingView>
+      ) : (
+        scroll
+      )}
     </SafeAreaView>
   );
 }
@@ -207,6 +226,9 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  flex: {
+    flex: 1,
   },
   scroll: {
     padding: spacing.lg,

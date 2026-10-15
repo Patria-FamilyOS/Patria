@@ -38,7 +38,12 @@ export function SignInScreen() {
   });
 
   return (
-    <Screen accessibilityLabel={copy.auth.signInTitle} testID="sign-in-screen" withHeader>
+    <Screen
+      accessibilityLabel={copy.auth.signInTitle}
+      testID="screen-sign-in"
+      withHeader
+      keyboardAware
+    >
       <Title>{copy.auth.signInTitle}</Title>
       <Controller
         control={control}
@@ -49,6 +54,8 @@ export function SignInScreen() {
             placeholder={copy.auth.emailPlaceholder}
             autoCapitalize="none"
             keyboardType="email-address"
+            textContentType="username"
+            autoComplete="email"
             value={field.value}
             onChangeText={field.onChange}
           />
@@ -62,6 +69,10 @@ export function SignInScreen() {
             label={copy.auth.passwordLabel}
             placeholder={copy.auth.passwordPlaceholder}
             secureTextEntry
+            textContentType="password"
+            autoComplete="password"
+            returnKeyType="go"
+            onSubmitEditing={() => void onSubmit()}
             value={field.value}
             onChangeText={field.onChange}
           />

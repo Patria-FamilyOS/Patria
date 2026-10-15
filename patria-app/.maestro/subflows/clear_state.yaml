@@ -1,0 +1,7 @@
+# Wipe app data at the start of a phone test only. Never use mid-test:
+# family keys live in the device keychain / secure store.
+appId: app.patria.dev
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true

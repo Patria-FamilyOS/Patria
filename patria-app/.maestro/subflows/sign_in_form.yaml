@@ -13,7 +13,8 @@ appId: app.patria.dev
       - tapOn:
           id: "^sign-out$"
       - extendedWaitUntil:
-          visible: "I already have an account"
+          visible:
+            id: "^screen-welcome$"
           timeout: 30000
 - runFlow:
     when:
@@ -22,36 +23,44 @@ appId: app.patria.dev
       - tapOn:
           id: "^sign-out$"
       - extendedWaitUntil:
-          visible: "I already have an account"
+          visible:
+            id: "^screen-welcome$"
           timeout: 30000
-- tapOn:
-    text: "Already have an account? Sign in"
-    optional: true
-- tapOn:
-    id: "^already-have-an-account-sign-in$"
-    optional: true
-- tapOn:
-    id: "^i-already-have-an-account$"
-    optional: true
-- hideKeyboard
+- runFlow:
+    when:
+      visible:
+        id: "^screen-sign-up$"
+    commands:
+      - tapOn:
+          id: "^already-have-an-account-sign-in$"
+      - extendedWaitUntil:
+          visible:
+            id: "^screen-sign-in$"
+          timeout: 20000
+- runFlow:
+    when:
+      visible:
+        id: "^screen-welcome$"
+    commands:
+      - tapOn:
+          id: "^i-already-have-an-account$"
+      - extendedWaitUntil:
+          visible:
+            id: "^screen-sign-in$"
+          timeout: 20000
 - extendedWaitUntil:
     visible:
-      id: "^email$"
+      id: "^screen-sign-in$"
     timeout: 30000
 - tapOn:
     id: "^email$"
 - eraseText
 - inputText: ${E2E_EMAIL}
-- hideKeyboard
 - tapOn:
     id: "^password$"
 - eraseText
 - inputText: ${E2E_PASSWORD}
-- tapOn:
-    id: "Return"
-    optional: true
-- tapOn:
-    id: "^sign-in$"
+- pressKey: Enter
 - tapOn:
     text: "Not Now"
     optional: true

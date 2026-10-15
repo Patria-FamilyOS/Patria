@@ -495,6 +495,21 @@ try {
       continue;
     }
     try {
+      for (const udid of devices) {
+        maestro({
+          flow: flow('subflows/clear_state.yaml'),
+          device: udid,
+          env: {},
+        });
+      }
+    } catch (error) {
+      step(test.number, 1, 'Clear app state on each device', () => {
+        throw error instanceof Error ? error : new Error('clearState failed');
+      });
+      endTestLine(test, ordinal, started);
+      continue;
+    }
+    try {
     if (!deviceA) {
       for (const item of test.steps) {
         reports.push({
