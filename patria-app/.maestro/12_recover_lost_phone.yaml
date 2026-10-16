@@ -1,7 +1,7 @@
 # PHONE_TESTS: 12
 # AREAS: recovery, devices
 # Do not screenshot the printed-code field. Words stay in clipboard / Maestro memory only.
-# Pending automation: start, cancel, admin stop, printed code, and remove-old (PHONE_TESTS 12.1–4, 12.6–8).
+# Pending automation: 12.1–4 and 12.6–8 (start wait copy, cancel/restart, printed code, remove-old).
 appId: app.patria.dev
 ---
 - runFlow:

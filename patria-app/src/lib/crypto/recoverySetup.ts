@@ -608,19 +608,17 @@ export async function rotateRecoveryKey(
   logKeyStep('rotate_recovery_key', `${input.spaceId} ${nextEpoch}`);
 }
 
-export async function approvedMemberIds(
+export async function loadEligibleRecoveryContacts(
   spaceId: string,
-  memberIds: string[],
   gateway: RecoveryAccessGateway = supabaseRecoveryAccessGateway,
-): Promise<Set<string>> {
-  const approved = new Set<string>();
-  for (const userId of memberIds) {
-    const devices = await gateway.listApprovedDevices(spaceId, userId);
-    if (devices.length > 0) {
-      approved.add(userId);
-    }
-  }
-  return approved;
+): Promise<{ userId: string; displayName: string }[]> {
+  return gateway.listEligibleRecoveryContacts(spaceId);
+}
+
+export function approvedIdsFromEligibleContacts(
+  contacts: { userId: string }[],
+): Set<string> {
+  return new Set(contacts.map((row) => row.userId));
 }
 
 export { generatePrintedCode };

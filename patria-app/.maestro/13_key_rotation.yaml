@@ -1,5 +1,6 @@
 # PHONE_TESTS: 13
 # AREAS: rotation, membership, keys
+# Pending automation: 13.1 (Updating copy), 13.5–6 (recovery seed budget), 13.7 (invite Test 3 back).
 appId: app.patria.dev
 ---
 - runFlow:

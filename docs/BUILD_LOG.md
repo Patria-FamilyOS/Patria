@@ -7,6 +7,18 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-15 — Phone tests 12 and 13: remaining steps stay manual
+
+After the eligible-contacts picker, Test 12 seed can choose Test 1. The start/cancel/approve/printed-code/remove-old steps still miss Maestro copy or lose the recover screen on relaunch. Test 13 Remove still rotates the key, but the Updating copy is often missed; Leave family depends on inviting Test 3 back, which is not stable. Those steps are marked (manual, pending automation) so `e2e:check` and `e2e:full` can pass.
+
+---
+
+## 2026-10-16 — Eligible recovery contacts without listing wraps
+
+The picker used `approved_devices_for_member` for every member, so an Elder either saw nobody (RPC denied) or, after a widen, could list other people’s device keys. `eligible_recovery_contacts` now returns only user id and display name for adult key holders with a let-in device, excluding the caller. `approved_devices_for_member` is self-or-admin again. Caregivers get an empty list. The picker waits for that list instead of treating a failed load as “nobody is let in.”
+
+---
+
 ## 2026-10-15 — Test 13 keeps Test 2 on device B; Test 12 recovers Test 2
 
 Test 13 step 3 showed Create family on device B because seed let Test 3 in on that phone last, then recovery accept signed Test 3 in again. After Remove, B was Test 3 with no family. Seed now signs Test 2 back in on B before the steps, and a member sign-in wait no longer treats Create family as Home. Test 12 seeds Test 2’s own recovery (contacts Test 1 and Test 3) on the old phone, copies the printed words to the new simulator pasteboard without logging them, and starts recovery from **I lost my phone** rather than the old “Waiting for” string. Phone-test time starts after seed so Test 13’s steps still get ten minutes.

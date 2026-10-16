@@ -20,8 +20,9 @@ import { logFailedAction } from '../../lib/devLog';
 import { fetchMembers } from '../../lib/family';
 import { isKeyEligibleRole } from '../../lib/roles';
 import {
-  approvedMemberIds,
+  approvedIdsFromEligibleContacts,
   inviteRecoveryContacts,
+  loadEligibleRecoveryContacts,
   loadRecoverySnapshot,
   removeRecoveryContact,
   rotateRecoveryKey,
@@ -57,21 +58,29 @@ export function RecoverySetupScreen() {
     queryFn: () =>
       loadRecoverySnapshot(spaceId as string, userId as string, 'family_admin'),
   });
-  const approvedQuery = useQuery({
-    queryKey: ['recoveryApproved', spaceId, membersQuery.data?.map((row) => row.userId).join(',')],
-    enabled: Boolean(spaceId && membersQuery.data),
-    queryFn: () =>
-      approvedMemberIds(
-        spaceId as string,
-        (membersQuery.data ?? []).map((row) => row.userId),
-      ),
+  const eligibleQuery = useQuery({
+    queryKey: ['recoveryEligibleContacts', spaceId],
+    enabled: Boolean(spaceId),
+    queryFn: () => loadEligibleRecoveryContacts(spaceId as string),
   });
 
   const myRole = membersQuery.data?.find((row) => row.userId === userId)?.role;
-  if (!spaceId || membersQuery.isLoading || snapshotQuery.isLoading) {
+  if (
+    !spaceId ||
+    membersQuery.isLoading ||
+    snapshotQuery.isLoading ||
+    eligibleQuery.isLoading
+  ) {
     return (
       <Screen withHeader>
         <LoadingState message={copy.common.loading} />
+      </Screen>
+    );
+  }
+  if (membersQuery.error || snapshotQuery.error || eligibleQuery.error) {
+    return (
+      <Screen withHeader>
+        <ErrorState message={copy.common.error} />
       </Screen>
     );
   }
@@ -84,7 +93,8 @@ export function RecoverySetupScreen() {
   }
 
   const snapshot = snapshotQuery.data;
-  const approved = approvedQuery.data ?? new Set<string>();
+  const eligible = eligibleQuery.data ?? [];
+  const approved = approvedIdsFromEligibleContacts(eligible);
   const selectable = selectableRecoveryContacts(
     membersQuery.data ?? [],
     approved,
@@ -201,17 +211,19 @@ export function RecoverySetupScreen() {
         })}
       {selectable.map((row) => {
         const member = membersQuery.data?.find((item) => item.userId === row.userId);
+        const eligibleRow = eligible.find((item) => item.userId === row.userId);
+        const name = memberDisplayName(eligibleRow?.displayName ?? member?.displayName);
         const selected = picked.includes(row.userId);
         return (
           <Pressable
             key={row.userId}
-            testID={`recovery-contact-${testIdFromLabel(memberDisplayName(member?.displayName))}`}
+            testID={`recovery-contact-${testIdFromLabel(name)}`}
             accessibilityRole="button"
-            accessibilityLabel={memberDisplayName(member?.displayName)}
+            accessibilityLabel={name}
             onPress={() => toggle(row.userId)}
             style={[styles.row, selected && styles.rowSelected]}
           >
-            <AppText style={styles.rowTitle}>{memberDisplayName(member?.displayName)}</AppText>
+            <AppText style={styles.rowTitle}>{name}</AppText>
             <Muted>{copy.roles[row.role]}</Muted>
           </Pressable>
         );

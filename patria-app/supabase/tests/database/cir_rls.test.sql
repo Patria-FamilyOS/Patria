@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(297);
+SELECT plan(303);
 UPDATE public.patria_key_settings SET recovery_wait = interval '48 hours' WHERE singleton = 1;
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
@@ -1352,6 +1352,56 @@ SELECT lives_ok(
        FROM fx$sql$,
   'admin can wrap an elder first device'
 );
+RESET ROLE;
+SELECT tests_jwt('44444444-4444-4444-4444-444444444444');
+SET LOCAL ROLE authenticated;
+SELECT isnt_empty(
+  $sql$SELECT user_id FROM public.eligible_recovery_contacts(
+         (SELECT rivera FROM fx)
+       )
+       WHERE user_id = '11111111-1111-1111-1111-111111111111'$sql$,
+  'elder sees a let-in family admin as an eligible recovery contact'
+);
+SELECT throws_ok(
+  $sql$SELECT device_id FROM public.approved_devices_for_member(
+         (SELECT rivera FROM fx),
+         '11111111-1111-1111-1111-111111111111'
+       )$sql$,
+  '42501',
+  NULL,
+  'elder cannot list another member''s approved devices'
+);
+SELECT is_empty(
+  $sql$SELECT 1 FROM public.family_key_wraps
+       WHERE user_id = '11111111-1111-1111-1111-111111111111'$sql$,
+  'elder cannot read another member wrap'
+);
+SELECT is_empty(
+  $sql$SELECT 1 FROM public.device_keys
+       WHERE user_id = '11111111-1111-1111-1111-111111111111'$sql$,
+  'elder cannot read another member device'
+);
+RESET ROLE;
+SELECT tests_jwt('77777777-7777-7777-7777-777777777777');
+SET LOCAL ROLE authenticated;
+SELECT is_empty(
+  $sql$SELECT 1 FROM public.eligible_recovery_contacts(
+         (SELECT rivera FROM fx)
+       )$sql$,
+  'caregiver gets no eligible recovery contacts'
+);
+SELECT throws_ok(
+  $sql$SELECT device_id FROM public.approved_devices_for_member(
+         (SELECT rivera FROM fx),
+         '11111111-1111-1111-1111-111111111111'
+       )$sql$,
+  '42501',
+  NULL,
+  'caregiver cannot list another member''s let-in devices'
+);
+RESET ROLE;
+SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
 SELECT throws_ok(
   $sql$INSERT INTO public.family_key_wraps (
          family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by

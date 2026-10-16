@@ -44,6 +44,9 @@ export type RecoveryAccessGateway = {
   ): Promise<void>;
   deleteContact(spaceId: string, userId: string): Promise<void>;
   listApprovedDevices(spaceId: string, userId: string): Promise<ApprovedDevice[]>;
+  listEligibleRecoveryContacts(
+    spaceId: string,
+  ): Promise<{ userId: string; displayName: string }[]>;
   upsertFamilyKeyUnderRecovery(input: {
     spaceId: string;
     userId: string;
@@ -216,6 +219,21 @@ export const supabaseRecoveryAccessGateway: RecoveryAccessGateway = {
     return rows.map((row) => ({
       deviceId: row.device_id,
       publicKey: requireX25519PublicKey(fromPgBytea(row.public_key)),
+    }));
+  },
+
+  async listEligibleRecoveryContacts(spaceId) {
+    const { data, error } = await supabase.rpc('eligible_recovery_contacts', {
+      p_space_id: spaceId,
+    });
+    if (error) {
+      logKeyStep('list_eligible_recovery_contacts', error.code ?? 'unknown');
+      throw error;
+    }
+    const rows = (data ?? []) as { user_id: string; display_name: string }[];
+    return rows.map((row) => ({
+      userId: row.user_id,
+      displayName: row.display_name,
     }));
   },
 

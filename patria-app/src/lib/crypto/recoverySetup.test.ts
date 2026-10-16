@@ -1,5 +1,9 @@
 import { eligibleRecoveryMembers } from './recoveryAccess';
-import { inviteRecoveryContacts } from './recoverySetup';
+import {
+  approvedIdsFromEligibleContacts,
+  inviteRecoveryContacts,
+  loadEligibleRecoveryContacts,
+} from './recoverySetup';
 import type { RecoveryAccessGateway, RecoveryContactRow } from './recoveryAccess';
 import { createRecoveryBoxes, openWithHolders } from './recovery';
 import { randomKey32 } from './random';
@@ -30,6 +34,7 @@ function memoryGateway(contacts: RecoveryContactRow[] = []): RecoveryAccessGatew
     setContactStatus: async () => undefined,
     deleteContact: async () => undefined,
     listApprovedDevices: async () => [],
+    listEligibleRecoveryContacts: async () => [],
     upsertFamilyKeyUnderRecovery: async () => undefined,
     insertRecoveryPublicKey: async () => undefined,
     insertHolderSecret: async () => undefined,
@@ -51,6 +56,31 @@ describe('recovery contact selection', () => {
     const approved = new Set([MARCO]);
     const eligible = eligibleRecoveryMembers(members, approved, ELENA);
     expect(eligible.map((row) => row.userId)).toEqual([MARCO]);
+  });
+
+  it('offers a let-in family admin when an elder is picking (D26)', async () => {
+    const members = [
+      { userId: ELENA, role: 'family_admin' as const },
+      { userId: MARCO, role: 'co_admin' as const },
+      { userId: ROSA, role: 'elder' as const },
+      { userId: JORDAN, role: 'teen' as const },
+    ];
+    const gateway = memoryGateway();
+    gateway.listEligibleRecoveryContacts = async () => [
+      { userId: ELENA, displayName: 'Elena Rivera' },
+      { userId: MARCO, displayName: 'Marco Rivera' },
+    ];
+    gateway.listApprovedDevices = async () => {
+      throw new Error('picker must not list another member devices');
+    };
+    const contacts = await loadEligibleRecoveryContacts(SPACE, gateway);
+    const eligible = eligibleRecoveryMembers(
+      members,
+      approvedIdsFromEligibleContacts(contacts),
+      ROSA,
+    );
+    expect(eligible.map((row) => row.userId).sort()).toEqual([ELENA, MARCO].sort());
+    expect(contacts.find((row) => row.userId === ELENA)?.displayName).toBe('Elena Rivera');
   });
 
   it('refuses to invite an ineligible member', async () => {
