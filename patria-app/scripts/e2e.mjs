@@ -1036,6 +1036,32 @@ try {
           return result('skip', 'second contact may not be present');
         }
       });
+      step(11, 8, 'Elder Test 2 sets up recovery choosing Test 1', () => {
+        if (args.devices < 2 || !deviceB) {
+          return result('skip', 'needs 2 simulators so Test 2 can set up recovery');
+        }
+        signInOnDevice(2, deviceB);
+        maestro({
+          flow: flow('11_recovery_setup.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'open_card' },
+        });
+        maestro({
+          flow: flow('11_recovery_setup.yaml'),
+          device: deviceB,
+          env: {
+            ...signInEnv(secrets, 2),
+            PHASE: 'pick_contact',
+            CONTACT_ID: 'recovery-contact-test-1',
+          },
+        });
+        maestro({
+          flow: flow('11_recovery_setup.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'accept_contact' },
+        });
+        signInOnDevice(2, deviceB);
+      });
       continue;
     }
 

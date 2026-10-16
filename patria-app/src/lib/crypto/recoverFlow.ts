@@ -44,7 +44,7 @@ export type RecoverFlowGateway = {
   startRequest(spaceId: string, deviceId: string, publicKey: Uint8Array): Promise<string>;
   listRequests(spaceId: string): Promise<RecoveryRequestRow[]>;
   cancelRequest(requestId: string): Promise<void>;
-  fetchDevicePublicKey(userId: string, deviceId: string): Promise<Uint8Array>;
+  fetchDevicePublicKey(requestId: string): Promise<Uint8Array>;
   fetchOwnHolderSecret(
     spaceId: string,
     userId: string,
@@ -235,18 +235,20 @@ export const supabaseRecoverFlowGateway: RecoverFlowGateway = {
     }
   },
 
-  async fetchDevicePublicKey(userId, deviceId) {
-    const { data, error } = await supabase
-      .from('device_keys')
-      .select('public_key')
-      .eq('user_id', userId)
-      .eq('device_id', deviceId)
-      .maybeSingle();
-    if (error || !data) {
-      logKeyStep('fetch_recovery_device_key', error?.code ?? 'unknown');
-      throw error ?? new Error('unwrap failed');
+  async fetchDevicePublicKey(requestId) {
+    const { data, error } = await supabase.rpc('recovery_request_device_public_key', {
+      p_request_id: requestId,
+    });
+    if (error) {
+      logKeyStep('fetch_recovery_device_key', error.code ?? 'unknown');
+      throw error;
     }
-    return requireX25519PublicKey(fromPgBytea(data.public_key));
+    const rows = (data ?? []) as { device_id: string; public_key: unknown }[];
+    const row = rows[0];
+    if (!row) {
+      throw new Error('unwrap failed');
+    }
+    return requireX25519PublicKey(fromPgBytea(row.public_key));
   },
 
   async fetchOwnHolderSecret(spaceId, userId, deviceId) {
@@ -462,10 +464,7 @@ export async function approveRecoveryAsContact(
     deviceId: input.contactDeviceId,
   });
   try {
-    const newPublic = await gateway.fetchDevicePublicKey(
-      input.request.userId,
-      input.request.newDeviceId,
-    );
+    const newPublic = await gateway.fetchDevicePublicKey(input.request.id);
     const aad = encodeHelperRewrapAad({
       familySpaceId: input.spaceId,
       requestId: input.request.id,

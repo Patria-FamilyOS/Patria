@@ -1,6 +1,7 @@
 # PHONE_TESTS: 11
 # AREAS: recovery, keys
 # Printed words: copy to clipboard only. Never screenshot this flow on the words screen.
+# Step 8: Elder Test 2 chooses Test 1 using the same phases.
 appId: app.patria.dev
 ---
 - runFlow:

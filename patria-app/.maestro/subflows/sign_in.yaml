@@ -14,6 +14,13 @@ appId: app.patria.dev
     timeout: 30000
 - runFlow:
     when:
+      visible: "Loading from Metro..."
+    commands:
+      - extendedWaitUntil:
+          notVisible: "Loading from Metro..."
+          timeout: 120000
+- runFlow:
+    when:
       visible:
         id: "^screen-sign-up$"
     commands:

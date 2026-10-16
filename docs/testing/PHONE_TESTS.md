@@ -109,6 +109,7 @@ Device A: Test 1 (Family admin). Device B: Test 2, Elder or Co admin, already le
 5. On A, after two contacts have accepted, Home (and Recovery contacts) shows **Write down a printed code**. Tap it. Pass if 24 words appear once with a clear "write this down" warning, and the app asks you to type a few back before finishing. (Automation: read the words from the screen and keep them in memory for test 12; never write them to a file or log.)
 6. Database: locked boxes, contact rows, one row per member in `recovery_public_keys` (a public key only), no `recovery_key_wraps` table, and nothing that looks like the 24 words or a readable key.
 7. Remove Test 3 as a contact. Pass if that member sees **Recovery needs attention** and is asked to choose a new contact. Remaining contact and paper stay valid until they redo (D27). Redo offers a new printed code; the old code then no longer works.
+8. On B as Test 2 (Elder), open **Set up recovery** and choose Test 1. On A, Test 1 accepts. Pass if Test 2 can finish asking that contact (holder secrets wrap to Test 1’s let-in phone without Test 2 listing wraps).
 
 ### 12. Recover after losing every phone (Step 7)
 Areas: recovery, devices

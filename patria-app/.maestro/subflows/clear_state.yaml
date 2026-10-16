@@ -5,3 +5,13 @@ appId: app.patria.dev
 - launchApp:
     clearState: true
     clearKeychain: true
+- runFlow:
+    when:
+      visible: "Loading from Metro..."
+    commands:
+      - extendedWaitUntil:
+          notVisible: "Loading from Metro..."
+          timeout: 120000
+- extendedWaitUntil:
+    visible: "Every family has a story."
+    timeout: 120000

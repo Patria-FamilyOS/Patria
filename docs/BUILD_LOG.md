@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-16 — Narrow public keys for recovery wrapping
+
+An Elder finishing recovery set up had to call `approved_devices_for_member` (admin-only) to wrap holder secrets to a contact’s phones. `recovery_contact_public_keys` returns only `device_id` and the X25519 public key, and only after that person has accepted as the caller’s contact. `recovery_request_device_public_key` does the same for the new phone when a contact helps after the wait. Rotation still uses admin-only `rotation_wrap_targets`. Your phones only reads the caller’s own device rows. Test 11 now has Test 2 (Elder) choose Test 1.
+
+---
+
 ## 2026-10-15 — Phone tests 12 and 13: remaining steps stay manual
 
 After the eligible-contacts picker, Test 12 seed can choose Test 1. The start/cancel/approve/printed-code/remove-old steps still miss Maestro copy or lose the recover screen on relaunch. Test 13 Remove still rotates the key, but the Updating copy is often missed; Leave family depends on inviting Test 3 back, which is not stable. Those steps are marked (manual, pending automation) so `e2e:check` and `e2e:full` can pass.

@@ -96,17 +96,18 @@ function gatewayFor(client: SupabaseClient): RecoverFlowGateway {
         throw error;
       }
     },
-    fetchDevicePublicKey: async (userId, deviceId) => {
-      const { data, error } = await client
-        .from('device_keys')
-        .select('public_key')
-        .eq('user_id', userId)
-        .eq('device_id', deviceId)
-        .maybeSingle();
-      if (error || !data) {
-        throw error ?? new Error('missing device key');
+    fetchDevicePublicKey: async (requestId) => {
+      const { data, error } = await client.rpc('recovery_request_device_public_key', {
+        p_request_id: requestId,
+      });
+      if (error) {
+        throw error;
       }
-      return fromPgBytea(data.public_key);
+      const rows = (data ?? []) as { public_key: unknown }[];
+      if (!rows[0]) {
+        throw new Error('missing device key');
+      }
+      return fromPgBytea(rows[0].public_key);
     },
     fetchOwnHolderSecret: async (spaceId, userId, deviceId) => {
       const { data, error } = await client

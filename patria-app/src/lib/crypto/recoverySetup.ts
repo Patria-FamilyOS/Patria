@@ -241,7 +241,7 @@ async function wrapHolderToDevices(
   },
   gateway: RecoveryAccessGateway,
 ): Promise<void> {
-  const devices = await gateway.listApprovedDevices(input.spaceId, input.userId);
+  const devices = await gateway.listRecoveryContactPublicKeys(input.spaceId, input.userId);
   for (const device of devices) {
     const publicKey = requireX25519PublicKey(device.publicKey);
     const wrapped = wrapKeyToDevice(

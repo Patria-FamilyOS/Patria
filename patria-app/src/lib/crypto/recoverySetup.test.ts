@@ -1,6 +1,9 @@
+import * as SecureStore from 'expo-secure-store';
+
 import { eligibleRecoveryMembers } from './recoveryAccess';
 import {
   approvedIdsFromEligibleContacts,
+  fulfillAcceptedContacts,
   inviteRecoveryContacts,
   loadEligibleRecoveryContacts,
 } from './recoverySetup';
@@ -9,6 +12,17 @@ import { createRecoveryBoxes, openWithHolders } from './recovery';
 import { randomKey32 } from './random';
 import { generatePrintedCode } from './printedCode';
 import { secretsEqual, wipe } from './bytes';
+import { generateDeviceKeyPair } from './x25519';
+
+jest.mock('./deviceIdentity', () => {
+  const x25519 = jest.requireActual('./x25519') as typeof import('./x25519');
+  return {
+    ensureDeviceIdentity: jest.fn(async () => {
+      const keys = x25519.generateDeviceKeyPair();
+      return { deviceId: 'd-rosa-setup', publicKey: keys.publicKey, privateKey: keys.privateKey };
+    }),
+  };
+});
 
 const SPACE = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const ELENA = '11111111-1111-1111-1111-111111111111';
@@ -34,6 +48,7 @@ function memoryGateway(contacts: RecoveryContactRow[] = []): RecoveryAccessGatew
     setContactStatus: async () => undefined,
     deleteContact: async () => undefined,
     listApprovedDevices: async () => [],
+    listRecoveryContactPublicKeys: async () => [],
     listEligibleRecoveryContacts: async () => [],
     upsertFamilyKeyUnderRecovery: async () => undefined,
     insertRecoveryPublicKey: async () => undefined,
@@ -99,6 +114,50 @@ describe('recovery contact selection', () => {
         memoryGateway(),
       ),
     ).rejects.toThrow('ineligible recovery contact');
+  });
+
+  it('lets an elder finish recovery set up with Test 1 as an accepted contact', async () => {
+    const store = new Map<string, string>();
+    (SecureStore.getItemAsync as jest.Mock).mockImplementation(async (key: string) => {
+      return store.get(key) ?? null;
+    });
+    (SecureStore.setItemAsync as jest.Mock).mockImplementation(async (key: string, value: string) => {
+      store.set(key, value);
+    });
+    (SecureStore.deleteItemAsync as jest.Mock).mockImplementation(async (key: string) => {
+      store.delete(key);
+    });
+    const elenaDevice = generateDeviceKeyPair();
+    const rosaRecovery = generateDeviceKeyPair();
+    const wrapped: { userId: string; deviceId: string }[] = [];
+    const gateway = memoryGateway([
+      {
+        id: 'c-elena',
+        spaceId: SPACE,
+        memberId: ROSA,
+        userId: ELENA,
+        slot: 'a',
+        status: 'accepted',
+      },
+    ]);
+    gateway.fetchOwnRecoveryPublic = async () => ({
+      publicKey: rosaRecovery.publicKey,
+      recoveryKeyEpoch: 1,
+    });
+    gateway.listApprovedDevices = async () => {
+      throw new Error('must not list approved_devices_for_member');
+    };
+    gateway.listRecoveryContactPublicKeys = async (_spaceId, contactUserId) => {
+      expect(contactUserId).toBe(ELENA);
+      return [{ deviceId: 'd-elena-1', publicKey: elenaDevice.publicKey }];
+    };
+    gateway.insertHolderSecret = async (input) => {
+      wrapped.push({ userId: input.userId, deviceId: input.deviceId });
+    };
+    await fulfillAcceptedContacts({ spaceId: SPACE, memberUserId: ROSA }, gateway);
+    expect(wrapped).toEqual([{ userId: ELENA, deviceId: 'd-elena-1' }]);
+    wipe(elenaDevice.privateKey);
+    wipe(rosaRecovery.privateKey);
   });
 });
 

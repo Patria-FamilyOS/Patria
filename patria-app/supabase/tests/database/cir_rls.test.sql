@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(303);
+SELECT plan(311);
 UPDATE public.patria_key_settings SET recovery_wait = interval '48 hours' WHERE singleton = 1;
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
@@ -2212,6 +2212,60 @@ SELECT lives_ok(
 );
 RESET ROLE;
 
+SELECT tests_jwt('44444444-4444-4444-4444-444444444444');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $sql$INSERT INTO public.recovery_contacts (
+         family_space_id, member_id, user_id, slot, created_by
+       ) SELECT rivera, '44444444-4444-4444-4444-444444444444',
+                '11111111-1111-1111-1111-111111111111',
+                'a', '44444444-4444-4444-4444-444444444444'
+       FROM fx$sql$,
+  'elder can name a let-in family admin as their recovery contact'
+);
+RESET ROLE;
+SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $sql$UPDATE public.recovery_contacts SET status = 'accepted'
+       WHERE member_id = '44444444-4444-4444-4444-444444444444'
+         AND user_id = '11111111-1111-1111-1111-111111111111'$sql$,
+  'family admin can accept as the elder''s recovery contact'
+);
+RESET ROLE;
+SELECT tests_jwt('44444444-4444-4444-4444-444444444444');
+SET LOCAL ROLE authenticated;
+SELECT isnt_empty(
+  $sql$SELECT device_id FROM public.recovery_contact_public_keys(
+         (SELECT rivera FROM fx),
+         '11111111-1111-1111-1111-111111111111'
+       )$sql$,
+  'elder can fetch an accepted contact''s let-in public keys'
+);
+SELECT is_empty(
+  $sql$SELECT device_id FROM public.recovery_contact_public_keys(
+         (SELECT rivera FROM fx),
+         '22222222-2222-2222-2222-222222222222'
+       )$sql$,
+  'elder cannot fetch keys for someone who is not their accepted contact'
+);
+SELECT is_empty(
+  $sql$SELECT 1 FROM public.family_key_wraps
+       WHERE user_id = '11111111-1111-1111-1111-111111111111'$sql$,
+  'elder still cannot read another member wrap'
+);
+RESET ROLE;
+SELECT tests_jwt('77777777-7777-7777-7777-777777777777');
+SET LOCAL ROLE authenticated;
+SELECT is_empty(
+  $sql$SELECT device_id FROM public.recovery_contact_public_keys(
+         (SELECT rivera FROM fx),
+         '11111111-1111-1111-1111-111111111111'
+       )$sql$,
+  'caregiver gets no recovery contact public keys'
+);
+RESET ROLE;
+
 SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
 SET LOCAL ROLE authenticated;
 SELECT lives_ok(
@@ -2366,6 +2420,27 @@ UPDATE public.recovery_requests
 SET not_before = now() - interval '1 hour',
     expires_at = now() + interval '6 days'
 WHERE new_device_id = 'd1111111-1111-1111-1111-111111111117';
+
+SELECT tests_jwt('44444444-4444-4444-4444-444444444444');
+SET LOCAL ROLE authenticated;
+SELECT isnt_empty(
+  $sql$SELECT device_id FROM public.recovery_request_device_public_key(
+         (SELECT id FROM public.recovery_requests
+          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111117')
+       )$sql$,
+  'accepted contact can fetch the new phone public key'
+);
+RESET ROLE;
+SELECT tests_jwt('77777777-7777-7777-7777-777777777777');
+SET LOCAL ROLE authenticated;
+SELECT is_empty(
+  $sql$SELECT device_id FROM public.recovery_request_device_public_key(
+         (SELECT id FROM public.recovery_requests
+          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111117')
+       )$sql$,
+  'caregiver gets no recovery request device public key'
+);
+RESET ROLE;
 
 SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
 SET LOCAL ROLE authenticated;
