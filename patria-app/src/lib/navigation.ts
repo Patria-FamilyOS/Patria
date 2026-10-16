@@ -39,6 +39,9 @@ export const screenTitles = {
   printedCode: copy.recovery.printedTitle,
   recoverLostPhone: copy.recovery.lostTitle,
   removeOldPhones: copy.recovery.removeOldTitle,
+  memories: copy.memories.title,
+  memoriesAdd: copy.memories.addPhotos,
+  memoryItem: copy.memories.title,
 } as const;
 
 export const routes = {
@@ -57,6 +60,9 @@ export const routes = {
   printedCode: '/(signed-in)/printed-code',
   recoverLostPhone: '/(signed-in)/recover-lost-phone',
   removeOldPhones: '/(signed-in)/remove-old-phones',
+  memories: '/(signed-in)/memories',
+  memoriesAdd: '/(signed-in)/memories-add',
+  memoryItem: (itemId: string) => `/(signed-in)/memory/${itemId}` as const,
 } as const;
 
 export function headerWhenPushed(canGoBack: boolean) {

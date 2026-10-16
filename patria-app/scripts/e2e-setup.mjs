@@ -27,8 +27,10 @@ function parseSetupArgs(argv) {
       i += 1;
     }
   }
-  if (!['admin', 'admin-elder', 'admin-elders'].includes(scenario)) {
-    console.error(`${SCRIPT}: unknown scenario "${scenario}". Use admin, admin-elder, or admin-elders.`);
+  if (!['admin', 'admin-elder', 'admin-elders', 'admin-elder-extended'].includes(scenario)) {
+    console.error(
+      `${SCRIPT}: unknown scenario "${scenario}". Use admin, admin-elder, admin-elders, or admin-elder-extended.`,
+    );
     process.exit(1);
   }
   return scenario;
@@ -214,24 +216,33 @@ if (!spaceId) {
   throw new Error('create_family_space did not return a family id.');
 }
 
-const circles = await asUser(
+const householdRows = await asUser(
   adminSession.accessToken,
   'GET',
   `/rest/v1/circles?family_space_id=eq.${spaceId}&kind=eq.household&select=id`,
 );
-const householdId = Array.isArray(circles) ? circles[0]?.id : null;
+const householdId = Array.isArray(householdRows) ? householdRows[0]?.id : null;
 if (!householdId) {
   throw new Error('create_family_space did not create a household circle.');
 }
+const extendedRows = await asUser(
+  adminSession.accessToken,
+  'GET',
+  `/rest/v1/circles?family_space_id=eq.${spaceId}&kind=eq.extended_family&select=id`,
+);
+const extendedId = Array.isArray(extendedRows) ? extendedRows[0]?.id : null;
+if (!extendedId) {
+  throw new Error('create_family_space did not create an extended family circle.');
+}
 
-async function inviteAndAccept(memberN, role) {
+async function inviteAndAccept(memberN, role, circleId = householdId) {
   const email = TEST_EMAILS[memberN];
   const created = await asUser(adminSession.accessToken, 'POST', '/rest/v1/invites', {
     family_space_id: spaceId,
     invited_by: adminSession.userId,
     email,
     role,
-    default_circle_id: householdId,
+    default_circle_id: circleId,
   });
   const invite = Array.isArray(created) ? created[0] : created;
   const token = invite?.token;
@@ -242,11 +253,19 @@ async function inviteAndAccept(memberN, role) {
   await asUser(member.accessToken, 'POST', '/rest/v1/rpc/accept_invite', { p_token: token });
 }
 
-if (scenario === 'admin-elder' || scenario === 'admin-elders') {
-  await inviteAndAccept(2, 'elder');
+await asUser(adminSession.accessToken, 'POST', '/rest/v1/circle_members', {
+  circle_id: extendedId,
+  user_id: adminSession.userId,
+});
+
+if (scenario === 'admin-elder' || scenario === 'admin-elders' || scenario === 'admin-elder-extended') {
+  await inviteAndAccept(2, 'elder', householdId);
 }
 if (scenario === 'admin-elders') {
-  await inviteAndAccept(3, 'elder');
+  await inviteAndAccept(3, 'elder', householdId);
+}
+if (scenario === 'admin-elder-extended') {
+  await inviteAndAccept(3, 'extended_relative', extendedId);
 }
 
 // Let-in wraps cannot be seeded here: they are sealed to the phone's device

@@ -1,0 +1,129 @@
+# PHONE_TESTS: 16
+# AREAS: memories
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'seed'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - addMedia:
+          - "media/sample1.jpg"
+          - "media/sample2.jpg"
+      - tapOn:
+          id: "memories"
+      - tapOn:
+          id: "add-photos"
+      - extendedWaitUntil:
+          visible:
+            id: "circle-household-selected"
+          timeout: 20000
+      - tapOn:
+          id: "caption-optional"
+      - inputText: "Photo A"
+      - tapOn:
+          id: "circle-explanation"
+      - tapOn:
+          id: "share"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-memories"
+          timeout: 45000
+      - extendedWaitUntil:
+          visible: "Photo A"
+          timeout: 20000
+      - tapOn:
+          id: "add-photos"
+      - extendedWaitUntil:
+          visible:
+            id: "circle-extended_family"
+          timeout: 20000
+      - tapOn:
+          id: "circle-extended_family"
+      - tapOn:
+          id: "caption-optional"
+      - inputText: "Photo B"
+      - tapOn:
+          id: "circle-explanation"
+      - tapOn:
+          id: "share"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-memories"
+          timeout: 45000
+      - extendedWaitUntil:
+          visible: "Photo B"
+          timeout: 20000
+- runFlow:
+    when:
+      true: ${PHASE == 'move_smaller'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "memories"
+      - tapOn: "Photo B"
+      - tapOn:
+          id: "move-circle-household"
+      - extendedWaitUntil:
+          visible:
+            id: "memory-item-badge"
+          timeout: 15000
+      - assertVisible: "Household"
+- runFlow:
+    when:
+      true: ${PHASE == 'test3_gone'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "memories"
+      - swipe:
+          start: 50%, 25%
+          end: 50%, 80%
+      - assertNotVisible: "Photo B"
+- runFlow:
+    when:
+      true: ${PHASE == 'widen'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "memories"
+      - tapOn: "Photo A"
+      - tapOn:
+          id: "move-circle-extended_family"
+      - extendedWaitUntil:
+          visible: "More people will see this"
+          timeout: 15000
+      - tapOn: "Share with more people"
+- runFlow:
+    when:
+      true: ${PHASE == 'delete'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "memories"
+      - tapOn: "Photo A"
+      - tapOn:
+          id: "delete"
+      - tapOn: "Delete"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-memories"
+          timeout: 20000
+      - assertNotVisible: "Photo A"
+- runFlow:
+    when:
+      true: ${PHASE == 'no_owner_actions'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "memories"
+      - tapOn: "Photo B"
+      - assertNotVisible:
+          id: "delete"
+      - assertNotVisible: "Move"

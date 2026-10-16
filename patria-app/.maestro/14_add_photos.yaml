@@ -1,0 +1,76 @@
+# PHONE_TESTS: 14
+# AREAS: memories
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'share'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - addMedia:
+          - "media/sample1.jpg"
+          - "media/sample2.jpg"
+      - tapOn:
+          id: "memories"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-memories"
+          timeout: 20000
+      - tapOn:
+          id: "add-photos"
+      - extendedWaitUntil:
+          visible:
+            id: "circle-household-selected"
+          timeout: 20000
+      - assertVisible:
+          id: "circle-explanation"
+      - tapOn:
+          id: "caption-optional"
+      - inputText: "Picnic"
+      - tapOn:
+          id: "circle-explanation"
+      - tapOn:
+          id: "share"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-memories"
+          timeout: 45000
+      - extendedWaitUntil:
+          visible: "Picnic"
+          timeout: 20000
+      - assertVisible: "Household"
+      - assertVisible:
+          id: "memory-uploader-.*"
+      - assertVisible: "Test 1"
+      - tapOn: "Picnic"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-memory-item"
+          timeout: 20000
+      - assertVisible: "Picnic"
+      - assertVisible:
+          id: "memory-item-badge"
+      - assertVisible: "No location is stored with this photo."
+- runFlow:
+    when:
+      true: ${PHASE == 'refresh'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - addMedia:
+          - "media/sample1.jpg"
+          - "media/sample2.jpg"
+      - tapOn:
+          id: "memories"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-memories"
+          timeout: 20000
+      - swipe:
+          start: 50%, 25%
+          end: 50%, 80%
+      - extendedWaitUntil:
+          visible: "Picnic"
+          timeout: 20000
+      - assertVisible: "Household"

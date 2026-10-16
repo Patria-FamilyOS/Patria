@@ -236,6 +236,8 @@ describe('HomeScreen invite entry', () => {
     expect(await findByText(copy.home.recoveryNotSetup)).toBeTruthy();
     expect(await findByText(copy.home.recoveryCardTitle)).toBeTruthy();
     expect(await findByText(copy.home.todoMemories)).toBeTruthy();
+    expect(await findByText(copy.home.memories)).toBeTruthy();
+    expect(await findByText(copy.home.memories)).toBeTruthy();
   });
 
   it('says this phone needs to be let in again when the family key cannot be obtained', async () => {

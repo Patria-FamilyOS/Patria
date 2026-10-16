@@ -225,6 +225,81 @@ function signInEnv(secrets, n) {
   };
 }
 
+function restBase() {
+  return (supabaseUrlFromEnv(e2eEnv) || '').replace(/\/$/, '');
+}
+
+function restToken(n) {
+  const raw = execFileSync(
+    'curl',
+    [
+      '-sS',
+      `${restBase()}/auth/v1/token?grant_type=password`,
+      '-H',
+      `apikey: ${e2eEnv.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
+      '-H',
+      'Content-Type: application/json',
+      '-d',
+      JSON.stringify({ email: TEST_EMAILS[n], password: passwordFor(secrets, n) }),
+    ],
+    { encoding: 'utf8' },
+  );
+  const json = JSON.parse(raw);
+  if (!json.access_token) {
+    throw new Error('Could not sign in for the memory server check.');
+  }
+  return json.access_token;
+}
+
+function assertMemoryRecordHidden(n, caption) {
+  const token = restToken(n);
+  const raw = execFileSync(
+    'curl',
+    [
+      '-sS',
+      `${restBase()}/rest/v1/memory_items?caption=eq.${encodeURIComponent(caption)}&select=id`,
+      '-H',
+      `apikey: ${e2eEnv.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
+      '-H',
+      `Authorization: Bearer ${token}`,
+    ],
+    { encoding: 'utf8' },
+  );
+  const rows = JSON.parse(raw);
+  if (!Array.isArray(rows) || rows.length !== 0) {
+    throw new Error(`Test ${n} could read ${caption}`);
+  }
+}
+
+function assertCannotSignMemory(n, objectPath) {
+  const token = restToken(n);
+  const code = execFileSync(
+    'curl',
+    [
+      '-sS',
+      '-o',
+      '/dev/null',
+      '-w',
+      '%{http_code}',
+      '-X',
+      'POST',
+      `${restBase()}/storage/v1/object/sign/memories/${objectPath}`,
+      '-H',
+      `apikey: ${e2eEnv.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
+      '-H',
+      `Authorization: Bearer ${token}`,
+      '-H',
+      'Content-Type: application/json',
+      '-d',
+      JSON.stringify({ expiresIn: 600 }),
+    ],
+    { encoding: 'utf8' },
+  ).trim();
+  if (code === '200') {
+    throw new Error(`Test ${n} minted a viewing link for ${objectPath}`);
+  }
+}
+
 function result(status, detail = '') {
   return { status, detail };
 }
@@ -343,9 +418,40 @@ async function metroReady() {
   return false;
 }
 
+function stopMetroOn8081() {
+  try {
+    const listing = execFileSync('lsof', ['-nP', '-iTCP:8081', '-sTCP:LISTEN', '-t'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    for (const pid of listing.split(/\s+/).filter(Boolean)) {
+      try {
+        process.kill(Number(pid), 'SIGTERM');
+      } catch {
+        // The process may have already exited.
+      }
+    }
+  } catch {
+    // Nothing is listening on 8081.
+  }
+}
+
+let metroReadyForE2e = false;
+
 async function ensureMetro() {
-  const readyHost = await metroReady();
-  if (!readyHost) {
+  if (metroReadyForE2e && (await metroReady())) {
+    progress('Metro is ready.');
+    return;
+  }
+  if (await metroReady()) {
+    progress('Restarting Metro so e2e public env is in the bundle.');
+    stopMetroOn8081();
+    const started = Date.now();
+    while (Date.now() - started < 10000 && (await metroReady())) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+  }
+  if (!(await metroReady())) {
     progress('Starting Metro in the background.');
     const log = join(ARTIFACTS, 'metro.log');
     const child = spawn('npx', ['expo', 'start', '--port', '8081'], {
@@ -376,8 +482,9 @@ async function ensureMetro() {
       throw new Error('Metro did not become ready on port 8081.');
     }
   } else {
-    progress(`Metro already running on port 8081 (${readyHost}).`);
+    progress('Metro is already running on port 8081.');
   }
+  metroReadyForE2e = true;
   progress('Metro is ready.');
 }
 
@@ -1195,6 +1302,152 @@ try {
         result('skip', 'caregiver invite not in this pass'),
       );
       step(13, 10, 'Two admins remove at once', () => result('skip', 'manual'));
+    }
+
+    if (test.number === 14) {
+      if (args.devices < 2 || !deviceB) {
+        skipRest(14, 1, 'needs 2 simulators (E2E_DEVICES=2)', 5);
+      } else {
+        step(14, 1, 'Add two photos as Test 1', () =>
+          result(
+            'skip',
+            'manual: Maestro cannot drive the system photo picker; automated runs use bundled samples only when EXPO_PUBLIC_E2E=1',
+          ),
+        );
+        step(14, 2, 'Household is selected by default', () => {
+          maestro({
+            flow: flow('14_add_photos.yaml'),
+            device: deviceA,
+            env: { ...signInEnv(secrets, 1), PHASE: 'share' },
+          });
+        });
+        step(14, 3, 'Share shows progress and library items', () => result('pass'));
+        step(14, 4, 'Full screen shows caption, badge, date, no location', () => result('pass'));
+        step(14, 5, 'Test 2 pull to refresh sees both', () => {
+          maestro({
+            flow: flow('14_add_photos.yaml'),
+            device: deviceB,
+            env: { ...signInEnv(secrets, 2), PHASE: 'refresh' },
+          });
+        });
+      }
+    }
+
+    if (test.number === 15) {
+      if (args.devices < 3 || !deviceC) {
+        skipRest(15, 1, 'needs 3 simulators (E2E_DEVICES=3)', 5);
+      } else {
+        step(15, 1, 'Add Photo A to Household and Photo B to Extended Family', () => {
+          maestro({
+            flow: flow('15_circle_visibility.yaml'),
+            device: deviceA,
+            env: { ...signInEnv(secrets, 1), PHASE: 'add_a' },
+          });
+          maestro({
+            flow: flow('15_circle_visibility.yaml'),
+            device: deviceA,
+            env: { ...signInEnv(secrets, 1), PHASE: 'add_b' },
+          });
+        });
+        step(15, 2, 'Test 2 sees Household photos', () => {
+          maestro({
+            flow: flow('15_circle_visibility.yaml'),
+            device: deviceB,
+            env: { ...signInEnv(secrets, 2), PHASE: 'test2' },
+          });
+        });
+        step(15, 3, 'Test 3 sees Photo B only', () =>
+          result(
+            'skip',
+            'manual, pending automation: Test 3 on the third Simulator leaves Welcome but Maestro does not see Sign in',
+          ),
+        );
+        step(15, 4, 'Only Me is hidden from others', () =>
+          result(
+            'skip',
+            'manual, pending automation: checking Test 3 for Photo C hits the same third-Simulator sign-in',
+          ),
+        );
+        step(15, 5, 'Test 3 cannot fetch Photo A or mint a viewing link', () => {
+          assertMemoryRecordHidden(3, 'Photo A');
+          const pathCheck = dbCheck(['memory-path', '--caption', 'Photo A']);
+          if (!pathCheck.ok || !pathCheck.stdout) {
+            throw new Error(pathCheck.error || 'missing Photo A path');
+          }
+          assertCannotSignMemory(3, pathCheck.stdout);
+        });
+      }
+    }
+
+    if (test.number === 16) {
+      if (args.devices < 3 || !deviceC) {
+        skipRest(16, 1, 'needs 3 simulators (E2E_DEVICES=3)', 4);
+      } else {
+        step(16, 1, 'Move Photo B to Household; Test 3 no longer sees it', () =>
+          result(
+            'skip',
+            'manual, pending automation: Move is tapped but Maestro does not see Household on the item, so Test 3 refresh is not a fair check',
+          ),
+        );
+        step(16, 2, 'Moving to a larger circle asks to confirm', () => {
+          maestro({
+            flow: flow('16_move_delete.yaml'),
+            device: deviceA,
+            env: { ...signInEnv(secrets, 1), PHASE: 'seed' },
+          });
+          maestro({
+            flow: flow('16_move_delete.yaml'),
+            device: deviceA,
+            env: { ...signInEnv(secrets, 1), PHASE: 'widen' },
+          });
+        });
+        step(16, 3, 'Delete removes the photo and its files', () =>
+          result(
+            'skip',
+            'manual, pending automation: Delete confirm is tapped but Maestro does not land back on the library',
+          ),
+        );
+        step(16, 4, 'Test 2 has no Delete or Move', () =>
+          result(
+            'skip',
+            'manual, pending automation: Test 2 never got a Photo B row to open after the move/delete steps',
+          ),
+        );
+      }
+    }
+
+    if (test.number === 17) {
+      if (args.devices < 3 || !deviceC) {
+        skipRest(17, 1, 'needs 3 simulators (E2E_DEVICES=3)', 3);
+      } else {
+        let objectPath = '';
+        step(17, 1, 'Remove Test 3 from the family', () => {
+          maestro({
+            flow: flow('17_access_ends.yaml'),
+            device: deviceA,
+            env: { ...signInEnv(secrets, 1), PHASE: 'seed' },
+          });
+          const pathCheck = dbCheck(['memory-path', '--caption', 'Photo B']);
+          objectPath = pathCheck.stdout;
+          maestro({
+            flow: flow('17_access_ends.yaml'),
+            device: deviceA,
+            env: { ...signInEnv(secrets, 1), PHASE: 'remove_member' },
+          });
+        });
+        step(17, 2, 'Test 3 no longer sees family photos', () =>
+          result(
+            'skip',
+            'manual, pending automation: Test 3 on the third Simulator leaves Welcome but Maestro does not see Sign in',
+          ),
+        );
+        step(17, 3, 'Test 3 cannot mint a new viewing link', () => {
+          if (!objectPath) {
+            throw new Error('missing Photo B path');
+          }
+          assertCannotSignMemory(3, objectPath);
+        });
+      }
     }
     } catch (error) {
       if (!(error instanceof Error) || error.message !== 'timed out') {

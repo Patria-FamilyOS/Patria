@@ -4,7 +4,7 @@ Master copy for people: the Patria Test and Demo Script (Claude Doc). Keep both 
 
 Copied from the Patria Test and Demo Script on Oct 13, 2026. When a test changes, both are updated.
 
-Each step says what counts as a pass. Steps marked **(manual)** need a person's judgement and stay manual. Each test lists `Areas:` (auth, navigation, invites, children, keys, devices, recovery, rotation, membership) so `npm run e2e:affected` can run only the tests that match changed files.
+Each step says what counts as a pass. Steps marked **(manual)** need a person's judgement and stay manual. Each test lists `Areas:` (auth, navigation, invites, children, keys, devices, recovery, rotation, membership, memories) so `npm run e2e:affected` can run only the tests that match changed files.
 
 ## Accounts
 
@@ -140,3 +140,38 @@ Before: Test 1 (admin) and Test 2 (Elder) have let in devices; Test 3 joined as 
 9. Add and remove a Caregiver. Pass if the key epoch does not change.
 10. Optional: two admins remove someone at the same moment. Pass if only one new key version appears and both end up on it. (manual)
 Pass when steps 1 to 9 behave as written and no screen or log shows a key.
+
+## Memories (MEM)
+
+Before you start (all memories tests): Test 1 is Family admin. Test 2 is an Elder in the Household circle. Test 3 is an Extended relative in the Extended Family circle only. Have two or three photos on the phone or Simulator (the automated run adds sample photos to each Simulator).
+
+### 14. Add photos to the family library (MEM01)
+Areas: memories
+1. As Test 1, open Memories and tap Add photos. Pick two photos. **(manual)** Maestro cannot drive the system photo picker; automated runs use bundled samples only when `EXPO_PUBLIC_E2E=1`.
+2. Pass if the circle picker shows Household selected by default, with the circle explained in plain words.
+3. Add an optional caption and tap Share. Pass if a progress indicator shows and both photos appear at the top of the library, newest first, each with a Household badge, the uploader's name and the date the photo was taken.
+4. Tap a photo. Pass if it opens full screen with its caption, circle badge and date, and no location.
+5. Pull to refresh on another device signed in as Test 2. Pass if both photos appear.
+Pass when: steps 1 to 5 behave as written.
+
+### 15. Only the right circle sees a photo (MEM01, CIR01)
+Areas: memories
+1. As Test 1, add photo A to Household and photo B to Extended Family.
+2. As Test 2 (Household). Pass if Test 2 sees what the Household circle allows (photo A, and photo B only if Test 2 is also in Extended Family).
+3. As Test 3 (Extended Family only). Pass if Test 3 sees photo B and not photo A, and the library never hints that photo A exists. **(manual, pending automation: Test 3 on the third Simulator leaves Welcome but Maestro does not see Sign in)**
+4. Add photo C to Only Me as Test 1. Pass if nobody else ever sees it. **(manual, pending automation: checking Test 3 for Photo C hits the same third-Simulator sign-in)**
+5. Database and server check (automated): signed in as Test 3, asking the server directly for photo A's record or file returns nothing and no viewing link can be made.
+Pass when: each person sees exactly the photos their circles allow, in the app and through the server.
+
+### 16. Move or remove your own photo (MEM01)
+Areas: memories
+1. As Test 1, open photo B and move it to Household (a smaller circle). Pass if it moves without extra questions and Test 3 no longer sees it after refresh. **(manual, pending automation: Move is tapped but Maestro does not see Household on the item, so Test 3’s refresh is not a fair check)**
+2. Move a Household photo to Extended Family (a larger circle). Pass if the app asks to confirm, explaining more people will see it.
+3. Delete one of your own photos. Pass if it disappears for everyone after refresh, and its file is gone from storage. **(manual, pending automation: Delete confirm is tapped but Maestro does not land back on the library)**
+4. As Test 2, open a photo Test 1 shared. Pass if there is no Delete or Move option. **(manual, pending automation: Test 2 never got a Photo B row to open after the move/delete steps)**
+
+### 17. Access ends when someone leaves (MEM01)
+Areas: memories
+1. As Test 1, remove Test 3 from the family (or remove them from the Extended Family circle).
+2. On Test 3's device, pull to refresh or reopen the app. Pass if no family photos remain on screen and none can be opened. **(manual, pending automation: Test 3 on the third Simulator leaves Welcome but Maestro does not see Sign in)**
+3. Server check (automated): a viewing link created for Test 3 before the removal stops working once it expires, and Test 3 cannot create a new one.

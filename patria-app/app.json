@@ -32,6 +32,13 @@
         {
           "configureAndroidBackup": true
         }
+      ],
+      "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Patria uses photos you pick to share with your family."
+        }
       ]
     ]
   }

@@ -1,4 +1,10 @@
-import { countAdmins, isKeyEligibleRole, isRecoveryContactRole, isSpaceAdmin } from './roles';
+import {
+  countAdmins,
+  isKeyEligibleRole,
+  isMemoryRole,
+  isRecoveryContactRole,
+  isSpaceAdmin,
+} from './roles';
 
 describe('roles', () => {
   it('treats family admin and co admin as the same permission level', () => {
@@ -25,6 +31,16 @@ describe('roles', () => {
     expect(isRecoveryContactRole('extended_relative')).toBe(false);
     expect(isRecoveryContactRole('caregiver')).toBe(false);
     expect(isRecoveryContactRole('successor')).toBe(false);
+  });
+
+  it('gives Memories to admins, teens, elders and extended relatives only', () => {
+    expect(isMemoryRole('family_admin')).toBe(true);
+    expect(isMemoryRole('co_admin')).toBe(true);
+    expect(isMemoryRole('teen')).toBe(true);
+    expect(isMemoryRole('elder')).toBe(true);
+    expect(isMemoryRole('extended_relative')).toBe(true);
+    expect(isMemoryRole('caregiver')).toBe(false);
+    expect(isMemoryRole('successor')).toBe(false);
   });
 
   it('counts the last remaining admin', () => {

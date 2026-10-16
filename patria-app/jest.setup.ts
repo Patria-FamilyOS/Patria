@@ -10,6 +10,25 @@ jest.mock('expo-secure-store', () => ({
   deleteItemAsync: jest.fn(() => Promise.resolve()),
 }));
 
+jest.mock('expo-image', () => {
+  const RN = jest.requireActual<typeof import('react-native')>('react-native');
+  return {
+    Image: Object.assign(RN.Image, {
+      clearMemoryCache: jest.fn(async () => undefined),
+      clearDiskCache: jest.fn(async () => undefined),
+    }),
+  };
+});
+
+jest.mock('expo-image-picker', () => ({
+  launchImageLibraryAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
+}));
+
+jest.mock('expo-image-manipulator', () => ({
+  SaveFormat: { JPEG: 'jpeg' },
+  manipulateAsync: jest.fn(async (uri: string) => ({ uri, width: 800, height: 600 })),
+}));
+
 jest.mock('expo-crypto', () => ({
   getRandomValues: (typedArray: Uint8Array): Uint8Array => {
     globalThis.crypto.getRandomValues(typedArray as never);

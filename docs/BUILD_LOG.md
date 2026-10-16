@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-16 — MEM01 slice 1: Shared Family Library (Standard tier)
+
+Photos are picked on purpose (expo-image-picker; that pick is consent), resized and re-encoded as JPEG on the phone so EXIF/GPS is gone, date taken kept, then uploaded to a private `memories` bucket. Cloud storage is Standard tier (D29): TLS and at-rest encryption, not the family key. One helper, `can_view_memory`, gates both the row and the file. Rows start as `uploading` (uploader only) and become visible as `ready`. Table SELECT uses the new row’s columns so `INSERT … RETURNING` can succeed (a nested `SELECT` of that row cannot see it yet). Files are deleted through Storage first, then the row. Confirm a move only when the new circle includes someone who is not in the current one. Caregivers and successors have no Memories access. Phone tests 14–17; Maestro Add photos uses bundled samples only when `EXPO_PUBLIC_E2E=1` (Metro stubs that module otherwise, and startup fails if samples can load). The real system picker is a manual step. Private Memories, auto-upload, video and Stories stay later. Hosted migrations are not applied until asked.
+
+---
+
 ## 2026-10-16 — Narrow public keys for recovery wrapping
 
 An Elder finishing recovery set up had to call `approved_devices_for_member` (admin-only) to wrap holder secrets to a contact’s phones. `recovery_contact_public_keys` returns only `device_id` and the X25519 public key, and only after that person has accepted as the caller’s contact. `recovery_request_device_public_key` does the same for the new phone when a contact helps after the wait. Rotation still uses admin-only `rotation_wrap_targets`. Your phones only reads the caller’s own device rows. Test 11 now has Test 2 (Elder) choose Test 1.

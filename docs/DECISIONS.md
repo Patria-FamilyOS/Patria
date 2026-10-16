@@ -172,3 +172,22 @@ Each key-holding member has an X25519 recovery key pair. The public half is stor
 ## D28. Development bundle identifier is provisional (13 October 2026)
 
 The iOS bundle identifier `app.patria.dev` is for local development and Maestro phone tests only. A production App Store identifier will be chosen before submission. Normal `npx expo start` still loads `patria-app/.env` and the hosted test project. Only the e2e native build loads `patria-app/.env.e2e.local` (local Docker Supabase).
+
+## D29. Memory Stream uses Standard-tier cloud storage (16 October 2026)
+
+The Memory Stream follows the industry default used by Apple and Google.
+
+* On the phone, photos rely on the phone’s own encryption.
+* In the cloud and when shared in circles, photos use the **Standard** tier: private Supabase Storage, encrypted in transit and at rest, **not** with the family key. The family key stays for the vault. This matches iCloud’s default setting and Google Photos. Apple’s Shared Albums also stay outside end-to-end encryption.
+* Circle rules are enforced by the database for both the `memory_items` row and the Storage file, through one helper (`can_view_memory`) used by both.
+* A later opt-in layer, **Private Memories**, will add per-circle end-to-end encryption (comparable to iCloud Advanced Data Protection). It will be designed like the family keys and reviewed by the security reviewer before it is built.
+
+Memories slice 1 role table (server RLS). Children under 13 have no login (D6).
+
+| Action | Family admin and Co admin | Teen | Elder | Extended relative | Caregiver | Successor |
+|---|---|---|---|---|---|---|
+| View memories in circles they belong to | Yes | Yes | Yes | Yes | No | No |
+| Add photos to those circles | Yes | Yes | Yes | Yes | No | No |
+| Move or delete a photo they uploaded | Yes | Yes | Yes | Yes | No | No |
+
+Only Me is always offered. An item is visible only to members of its circle (Only Me: the uploader). Moving asks to confirm only when the new circle contains anyone who is not in the current circle. Uploads create a hidden `uploading` row first; others see the item only when it is `ready`. Delete removes Storage files through the Storage API, then the row. Signed viewing links last ten minutes. Already-issued links may work until they expire; a person who has left cannot mint a new one.

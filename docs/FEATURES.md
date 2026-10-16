@@ -415,13 +415,31 @@ flowchart TD
 
 **Acceptance criteria (definition of done)**
 
+* [x] Slice 1: a member picks one or more photos (that pick is consent), chooses a circle (Household by default), optionally captions them, and they appear in the family library for people in that circle.
+* [x] Slice 1: photos are resized and re-encoded as JPEG on the phone (location stripped; date taken kept), stored in a private bucket, and shown newest first with a circle badge, uploader name and date.
+* [x] Slice 1: the uploader can move their photo (confirm if more people will see it) or delete it (files then row). Others cannot.
+* [x] Slice 1: a person outside the circle, a caregiver, a successor, a removed member, and another family cannot read the record or mint a viewing link.
 * [ ] A member can connect a library in under 3 minutes.
 * [ ] New photos appear in the family library within 1 hour when the phone is on WiFi.
 * [ ] "Family faces only" mode uploads no photo without a recognized family member.
 
-**Data captured:** Media files (encrypted), capture time, location (optional), uploader, face tags, quality scores.
+**Left for later slices:** automatic background upload, sharing modes (All / family faces / albums), video, dedup, storage plans, Stories (MEM03), face recognition (MEM05), Private Memories.
+
+**Data captured:** Media files (Standard tier in slice 1), capture time, uploader, circle. Location is not stored. Face tags and quality scores come later.
 
 **Success measure:** Average of 2 or more contributing phones per active family.
+
+### Private Memories (planned)
+
+**Priority:** P1 | **Phase:** later | **Users:** Opt-in per circle | **Depends on:** MEM01, CIR05 keys
+
+**What it is.** An opt-in layer that encrypts chosen memories on the device with keys the family holds, comparable to iCloud Advanced Data Protection. Standard-tier library items stay as they are unless a circle turns this on.
+
+**Why it matters.** Some families will want vault-grade protection for a subset of photos. This must not be the default, and it must not reuse a hastily copied crypto path.
+
+**How it will work (not built).** Design follows family keys: device-held keys, wraps for people in that circle, rotation when someone leaves. The security reviewer reviews the design before implementation.
+
+**Acceptance criteria:** none until that review.
 
 ### MEM02 Smart Cleanup
 

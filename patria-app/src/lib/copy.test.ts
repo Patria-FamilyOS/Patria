@@ -6,6 +6,8 @@ describe('copy', () => {
     expect(copy.welcome.title.length).toBeGreaterThan(0);
     expect(copy.invitePreview.summaryTitle.length).toBeGreaterThan(0);
     expect(copy.home.todoMemories.length).toBeGreaterThan(0);
+    expect(copy.home.memories).toBe('Memories');
+    expect(copy.memories.householdDefault.length).toBeGreaterThan(0);
     expect(copy.relationships.mum).toBe('Mom');
     expect(copy.createFamily.failed.length).toBeGreaterThan(0);
     expect(copy.home.joinFamily).toBe('Join another family');

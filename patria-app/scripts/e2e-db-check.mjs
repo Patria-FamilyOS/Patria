@@ -177,8 +177,36 @@ try {
     process.exit(0);
   }
 
+  if (command === 'memory-path') {
+    const caption = flag('caption');
+    const path = query(
+      dbUrl,
+      `SELECT full_path FROM public.memory_items WHERE caption = '${caption.replace(/'/g, "''")}' ORDER BY created_at DESC LIMIT 1;`,
+    );
+    if (!path) {
+      throw new Error(`No memory with caption ${caption}`);
+    }
+    process.stdout.write(`${path}\n`);
+    process.exit(0);
+  }
+
+  if (command === 'memory-files-gone') {
+    const path = flag('path');
+    const count = Number(
+      query(
+        dbUrl,
+        `SELECT count(*) FROM storage.objects WHERE bucket_id = 'memories' AND name IN ('${path.replace(/'/g, "''")}', '${path.replace(/full\.jpg$/, 'thumb.jpg').replace(/'/g, "''")}');`,
+      ),
+    );
+    if (count !== 0) {
+      throw new Error(`expected memory files gone, found ${count}`);
+    }
+    console.log('memory-files-gone ok');
+    process.exit(0);
+  }
+
   console.error(
-    `${SCRIPT} usage: invite-url | assert-epoch | assert-wraps | assert-no-wraps | assert-no-print-columns | assert-recovery-public | assert-under-recovery`,
+    `${SCRIPT} usage: invite-url | assert-epoch | assert-wraps | assert-no-wraps | assert-no-print-columns | assert-recovery-public | assert-under-recovery | memory-path | memory-files-gone`,
   );
   process.exit(1);
 } catch (error) {

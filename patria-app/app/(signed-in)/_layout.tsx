@@ -93,6 +93,18 @@ export default function SignedInLayout() {
         name="remove-old-phones"
         options={{ ...pushedScreenHeader, title: screenTitles.removeOldPhones }}
       />
+      <Stack.Screen
+        name="memories"
+        options={{ ...pushedScreenHeader, title: screenTitles.memories }}
+      />
+      <Stack.Screen
+        name="memories-add"
+        options={{ ...pushedScreenHeader, title: screenTitles.memoriesAdd }}
+      />
+      <Stack.Screen
+        name="memory/[itemId]"
+        options={{ ...pushedScreenHeader, title: screenTitles.memoryItem }}
+      />
     </Stack>
   );
 }

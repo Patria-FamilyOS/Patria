@@ -58,7 +58,7 @@ import { ApproveMyDeviceCard, formatDeviceWhen } from '../keys/ApproveMyDeviceSc
 import { memberDisplayName } from '../../lib/displayName';
 import { describeCaughtError, logFailedAction, logKeyStep } from '../../lib/devLog';
 import { routes } from '../../lib/navigation';
-import { countAdmins, isKeyEligibleRole, isSpaceAdmin } from '../../lib/roles';
+import { countAdmins, isKeyEligibleRole, isMemoryRole, isSpaceAdmin } from '../../lib/roles';
 import { supabase } from '../../lib/supabase';
 import { testIdFromLabel } from '../../lib/testId';
 import { colors, spacing, type } from '../../theme';
@@ -551,6 +551,9 @@ export function HomeScreen() {
     >
       <Title>{copy.home.greeting.replace('{name}', displayName)}</Title>
       <Title>{current.space.name}</Title>
+      {isMemoryRole(current.role) ? (
+        <Button label={copy.home.memories} onPress={() => router.push(routes.memories)} />
+      ) : null}
       <Muted>{copy.home.todoMemories}</Muted>
       {keyStatusQuery.data ? (
         <View
