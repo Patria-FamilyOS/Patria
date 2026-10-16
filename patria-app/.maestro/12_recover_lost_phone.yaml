@@ -1,6 +1,7 @@
 # PHONE_TESTS: 12
 # AREAS: recovery, devices
 # Do not screenshot the printed-code field. Words stay in clipboard / Maestro memory only.
+# Pending automation: start, cancel, admin stop, printed code, and remove-old (PHONE_TESTS 12.1–4, 12.6–8).
 appId: app.patria.dev
 ---
 - runFlow:
@@ -14,28 +15,47 @@ appId: app.patria.dev
           visible:
             id: "screen-waiting-own-phone"
           timeout: 30000
-      - assertVisible: "Waiting for"
+      - scrollUntilVisible:
+          element:
+            id: "^i-lost-my-phone$"
+          direction: DOWN
+          timeout: 20000
       - tapOn:
-          id: "i-lost-my-phone"
+          id: "^i-lost-my-phone$"
       - tapOn:
-          id: "start-recovery"
-      - assertVisible: "Waiting until"
+          id: "^start-recovery$"
+      - extendedWaitUntil:
+          visible: "Waiting until"
+          timeout: 20000
 - runFlow:
     when:
       true: ${PHASE == 'old_phone_alert'}
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - swipe:
+          start: 50%, 25%
+          end: 50%, 80%
+      - scrollUntilVisible:
+          element:
+            id: "^this-wasnt-me$"
+          direction: DOWN
+          timeout: 20000
       - assertVisible:
-          id: "this-wasnt-me"
+          id: "^this-wasnt-me$"
 - runFlow:
     when:
       true: ${PHASE == 'cancel_not_me'}
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - scrollUntilVisible:
+          element:
+            id: "^this-wasnt-me$"
+          direction: DOWN
+          timeout: 20000
       - tapOn:
-          id: "this-wasnt-me"
+          id: "^this-wasnt-me$"
 - runFlow:
     when:
       true: ${PHASE == 'cancelled_by_you'}
@@ -45,12 +65,36 @@ appId: app.patria.dev
       - assertVisible: "Cancelled by you"
 - runFlow:
     when:
+      true: ${PHASE == 'admin_alert'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - swipe:
+          start: 50%, 25%
+          end: 50%, 80%
+      - scrollUntilVisible:
+          element:
+            id: "^stop-this-recovery$"
+          direction: DOWN
+          timeout: 20000
+      - assertVisible:
+          id: "^stop-this-recovery$"
+- runFlow:
+    when:
       true: ${PHASE == 'admin_stop'}
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - swipe:
+          start: 50%, 25%
+          end: 50%, 80%
+      - scrollUntilVisible:
+          element:
+            id: "^stop-this-recovery$"
+          direction: DOWN
+          timeout: 20000
       - tapOn:
-          id: "stop-this-recovery"
+          id: "^stop-this-recovery$"
 - runFlow:
     when:
       true: ${PHASE == 'cancelled_by_admin'}
@@ -64,21 +108,33 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - swipe:
+          start: 50%, 25%
+          end: 50%, 80%
+      - scrollUntilVisible:
+          element:
+            id: "^help-with-recovery$"
+          direction: DOWN
+          timeout: 20000
       - tapOn:
-          id: "help-with-recovery"
-          optional: true
+          id: "^help-with-recovery$"
 - runFlow:
     when:
       true: ${PHASE == 'finish_paper'}
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - scrollUntilVisible:
+          element:
+            id: "^printed-code-24-words$"
+          direction: DOWN
+          timeout: 20000
       - tapOn:
-          id: "printed-code-24-words"
+          id: "^printed-code-24-words$"
       - eraseText
       - pasteText
       - tapOn:
-          id: "finish-recovery"
+          id: "^finish-recovery$"
       - extendedWaitUntil:
           visible: "Remove your old phones"
           timeout: 30000
@@ -86,7 +142,13 @@ appId: app.patria.dev
     when:
       true: ${PHASE == 'remove_old'}
     commands:
+      - launchApp:
+          appId: app.patria.dev
+          stopApp: false
+      - extendedWaitUntil:
+          visible: "Remove your old phones"
+          timeout: 15000
       - tapOn:
-          id: "remove-listed-phones"
+          id: "^remove-listed-phones$"
       - assertNotVisible:
           id: "printed-code-words"

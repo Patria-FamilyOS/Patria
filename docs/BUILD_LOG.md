@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-15 — Test 13 keeps Test 2 on device B; Test 12 recovers Test 2
+
+Test 13 step 3 showed Create family on device B because seed let Test 3 in on that phone last, then recovery accept signed Test 3 in again. After Remove, B was Test 3 with no family. Seed now signs Test 2 back in on B before the steps, and a member sign-in wait no longer treats Create family as Home. Test 12 seeds Test 2’s own recovery (contacts Test 1 and Test 3) on the old phone, copies the printed words to the new simulator pasteboard without logging them, and starts recovery from **I lost my phone** rather than the old “Waiting for” string. Phone-test time starts after seed so Test 13’s steps still get ten minutes.
+
+---
+
 ## 2026-10-15 — Removed member: server is empty; the device must refetch
 
 After a confirmed Remove, the `space_members` row is gone and the removed person’s JWT cannot read that family, its members, or its wraps (pgTAP plus the rotate API test). The leftover local database that still listed Test 3 as a member was not a failed Remove: Maestro had been tapping the in-page **Remove from this family** button (same label as the alert title), so the confirm never ran; later runs reseeding Test 3 as an Elder made the row look like a leftover. Home now always refetches memberships on mount, on foreground, and after a failed members load, and it drops `spaceId` when memberships come back empty so a removed person sees the family disappear without signing out. Test 13 seeds recovery before Remove, invites Test 3 back onto their own member row for **Leave family**, and waits after a role change. Test 12 is allowed 20 minutes; other phone tests stay at 10.

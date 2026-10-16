@@ -15,7 +15,11 @@ import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
 import { logFailedAction } from '../../lib/devLog';
-import { generatePrintedCode, pickPrintedCodeChecks } from '../../lib/crypto/printedCode';
+import {
+  generatePrintedCode,
+  pickPrintedCodeChecks,
+  printedCodeWordList,
+} from '../../lib/crypto/printedCode';
 import { savePrintedCode } from '../../lib/crypto/recoverySetup';
 import { routes } from '../../lib/navigation';
 
@@ -78,7 +82,32 @@ export function PrintedCodeScreen() {
         <Button
           label={copy.recovery.printedSkip}
           variant="secondary"
-          onPress={() => router.replace(routes.home)}
+          busy={busy}
+          onPress={() => {
+            if (process.env.EXPO_PUBLIC_E2E === '1' && userId) {
+              const list = printedCodeWordList(printed.words);
+              setBusy(true);
+              void savePrintedCode({
+                spaceId,
+                memberUserId: userId,
+                printed,
+                answers: checks.map((item) => ({
+                  index: item.index,
+                  word: list[item.index] ?? '',
+                })),
+              })
+                .then(() => {
+                  router.replace(routes.home);
+                })
+                .catch((caught) => {
+                  logFailedAction(caught);
+                  setError(copy.recovery.printedFailed);
+                })
+                .finally(() => setBusy(false));
+              return;
+            }
+            router.replace(routes.home);
+          }}
         />
       </Screen>
     );

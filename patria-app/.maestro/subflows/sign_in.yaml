@@ -61,5 +61,5 @@ appId: app.patria.dev
     commands:
       - extendedWaitUntil:
           visible:
-            id: "^home$|^screen-waiting-own-phone$|^screen-create-family$"
+            id: "^home$|^screen-waiting-own-phone$"
           timeout: 45000

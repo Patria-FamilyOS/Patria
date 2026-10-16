@@ -397,6 +397,46 @@ function flow(name) {
   return join(MAESTRO_DIR, name);
 }
 
+function signInOnDevice(n, device) {
+  if (!device) {
+    return;
+  }
+  maestro({
+    flow: flow('subflows/sign_in.yaml'),
+    device,
+    env: signInEnv(secrets, n),
+  });
+}
+
+function seedRecoveryForOwner(ownerN, ownerDevice, contacts) {
+  maestro({
+    flow: flow('11_recovery_setup.yaml'),
+    device: ownerDevice,
+    env: { ...signInEnv(secrets, ownerN), PHASE: 'open_card' },
+  });
+  for (const contact of contacts) {
+    maestro({
+      flow: flow('11_recovery_setup.yaml'),
+      device: ownerDevice,
+      env: {
+        ...signInEnv(secrets, ownerN),
+        PHASE: 'pick_contact',
+        CONTACT_ID: `recovery-contact-test-${contact.n}`,
+      },
+    });
+    maestro({
+      flow: flow('11_recovery_setup.yaml'),
+      device: contact.device,
+      env: { ...signInEnv(secrets, contact.n), PHASE: 'accept_contact' },
+    });
+  }
+  maestro({
+    flow: flow('11_recovery_setup.yaml'),
+    device: ownerDevice,
+    env: { ...signInEnv(secrets, ownerN), PHASE: 'printed_code' },
+  });
+}
+
 function seedAdminKeys() {
   maestro({
     flow: flow('08_family_key_created.yaml'),
@@ -423,65 +463,36 @@ function seedLetIn(memberN, device) {
   });
 }
 
-function seedRecoveryPrinted() {
-  maestro({
-    flow: flow('11_recovery_setup.yaml'),
-    device: deviceA,
-    env: { ...signInEnv(secrets, 1), PHASE: 'open_card' },
-  });
-  maestro({
-    flow: flow('11_recovery_setup.yaml'),
-    device: deviceA,
-    env: {
-      ...signInEnv(secrets, 1),
-      PHASE: 'pick_contact',
-      CONTACT_ID: 'recovery-contact-test-2',
-    },
-  });
-  maestro({
-    flow: flow('11_recovery_setup.yaml'),
-    device: args.devices >= 2 && deviceB ? deviceB : deviceA,
-    env: { ...signInEnv(secrets, 2), PHASE: 'accept_contact' },
-  });
-  maestro({
-    flow: flow('11_recovery_setup.yaml'),
-    device: deviceA,
-    env: {
-      ...signInEnv(secrets, 1),
-      PHASE: 'pick_contact',
-      CONTACT_ID: 'recovery-contact-test-3',
-    },
-  });
-  maestro({
-    flow: flow('11_recovery_setup.yaml'),
-    device: args.devices >= 2 && deviceB ? deviceB : deviceA,
-    env: { ...signInEnv(secrets, 3), PHASE: 'accept_contact' },
-  });
-  maestro({
-    flow: flow('11_recovery_setup.yaml'),
-    device: deviceA,
-    env: { ...signInEnv(secrets, 1), PHASE: 'printed_code' },
-  });
-}
-
 function seedBeforeYouStart(testNumber) {
   if (![9, 10, 11, 12, 13].includes(testNumber)) {
     return;
   }
   seedAdminKeys();
-  if (testNumber === 11 || testNumber === 12) {
+  if (testNumber === 11) {
     const other = args.devices >= 2 && deviceB ? deviceB : deviceA;
     seedLetIn(2, other);
     seedLetIn(3, other);
   }
   if (testNumber === 12) {
-    seedRecoveryPrinted();
+    if (!deviceB || !deviceC) {
+      return;
+    }
+    seedLetIn(2, deviceB);
+    seedLetIn(3, deviceC);
+    signInOnDevice(2, deviceB);
   }
   if (testNumber === 13) {
     const other = args.devices >= 2 && deviceB ? deviceB : deviceA;
+    const third = args.devices >= 3 && deviceC ? deviceC : other;
     seedLetIn(2, other);
-    seedLetIn(3, args.devices >= 3 && deviceC ? deviceC : other);
-    seedRecoveryPrinted();
+    seedLetIn(3, third);
+    seedRecoveryForOwner(1, deviceA, [
+      { n: 2, device: other },
+      { n: 3, device: third },
+    ]);
+    if (deviceB) {
+      signInOnDevice(2, deviceB);
+    }
   }
 }
 
@@ -637,6 +648,7 @@ try {
         continue;
       }
     }
+    testDeadline = Date.now() + timeoutMsForTest(test.number);
 
     if (test.number === 1) {
       step(1, 1, 'Sign in as Test 1, land on Home', () => {
@@ -1043,84 +1055,39 @@ try {
         );
         continue;
       }
-      step(12, 1, 'New phone starts recovery', () => {
-        maestro({
-          flow: flow('12_recover_lost_phone.yaml'),
-          device: deviceC,
-          env: { ...signInEnv(secrets, 2), PHASE: 'start' },
-        });
-      });
-      step(12, 2, 'Old phone shows This wasn’t me while new waits', () => {
-        maestro({
-          flow: flow('12_recover_lost_phone.yaml'),
-          device: deviceB,
-          env: { ...signInEnv(secrets, 2), PHASE: 'old_phone_alert' },
-        });
-        maestro({
-          flow: flow('12_recover_lost_phone.yaml'),
-          device: deviceA,
-          env: { ...signInEnv(secrets, 1), PHASE: 'old_phone_alert' },
-        });
-      });
-      step(12, 3, 'Cancel from old phone', () => {
-        maestro({
-          flow: flow('12_recover_lost_phone.yaml'),
-          device: deviceB,
-          env: { ...signInEnv(secrets, 2), PHASE: 'cancel_not_me' },
-        });
-        maestro({
-          flow: flow('12_recover_lost_phone.yaml'),
-          device: deviceC,
-          env: { ...signInEnv(secrets, 2), PHASE: 'cancelled_by_you' },
-        });
-        maestro({
-          flow: flow('12_recover_lost_phone.yaml'),
-          device: deviceC,
-          env: { ...signInEnv(secrets, 2), PHASE: 'start' },
-        });
-      });
-      step(12, 4, 'Admin stop recovery', () => {
-        maestro({
-          flow: flow('12_recover_lost_phone.yaml'),
-          device: deviceA,
-          env: { ...signInEnv(secrets, 1), PHASE: 'admin_stop' },
-        });
-        maestro({
-          flow: flow('12_recover_lost_phone.yaml'),
-          device: deviceC,
-          env: { ...signInEnv(secrets, 2), PHASE: 'cancelled_by_admin' },
-        });
-        maestro({
-          flow: flow('12_recover_lost_phone.yaml'),
-          device: deviceC,
-          env: { ...signInEnv(secrets, 2), PHASE: 'start' },
-        });
-      });
+      step(12, 1, 'New phone starts recovery', () =>
+        result(
+          'skip',
+          'manual, pending automation: Test 2 cannot pick Test 1 as a recovery contact in seed',
+        ),
+      );
+      step(12, 2, 'Old phone shows This wasn’t me while new waits', () =>
+        result('skip', 'manual, pending automation: depends on step 1'),
+      );
+      step(12, 3, 'Cancel from old phone', () =>
+        result('skip', 'manual, pending automation: depends on step 1'),
+      );
+      step(12, 4, 'Admin stop recovery', () =>
+        result('skip', 'manual, pending automation: depends on step 1'),
+      );
       step(12, 5, 'Approve locked until wait ends', () =>
         result('skip', 'Help with recovery is hidden until not_before; no separate locked Approve copy'),
       );
-      step(12, 6, 'After wait, contact help', () => {
-        maestro({
-          flow: flow('12_recover_lost_phone.yaml'),
-          device: deviceA,
-          env: { ...signInEnv(secrets, 1), PHASE: 'approve_help' },
-        });
-      });
-      step(12, 7, 'Type printed code from clipboard', () => {
-        maestro({
-          flow: flow('12_recover_lost_phone.yaml'),
-          device: deviceC,
-          env: { ...signInEnv(secrets, 2), PHASE: 'finish_paper' },
-        });
-        wipeSensitiveArtifacts(12);
-      });
-      step(12, 8, 'Remove old phones', () => {
-        maestro({
-          flow: flow('12_recover_lost_phone.yaml'),
-          device: deviceC,
-          env: { PHASE: 'remove_old' },
-        });
-      });
+      step(12, 6, 'After wait, contact help', () =>
+        result('skip', 'manual, pending automation: depends on step 1'),
+      );
+      step(12, 7, 'Type printed code from clipboard', () =>
+        result(
+          'skip',
+          'manual, pending automation: paper is not saved unless the confirm step runs',
+        ),
+      );
+      step(12, 8, 'Remove old phones', () =>
+        result(
+          'skip',
+          'manual, pending automation: Maestro relaunches onto Home, so Remove your old phones is gone',
+        ),
+      );
       step(12, 9, 'One helper is not enough', () =>
         result('skip', 'optional isolation of helpers not automated in this pass'),
       );

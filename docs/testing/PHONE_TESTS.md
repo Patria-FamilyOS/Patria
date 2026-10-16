@@ -113,14 +113,14 @@ Device A: Test 1 (Family admin). Device B: Test 2, Elder or Co admin, already le
 ### 12. Recover after losing every phone (Step 7)
 Areas: recovery, devices
 Before: test 11 passed for Test 2 (contacts Test 1 and Test 3, printed code known). Recovery wait shortened for testing only. Devices: device 1 = Test 1 (contact A, admin); device 2 = Test 2's old phone; new device = Test 2's new device.
-1. On the new device sign in as Test 2. Pass if "Waiting for approval" shows with **I lost my phone**. Tap it and confirm.
-2. Pass if the new device shows a countdown and says contacts were asked to call first, and devices 1 and 2 both show a recovery alert, with **This wasn't me** on device 2.
-3. Cancel check: on device 2 tap **This wasn't me**. Pass if the new device shows the request was cancelled. Start a new request.
-4. Admin stop check: on device 1 tap **Stop this recovery**. Pass if the new device shows it was cancelled by a family admin. Starting a new request also cancels any older open one. Start a fresh request.
+1. On the new device sign in as Test 2. Pass if "Waiting for approval" shows with **I lost my phone**. Tap it and confirm. (manual, pending automation: Test 2 cannot pick Test 1 as a recovery contact in seed, so the new phone never starts Test 2’s recovery)
+2. Pass if the new device shows a countdown and says contacts were asked to call first, and devices 1 and 2 both show a recovery alert, with **This wasn't me** on device 2. (manual, pending automation: depends on step 1)
+3. Cancel check: on device 2 tap **This wasn't me**. Pass if the new device shows the request was cancelled. Start a new request. (manual, pending automation: depends on step 1)
+4. Admin stop check: on device 1 tap **Stop this recovery**. Pass if the new device shows it was cancelled by a family admin. Starting a new request also cancels any older open one. Start a fresh request. (manual, pending automation: depends on step 1)
 5. Too early check: on device 1 open the request right away. Pass if Approve is locked and shows when it unlocks.
-6. After the wait, on device 1 tap **Approve** after the reminder to confirm by phone.
-7. On the new device tap **Use my printed code** and type the 24 words. Pass if a wrong word gives a friendly error, not a crash.
-8. Pass if the new device says the family key is restored, then shows **Remove your old phones** with device 2 ticked. Tap to confirm. Pass if device 2 becomes removed and device 1 gets a notice. Old phones must never be removed before the tap.
+6. After the wait, on device 1 tap **Approve** after the reminder to confirm by phone. (manual, pending automation: depends on step 1)
+7. On the new device tap **Use my printed code** and type the 24 words. Pass if a wrong word gives a friendly error, not a crash. (manual, pending automation: clipboard is on the old phone; paper is not saved unless the confirm step runs)
+8. Pass if the new device says the family key is restored, then shows **Remove your old phones** with device 2 ticked. Tap to confirm. Pass if device 2 becomes removed and device 1 gets a notice. Old phones must never be removed before the tap. (manual, pending automation: Maestro relaunches onto Home, so Remove your old phones is gone)
 9. One helper is not enough: fresh request, only device 1 approves, no code typed. Pass if the new device keeps waiting.
 10. Optional: recover with contact A and contact B, no code. (manual)
 Pass when steps 2 to 8 behave as written, no screen shows the code words after typing, and no database column holds the printed code.

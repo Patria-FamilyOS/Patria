@@ -113,6 +113,7 @@ export function RemoveOldPhonesScreen() {
       {oldPhones.length > 0 ? (
         <Button
           label={copy.recovery.removeOldAction}
+          testID="remove-listed-phones"
           busy={busy}
           onPress={() => void onRemoveListed()}
         />

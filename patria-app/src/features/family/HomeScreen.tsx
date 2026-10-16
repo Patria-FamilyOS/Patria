@@ -635,6 +635,7 @@ export function HomeScreen() {
       {keyStatusQuery.data && keyStatusQuery.data !== 'ready' ? (
         <Button
           label={copy.home.lostPhone}
+          testID="i-lost-my-phone"
           variant="secondary"
           onPress={() => router.push(routes.recoverLostPhone)}
         />
