@@ -419,6 +419,9 @@ flowchart TD
 * [x] Slice 1: photos are resized and re-encoded as JPEG on the phone (location stripped; date taken kept), stored in a private bucket, and shown newest first with a circle badge, uploader name and date.
 * [x] Slice 1: the uploader can move their photo (confirm if more people will see it) or delete it (files then row). Others cannot.
 * [x] Slice 1: a person outside the circle, a caregiver, a successor, a removed member, and another family cannot read the record or mint a viewing link.
+
+Slice 1 is done (real iPhone tests 14–16 after D30 on hosted). Test 17 step 2 (removed member’s screen after refresh) is still pending by hand.
+
 * [ ] A member can connect a library in under 3 minutes.
 * [ ] New photos appear in the family library within 1 hour when the phone is on WiFi.
 * [ ] "Family faces only" mode uploads no photo without a recognized family member.

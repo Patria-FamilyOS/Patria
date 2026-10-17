@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-17 — MEM01 slice 1 done on a real iPhone
+
+Tests 14, 15 and 16 passed on a real iPhone (Expo Go, hosted test project) after D30 was pushed. Slice 1 of Shared Family Library is done: pick and share photos into a circle, see them in the library, move or delete your own. Test 17 step 2 (removed member’s phone after refresh) is still pending by hand. Later MEM01 work stays later: auto-upload, sharing modes, video, Private Memories.
+
+---
+
 ## 2026-10-16 — D30 default circle membership
 
 A Family admin on a real phone only saw Household and Only Me in the Memories picker. `create_family_space` made all four circles but only put the creator in Household and Only Me. `accept_invite` only used the invite’s default circle. The e2e seed then POSTed Test 1 into Extended Family, so automated tests never saw the gap. D30 now applies membership in the database (family create, invite accept, role change, child insert) and backfills existing families. Close Friends stays empty, so it still does not appear in the picker until an admin adds someone. e2e setup no longer writes `circle_members` itself. Hosted backfill waits until we are asked to push.
