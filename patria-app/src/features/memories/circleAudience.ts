@@ -22,7 +22,7 @@ export function circleExplanation(kind: string): string {
     return 'Household is the people who live together. Only they will see this unless you pick another circle.';
   }
   if (kind === 'extended_family') {
-    return 'Extended Family is relatives beyond the household.';
+    return 'Extended Family is the wider family, including the household.';
   }
   if (kind === 'close_friends') {
     return 'Close Friends is the people you have named as friends of the family.';

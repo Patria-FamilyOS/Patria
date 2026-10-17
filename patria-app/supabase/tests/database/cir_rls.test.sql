@@ -164,12 +164,19 @@ CROSS JOIN (VALUES
   ('22222222-2222-2222-2222-222222222222'::uuid),
   ('33333333-3333-3333-3333-333333333333'::uuid),
   ('44444444-4444-4444-4444-444444444444'::uuid)
-) AS x(u);
+) AS x(u)
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.circle_members cm WHERE cm.circle_id = c.id AND cm.user_id = u
+);
 
 INSERT INTO public.circle_members (circle_id, child_profile_id)
 SELECT c.id, 'cccccccc-cccc-cccc-cccc-cccccccccccc'
 FROM fx
-JOIN public.circles AS c ON c.family_space_id = fx.rivera AND c.kind = 'household';
+JOIN public.circles AS c ON c.family_space_id = fx.rivera AND c.kind = 'household'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.circle_members cm
+  WHERE cm.circle_id = c.id AND cm.child_profile_id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'
+);
 
 INSERT INTO public.circle_members (circle_id, user_id)
 SELECT c.id, u
@@ -345,7 +352,7 @@ RESET ROLE;
 SELECT tests_jwt('55555555-5555-5555-5555-555555555555');
 SET LOCAL ROLE authenticated;
 SELECT ok((SELECT count(*) > 0 FROM public.space_members WHERE user_id = '11111111-1111-1111-1111-111111111111'), 'extended relative sees members in a shared circle');
-SELECT is((SELECT count(*)::int FROM public.space_members WHERE user_id = '66666666-6666-6666-6666-666666666666'), 0, 'extended relative does not see members only in another custom circle');
+SELECT is((SELECT count(*)::int FROM public.space_members WHERE user_id = '66666666-6666-6666-6666-666666666666'), 1, 'extended relative sees other members of Extended Family');
 SELECT is((SELECT count(*)::int FROM public.child_profiles WHERE id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'), 0, 'extended relative does not see a child only in Household');
 RESET ROLE;
 

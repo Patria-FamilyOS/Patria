@@ -279,7 +279,7 @@ export const copy = {
     householdDefault:
       'Household is the people who live together. Only they will see this unless you pick another circle.',
     explainHousehold: 'Household is the people who live together. Only they will see this.',
-    explainExtended: 'Extended Family is relatives beyond the household.',
+    explainExtended: 'Extended Family is the wider family, including the household.',
     explainFriends: 'Close Friends is the people you have named as friends of the family.',
     explainOnlyMe: 'Only you will see this. Nobody else in the family can open it.',
     explainCustom: 'Only people in this circle will see this.',

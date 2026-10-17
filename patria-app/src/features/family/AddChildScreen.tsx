@@ -9,7 +9,6 @@ import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
 import { logFailedAction } from '../../lib/devLog';
-import { householdCircleId } from '../../lib/family';
 import { supabase } from '../../lib/supabase';
 
 const schema = z.object({
@@ -52,13 +51,6 @@ export function AddChildScreen() {
       logFailedAction(error);
       setFormError(copy.child.failed);
       return;
-    }
-    const household = await householdCircleId(spaceId);
-    if (household) {
-      await supabase.from('circle_members').insert({
-        circle_id: household,
-        child_profile_id: data.id,
-      });
     }
     router.replace('/(signed-in)/home');
   });

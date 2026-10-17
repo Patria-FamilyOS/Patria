@@ -46,6 +46,8 @@ describe('Add photos', () => {
     const { findByTestId } = renderScreen(<AddPhotosScreen />);
     expect(pickPhotos).toHaveBeenCalled();
     expect(await findByTestId('circle-household-selected')).toBeTruthy();
+    expect(await findByTestId('circle-extended_family')).toBeTruthy();
+    expect(await findByTestId('circle-only_me')).toBeTruthy();
     expect(await findByTestId('circle-explanation')).toBeTruthy();
     await waitFor(() => {
       expect(fetchUploaderCircles).toHaveBeenCalled();

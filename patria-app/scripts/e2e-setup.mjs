@@ -253,11 +253,6 @@ async function inviteAndAccept(memberN, role, circleId = householdId) {
   await asUser(member.accessToken, 'POST', '/rest/v1/rpc/accept_invite', { p_token: token });
 }
 
-await asUser(adminSession.accessToken, 'POST', '/rest/v1/circle_members', {
-  circle_id: extendedId,
-  user_id: adminSession.userId,
-});
-
 if (scenario === 'admin-elder' || scenario === 'admin-elders' || scenario === 'admin-elder-extended') {
   await inviteAndAccept(2, 'elder', householdId);
 }

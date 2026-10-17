@@ -77,7 +77,9 @@ appId: app.patria.dev
       - extendedWaitUntil:
           visible: "Photo A"
           timeout: 20000
-      - assertNotVisible: "Photo B"
+      - extendedWaitUntil:
+          visible: "Photo B"
+          timeout: 20000
 - runFlow:
     when:
       true: ${PHASE == 'test3'}

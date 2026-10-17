@@ -143,12 +143,12 @@ Pass when steps 1 to 9 behave as written and no screen or log shows a key.
 
 ## Memories (MEM)
 
-Before you start (all memories tests): Test 1 is Family admin. Test 2 is an Elder in the Household circle. Test 3 is an Extended relative in the Extended Family circle only. Have two or three photos on the phone or Simulator (the automated run adds sample photos to each Simulator).
+Before you start (all memories tests): Test 1 is Family admin (Household and Extended Family by default). Test 2 is an Elder in Household and Extended Family (D30). Test 3 is an Extended relative in the Extended Family circle only. Close Friends stays empty until an admin adds people, so it does not appear in the picker. Have two or three photos on the phone or Simulator (the automated run adds sample photos to each Simulator).
 
 ### 14. Add photos to the family library (MEM01)
 Areas: memories
 1. As Test 1, open Memories and tap Add photos. Pick two photos. **(manual)** Maestro cannot drive the system photo picker; automated runs use bundled samples only when `EXPO_PUBLIC_E2E=1`.
-2. Pass if the circle picker shows Household selected by default, with the circle explained in plain words.
+2. Pass if the circle picker shows Household selected by default, with the circle explained in plain words, and also offers Extended Family and Only Me. Close Friends is absent until someone is added to it.
 3. Add an optional caption and tap Share. Pass if a progress indicator shows and both photos appear at the top of the library, newest first, each with a Household badge, the uploader's name and the date the photo was taken.
 4. Tap a photo. Pass if it opens full screen with its caption, circle badge and date, and no location.
 5. Pull to refresh on another device signed in as Test 2. Pass if both photos appear.
@@ -157,7 +157,7 @@ Pass when: steps 1 to 5 behave as written.
 ### 15. Only the right circle sees a photo (MEM01, CIR01)
 Areas: memories
 1. As Test 1, add photo A to Household and photo B to Extended Family.
-2. As Test 2 (Household). Pass if Test 2 sees what the Household circle allows (photo A, and photo B only if Test 2 is also in Extended Family).
+2. As Test 2 (Household and Extended Family). Pass if Test 2 sees photo A and photo B.
 3. As Test 3 (Extended Family only). Pass if Test 3 sees photo B and not photo A, and the library never hints that photo A exists. **(manual, pending automation: Test 3 on the third Simulator leaves Welcome but Maestro does not see Sign in)**
 4. Add photo C to Only Me as Test 1. Pass if nobody else ever sees it. **(manual, pending automation: checking Test 3 for Photo C hits the same third-Simulator sign-in)**
 5. Database and server check (automated): signed in as Test 3, asking the server directly for photo A's record or file returns nothing and no viewing link can be made.

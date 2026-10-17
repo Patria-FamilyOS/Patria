@@ -191,3 +191,16 @@ Memories slice 1 role table (server RLS). Children under 13 have no login (D6).
 | Move or delete a photo they uploaded | Yes | Yes | Yes | Yes | No | No |
 
 Only Me is always offered. An item is visible only to members of its circle (Only Me: the uploader). Moving asks to confirm only when the new circle contains anyone who is not in the current circle. Uploads create a hidden `uploading` row first; others see the item only when it is `ready`. Delete removes Storage files through the Storage API, then the row. Signed viewing links last ten minutes. Already-issued links may work until they expire; a person who has left cannot mint a new one.
+
+## D30. Default circle membership (16 October 2026)
+
+Every family space still gets four default circles. Membership of those circles is set by the server when a family is created, when someone accepts an invite, and when a role changes. Admins can add or remove people afterwards.
+
+* **Household:** Family admin, Co admin, Teen and Elder. (Admins can change this later.)
+* **Extended Family:** every family member who belongs in Household, plus Extended relatives. It is the wider family, a superset of Household.
+* **Close Friends:** empty until an admin adds people.
+* **Only Me:** that person only.
+* **Caregiver** and **Successor** are not added to Household or Extended Family.
+* Children under 13 (no login) follow Household only.
+
+A migration backfills existing families. The Memories picker only lists circles the uploader belongs to, so Close Friends stays hidden until someone is in it. The invite’s default circle is still applied on accept if it is a shared circle the person is not already in.

@@ -114,7 +114,10 @@ CROSS JOIN (VALUES
   ('22222222-2222-2222-2222-222222222222'::uuid),
   ('33333333-3333-3333-3333-333333333333'::uuid),
   ('44444444-4444-4444-4444-444444444444'::uuid)
-) AS x(u);
+) AS x(u)
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.circle_members cm WHERE cm.circle_id = household AND cm.user_id = u
+);
 
 INSERT INTO public.circle_members (circle_id, user_id)
 SELECT extended, u FROM fx
@@ -324,7 +327,7 @@ RESET ROLE;
 SELECT tests_jwt('22222222-2222-2222-2222-222222222222');
 SET LOCAL ROLE authenticated;
 SELECT is((SELECT count(*)::int FROM public.memory_items WHERE caption = 'HH'), 1, 'co admin reads household');
-SELECT is((SELECT count(*)::int FROM public.memory_items WHERE caption = 'EXT'), 0, 'co admin not in extended cannot read it');
+SELECT is((SELECT count(*)::int FROM public.memory_items WHERE caption = 'EXT'), 1, 'co admin in Extended Family reads it');
 SELECT is((SELECT count(*)::int FROM public.memory_items WHERE caption = 'ME'), 0, 'co admin cannot read Only Me');
 SELECT is((SELECT count(*)::int FROM public.memory_items WHERE caption = 'UP'), 0, 'co admin cannot see uploading');
 RESET ROLE;
@@ -332,7 +335,7 @@ RESET ROLE;
 SELECT tests_jwt('33333333-3333-3333-3333-333333333333');
 SET LOCAL ROLE authenticated;
 SELECT is((SELECT count(*)::int FROM public.memory_items WHERE caption = 'HH'), 1, 'teen reads household');
-SELECT is((SELECT count(*)::int FROM public.memory_items WHERE caption = 'EXT'), 0, 'teen not in extended cannot read it');
+SELECT is((SELECT count(*)::int FROM public.memory_items WHERE caption = 'EXT'), 1, 'teen in Extended Family reads it');
 RESET ROLE;
 
 SELECT tests_jwt('44444444-4444-4444-4444-444444444444');
@@ -395,8 +398,8 @@ SELECT is(
   (SELECT count(*)::int FROM storage.objects
     WHERE bucket_id = 'memories'
       AND name LIKE '%/a2222222-2222-2222-2222-222222222222/%'),
-  0,
-  'co admin cannot read extended files'
+  2,
+  'co admin can read extended files'
 );
 RESET ROLE;
 
@@ -440,7 +443,7 @@ SELECT lives_ok(
        ) RETURNING id$sql$,
   'uploader INSERT RETURNING is allowed for their uploading row'
 );
-SELECT throws_ok(
+SELECT lives_ok(
   $sql$INSERT INTO public.memory_items (
          family_space_id, circle_id, uploader_id, caption, taken_at, width, height, status
        ) VALUES (
@@ -449,9 +452,7 @@ SELECT throws_ok(
          '33333333-3333-3333-3333-333333333333',
          'TEEN-EXT', now(), 10, 10, 'uploading'
        )$sql$,
-  '42501',
-  NULL,
-  'teen cannot insert into extended they are not in'
+  'teen can insert into Extended Family'
 );
 RESET ROLE;
 
@@ -541,8 +542,8 @@ SELECT tests_jwt('22222222-2222-2222-2222-222222222222');
 SET LOCAL ROLE authenticated;
 SELECT is(
   (SELECT count(*)::int FROM public.memory_items WHERE caption = 'EXT'),
-  0,
-  'co admin cannot see extended photo to move it'
+  1,
+  'co admin can see an Extended Family photo they did not upload'
 );
 DELETE FROM public.memory_items WHERE caption = 'HH';
 SELECT is(

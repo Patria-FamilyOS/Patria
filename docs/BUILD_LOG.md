@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-16 — D30 default circle membership
+
+A Family admin on a real phone only saw Household and Only Me in the Memories picker. `create_family_space` made all four circles but only put the creator in Household and Only Me. `accept_invite` only used the invite’s default circle. The e2e seed then POSTed Test 1 into Extended Family, so automated tests never saw the gap. D30 now applies membership in the database (family create, invite accept, role change, child insert) and backfills existing families. Close Friends stays empty, so it still does not appear in the picker until an admin adds someone. e2e setup no longer writes `circle_members` itself. Hosted backfill waits until we are asked to push.
+
+---
+
 ## 2026-10-16 — MEM01 slice 1: Shared Family Library (Standard tier)
 
 Photos are picked on purpose (expo-image-picker; that pick is consent), resized and re-encoded as JPEG on the phone so EXIF/GPS is gone, date taken kept, then uploaded to a private `memories` bucket. Cloud storage is Standard tier (D29): TLS and at-rest encryption, not the family key. One helper, `can_view_memory`, gates both the row and the file. Rows start as `uploading` (uploader only) and become visible as `ready`. Table SELECT uses the new row’s columns so `INSERT … RETURNING` can succeed (a nested `SELECT` of that row cannot see it yet). Files are deleted through Storage first, then the row. Confirm a move only when the new circle includes someone who is not in the current one. Caregivers and successors have no Memories access. Phone tests 14–17; Maestro Add photos uses bundled samples only when `EXPO_PUBLIC_E2E=1` (Metro stubs that module otherwise, and startup fails if samples can load). The real system picker is a manual step. Private Memories, auto-upload, video and Stories stay later. Hosted migrations are not applied until asked.

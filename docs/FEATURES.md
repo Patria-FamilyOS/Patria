@@ -175,7 +175,7 @@ flowchart TD
 
 **Business rules**
 
-* Default circles: Household (people living together), Extended Family, Close Friends, Only Me.
+* Default circles: Household (people living together), Extended Family, Close Friends, Only Me. Default membership is D30 in DECISIONS.md: Household is Family admin, Co admin, Teen and Elder; Extended Family is those people plus Extended relatives; Close Friends starts empty; Only Me is the person.
 * Items inherit the strictest circle of any content they contain (a Story with a private photo stays private).
 * Children’s content defaults to Household only until an admin changes it.
 * Removing a person from a circle removes their access immediately, including cached copies on their devices at the next sync.
